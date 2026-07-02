@@ -1,0 +1,30 @@
+"use client";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Archive, Copy, Download, Pause, Play, Trash2 } from "lucide-react";
+import { platforms } from "@/features/ads/mock-data";
+import { defaultCampaignFilters, exportCampaignsCsv, filterCampaigns, sortCampaigns, type CampaignAction, type CampaignFilterState } from "@/features/ads/campaign-utils";
+import { useCampaigns } from "@/features/ads/CampaignProvider";
+import { CampaignCard } from "./CampaignCard";
+import { CampaignFilters } from "./CampaignFilters";
+import { CampaignRow } from "./CampaignRow";
+import { CampaignStats } from "./CampaignStats";
+import { CampaignToolbar } from "./CampaignToolbar";
+
+const VIEW_KEY = "calixo-campaign-view";
+const platformNames = Object.fromEntries(platforms.map((platform) => [platform.id, platform.name]));
+export function CampaignList() {
+  const router = useRouter(); const { campaigns, actOnCampaigns, showToast } = useCampaigns(); const [query, setQuery] = useState(""); const [view, setView] = useState<"table" | "card">("table"); const [mounted, setMounted] = useState(false); const [filters, setFilters] = useState<CampaignFilterState>(defaultCampaignFilters); const [selected, setSelected] = useState<string[]>([]);
+  useEffect(() => { let active = true; queueMicrotask(() => { if (!active) return; const stored = localStorage.getItem(VIEW_KEY); if (stored === "card") setView("card"); setMounted(true); }); return () => { active = false; }; }, []);
+  useEffect(() => { if (mounted) localStorage.setItem(VIEW_KEY, view); }, [view, mounted]);
+  const objectives = useMemo(() => [...new Set(campaigns.map(x => x.objective))].sort(), [campaigns]); const owners = useMemo(() => [...new Set(campaigns.map(x => x.owner))].sort(), [campaigns]);
+  const filtered = useMemo(() => sortCampaigns(filterCampaigns(campaigns, query, filters, platformNames), filters.sort, filters.direction), [campaigns, query, filters]);
+  const runAction = (action: string, ids = selected) => { if (action === "View") { router.push(`/dashboard/ads/campaigns/${ids[0]}`); return; } if (action === "Edit") { router.push(`/dashboard/ads/campaigns/${ids[0]}?edit=true`); return; } if (action === "Export") { exportCampaignsCsv(campaigns.filter(c => ids.includes(c.id))); showToast(`Exported ${ids.length} campaign${ids.length === 1 ? "" : "s"}.`); return; } if (action === "Delete" && !window.confirm(`Delete ${ids.length} selected campaign${ids.length === 1 ? "" : "s"}? This cannot be undone.`)) return; actOnCampaigns(ids, action as CampaignAction); showToast(`${action} applied to ${ids.length} campaign${ids.length === 1 ? "" : "s"}.`); setSelected([]); };
+  const exportVisible = () => { exportCampaignsCsv(filtered); showToast(`Exported ${filtered.length} visible campaigns.`); };
+  const visibleView = mounted ? view : "table";
+  return <div className="space-y-4"><CampaignToolbar query={query} onQueryChange={setQuery} view={visibleView} onViewChange={setView} onExport={exportVisible} /><CampaignStats campaigns={campaigns} /><CampaignFilters filters={filters} onChange={setFilters} objectives={objectives} owners={owners} />
+    {selected.length > 0 && <div className="sticky top-[76px] z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-cyan-500/30 bg-slate-900 p-3 shadow-2xl"><span className="mr-2 text-sm font-medium text-white">{selected.length} selected</span>{[["Pause", Pause], ["Resume", Play], ["Duplicate", Copy], ["Archive", Archive], ["Delete", Trash2], ["Export", Download]].map(([label, Icon]) => <button key={label as string} onClick={() => runAction(label as string)} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 hover:bg-slate-800 hover:text-white"><Icon size={14} />{label as string}</button>)}</div>}
+    {visibleView === "table" ? <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/70"><div className="overflow-x-auto"><table className="w-full min-w-[1080px] text-left text-sm"><thead className="bg-slate-950/60 text-[11px] uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3"><input type="checkbox" aria-label="Select all visible campaigns" checked={filtered.length > 0 && filtered.every(c => selected.includes(c.id))} onChange={() => setSelected(current => filtered.every(c => current.includes(c.id)) ? current.filter(id => !filtered.some(c => c.id === id)) : [...new Set([...current, ...filtered.map(c => c.id)])])} className="size-4 accent-cyan-400" /></th>{["Campaign", "Objective", "Status", "Spend", "Conversions", "CTR", "ROAS", ""].map(x => <th key={x} className="px-4 py-3 font-medium">{x}</th>)}</tr></thead><tbody className="divide-y divide-slate-800/70">{filtered.map(c => <CampaignRow key={c.id} campaign={c} platform={platforms.find(p => p.id === c.platformId)!} selected={selected.includes(c.id)} onSelect={() => setSelected(x => x.includes(c.id) ? x.filter(id => id !== c.id) : [...x, c.id])} onAction={action => runAction(action, [c.id])} />)}</tbody></table></div></div> : <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{filtered.map(c => <CampaignCard key={c.id} campaign={c} platform={platforms.find(p => p.id === c.platformId)!} selected={selected.includes(c.id)} onSelect={() => setSelected(x => x.includes(c.id) ? x.filter(id => id !== c.id) : [...x, c.id])} onAction={action => runAction(action, [c.id])} />)}</div>}
+    {filtered.length === 0 && <div className="rounded-3xl border border-dashed border-slate-800 py-16 text-center text-sm text-slate-500">No campaigns match the current search and filters.</div>}<p className="text-center text-xs text-slate-500">Showing {filtered.length} of {campaigns.length} campaigns</p>
+  </div>;
+}
