@@ -1,0 +1,4 @@
+"use client";
+import { Hash, RefreshCw } from "lucide-react";
+const tags=["#SocialMedia","#MarketingAI","#ContentStrategy","#Calixo","#DigitalMarketing","#GrowthMarketing"];
+export function HashtagSuggestions({onAdd}:{onAdd:(tag:string)=>void}){return <section><div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold text-white">Hashtag suggestions</h2><button onClick={()=>onAdd(tags[Math.floor(Math.random()*tags.length)])} className="text-slate-500 hover:text-cyan-300" aria-label="Refresh hashtag suggestion"><RefreshCw size={14}/></button></div><div className="flex flex-wrap gap-2">{tags.map(tag=><button key={tag} onClick={()=>onAdd(tag)} className="flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-950/40 px-2.5 py-2 text-xs text-slate-400 hover:border-cyan-500/30 hover:text-cyan-300"><Hash size={12}/>{tag.slice(1)}</button>)}</div></section>}

@@ -1,0 +1,10 @@
+import type{CalendarPostEvent,CalendarEventInput}from"./types";
+export const localDateKey=(date:Date)=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+export const addDays=(date:Date,days:number)=>{const next=new Date(date);next.setDate(next.getDate()+days);return next};
+export const startOfWeek=(date:Date)=>{const next=new Date(date);const day=next.getDay();next.setDate(next.getDate()-(day===0?6:day-1));next.setHours(0,0,0,0);return next};
+export const startOfMonthGrid=(date:Date)=>startOfWeek(new Date(date.getFullYear(),date.getMonth(),1));
+export const combineDateTime=(date:string,time:string)=>new Date(`${date}T${time}:00`).toISOString();
+export const eventDateKey=(event:CalendarPostEvent)=>localDateKey(new Date(event.start));
+export const formatTime=(iso:string)=>new Intl.DateTimeFormat("en-US",{hour:"numeric",minute:"2-digit"}).format(new Date(iso));
+export function validateCalendarEvent(input:CalendarEventInput,events:CalendarPostEvent[],excludeId?:string){const errors:string[]=[];const startsAt=new Date(input.start);if(["Scheduled","Publishing"].includes(input.status)&&startsAt.getTime()<Date.now())errors.push("Scheduling in the past is not allowed.");const conflict=events.find(event=>event.id!==excludeId&&event.platform===input.platform&&event.start===input.start&&!['Cancelled','Draft'].includes(event.status));if(conflict)errors.push(`Publishing conflict with “${conflict.title}” at this time.`);return errors}
+export function matchesCalendarEvent(event:CalendarPostEvent,query:string,filters:{platform:string;status:string;campaign:string;tag:string;author:string;date:string}){const search=`${event.title} ${event.campaign} ${event.platform} ${event.tags.join(" ")}`.toLowerCase();return search.includes(query.trim().toLowerCase())&&(!filters.platform||event.platform===filters.platform)&&(!filters.status||event.status===filters.status)&&(!filters.campaign||event.campaign===filters.campaign)&&(!filters.tag||event.tags.includes(filters.tag))&&(!filters.author||event.author===filters.author)&&(!filters.date||eventDateKey(event)===filters.date)}

@@ -1,0 +1,9 @@
+export type CompetitorPlatform="Facebook"|"Instagram"|"LinkedIn"|"X"|"TikTok"|"YouTube"|"Pinterest"|"Threads";
+export interface CompetitorMetrics{followers:number;growth:number;engagement:number;reach:number;posts:number;videos:number;reels:number;stories:number;likes:number;comments:number;shares:number;views:number;postingFrequency:number;responseTime:number;}
+export interface CompetitorContent{id:string;caption:string;platform:CompetitorPlatform;engagement:number;reach:number;views:number;type:"Image"|"Video"|"Carousel"|"Text"|"Story";thumbnail:string;}
+export interface CompetitorHashtag{tag:string;frequency:number;reach:number;trend:number;}
+export interface CompetitorAudience{countries:string[];cities:string[];age:string;gender:string;language:string;devices:string;}
+export interface CompetitorTimelineItem{id:string;label:string;date:string;type:"growth"|"content"|"campaign";}
+export interface Competitor{id:string;name:string;handle:string;platform:CompetitorPlatform;industry:string;country:string;color:string;favorite:boolean;metrics:CompetitorMetrics;topContent:CompetitorContent[];hashtags:CompetitorHashtag[];audience:CompetitorAudience;timeline:CompetitorTimelineItem[];}
+export interface CompetitorInput{name:string;handle:string;platform:CompetitorPlatform;industry:string;country:string;followers:number;engagement:number;}
+export interface CompetitorFiltersState{platform:string;industry:string;followers:string;engagement:string;country:string;}

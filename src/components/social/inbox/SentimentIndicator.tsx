@@ -1,0 +1,3 @@
+import type{ConversationSentiment}from"@/features/social/inbox/types";
+const styles:Record<ConversationSentiment,string>={Positive:"bg-emerald-500/10 text-emerald-300",Neutral:"bg-slate-700/60 text-slate-300",Negative:"bg-amber-500/10 text-amber-300",Urgent:"bg-rose-500/15 text-rose-300",Spam:"bg-fuchsia-500/10 text-fuchsia-300"};
+export function SentimentIndicator({sentiment,showLabel=true}:{sentiment:ConversationSentiment;showLabel?:boolean}){return<span title={sentiment} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ${styles[sentiment]}`}><span className="h-1.5 w-1.5 rounded-full bg-current"/>{showLabel&&sentiment}</span>}

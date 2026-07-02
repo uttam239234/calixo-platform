@@ -1,0 +1,13 @@
+export type InboxPlatform="Facebook"|"Instagram"|"LinkedIn"|"X"|"YouTube"|"TikTok"|"Threads"|"Pinterest";
+export type ConversationSentiment="Positive"|"Neutral"|"Negative"|"Urgent"|"Spam";
+export type ConversationPriority="Low"|"Medium"|"High"|"Urgent";
+export type ConversationStatus="Open"|"Pending"|"Resolved"|"Archived";
+export type InboxAiAction="generate"|"rewrite"|"professional"|"friendly"|"apologetic"|"short"|"long"|"translate"|"summarize"|"intent";
+export interface MessageAttachment{id:string;name:string;type:"image"|"video"|"file"|"gif"|"voice";dataUrl:string;}
+export interface InboxMessage{id:string;sender:"customer"|"agent";author:string;body:string;timestamp:string;attachments:MessageAttachment[];}
+export interface TimelineItem{id:string;type:"message"|"status"|"assignment"|"note";label:string;timestamp:string;}
+export interface CustomerProfileData{id:string;name:string;handle:string;avatar:string;followers:number;recentPosts:number;interactions:number;lastContact:string;tags:string[];notes:string;}
+export interface Conversation{id:string;platform:InboxPlatform;customer:CustomerProfileData;messages:InboxMessage[];unread:number;mentions:number;priority:ConversationPriority;sentiment:ConversationSentiment;tags:string[];assignedTo:string;status:ConversationStatus;updatedAt:string;timeline:TimelineItem[];}
+export interface ConversationDraft{body:string;attachments:MessageAttachment[];updatedAt:string;}
+export interface ConversationFilterState{platform:string;unread:string;assigned:string;priority:string;sentiment:string;date:string;}
+export interface InboxStoredState{conversations:Conversation[];drafts:Record<string,ConversationDraft>;}

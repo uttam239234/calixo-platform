@@ -1,0 +1,13 @@
+import{addDays,localDateKey}from"./calendar-utils";import type{CalendarPostEvent}from"./types";
+const at=(offset:number,hour:number,minute=0)=>new Date(`${localDateKey(addDays(new Date(),offset))}T${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")}:00`).toISOString();
+const none={type:"None"as const,interval:1,customDays:[],endDate:""};
+export const initialCalendarEvents:CalendarPostEvent[]=[
+{id:"cal-1",title:"AI marketing carousel",content:"Five signals your marketing system is ready for AI.",platform:"Instagram",status:"Scheduled",campaign:"AI Growth",tags:["AI","Growth"],author:"Maya Chen",start:at(0,18,30),timezone:"Asia/Kolkata",recurrence:none},
+{id:"cal-2",title:"Industry report launch",content:"Our 2026 Marketing Intelligence Report is live.",platform:"LinkedIn",status:"Publishing",campaign:"Thought Leadership",tags:["Report","B2B"],author:"Aarav Mehta",start:at(0,14),timezone:"Asia/Kolkata",recurrence:none},
+{id:"cal-3",title:"Product workflow thread",content:"A practical walkthrough of connected campaign planning.",platform:"Threads",status:"Draft",campaign:"Product Education",tags:["Product"],author:"Sofia Rossi",start:at(1,11),timezone:"Asia/Kolkata",recurrence:none},
+{id:"cal-4",title:"Creator demo clip",content:"POV: reporting that takes seconds instead of hours.",platform:"TikTok",status:"Scheduled",campaign:"Creator Series",tags:["Video","Demo"],author:"Noah Williams",start:at(2,19),timezone:"Asia/Kolkata",recurrence:{type:"Weekly",interval:1,customDays:[],endDate:localDateKey(addDays(new Date(),60))}},
+{id:"cal-5",title:"Customer story",content:"How a global team unified its social workflow.",platform:"Facebook",status:"Published",campaign:"Customer Stories",tags:["Customer"],author:"Maya Chen",start:at(-1,10),timezone:"Asia/Kolkata",recurrence:none},
+{id:"cal-6",title:"Feature announcement",content:"A faster way to move from insight to published content.",platform:"X",status:"Failed",campaign:"Product Launch",tags:["Launch"],author:"Liam Patel",start:at(1,16),timezone:"Asia/Kolkata",recurrence:none},
+{id:"cal-7",title:"Workspace inspiration",content:"Design a social workflow your team actually enjoys using.",platform:"Pinterest",status:"Scheduled",campaign:"Evergreen",tags:["Design","Workflow"],author:"Sofia Rossi",start:at(4,12),timezone:"Asia/Kolkata",recurrence:{type:"Monthly",interval:1,customDays:[],endDate:""}},
+{id:"cal-8",title:"Community poll",content:"Which channel drives your most meaningful customer conversations?",platform:"YouTube Community",status:"Cancelled",campaign:"Community",tags:["Poll"],author:"Aarav Mehta",start:at(3,15),timezone:"Asia/Kolkata",recurrence:none},
+];

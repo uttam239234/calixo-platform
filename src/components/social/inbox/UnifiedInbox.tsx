@@ -1,0 +1,3 @@
+"use client";
+import{useInbox}from"@/features/social/inbox/InboxProvider";import{InboxHeader}from"./InboxHeader";import{InboxStats}from"./InboxStats";import{ConversationList}from"./ConversationList";import{ConversationDetails}from"./ConversationDetails";
+export function UnifiedInbox(){const{selectedId}=useInbox();return<div className="space-y-6 pb-8"><InboxHeader/><InboxStats/><div className="grid gap-6 lg:grid-cols-[380px_1fr]"><div className={selectedId?"hidden lg:block":"block"}><ConversationList/></div><div className={!selectedId?"hidden lg:block":"block"}><ConversationDetails/></div></div></div>}
