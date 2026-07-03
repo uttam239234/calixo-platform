@@ -1,0 +1,1671 @@
+// ============================================================================
+// CALIXO PLATFORM - Enterprise Database Schema
+// ============================================================================
+// Version: 1.0.0
+// Target: PostgreSQL + Prisma ORM
+// Architecture: Multi-tenant SaaS with soft delete, audit trails, UUIDs
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+  VIEWER
+  CUSTOM
+}
+
+enum PlanTier {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+  AGENCY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+  TRIALING
+  INCOMPLETE
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ENDED
+  ARCHIVED
+}
+
+enum AdPlatform {
+  GOOGLE
+  META
+  LINKEDIN
+  TIKTOK
+  TWITTER
+  PINTEREST
+  SNAPCHAT
+}
+
+enum SocialPlatform {
+  INSTAGRAM
+  FACEBOOK
+  TWITTER
+  LINKEDIN
+  TIKTOK
+  YOUTUBE
+  PINTEREST
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+enum MentionSource {
+  SOCIAL
+  NEWS
+  REVIEW
+  FORUM
+  BLOG
+  PODCAST
+  VIDEO
+}
+
+enum Sentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+  MIXED
+}
+
+enum NotificationType {
+  CAMPAIGN_STARTED
+  CAMPAIGN_ENDED
+  BUDGET_ALERT
+  AI_INSIGHT
+  TEAM_UPDATE
+  SYSTEM
+  BILLING
+  MILESTONE
+}
+
+enum NotificationSeverity {
+  CRITICAL
+  WARNING
+  INFO
+  SUCCESS
+}
+
+enum IntegrationProvider {
+  GOOGLE_ADS
+  META_ADS
+  LINKEDIN_ADS
+  GOOGLE_ANALYTICS
+  SALESFORCE
+  HUBSPOT
+  SLACK
+  SHOPIFY
+  ZAPIER
+  CUSTOM
+}
+
+enum IntegrationStatus {
+  CONNECTED
+  DISCONNECTED
+  ERROR
+  EXPIRED
+  PENDING
+}
+
+enum ReportType {
+  PERFORMANCE
+  ANALYTICS
+  CAMPAIGN
+  SOCIAL
+  CUSTOM
+  SCHEDULED
+}
+
+enum ReportFormat {
+  PDF
+  CSV
+  EXCEL
+  HTML
+}
+
+enum WorkflowStatus {
+  ACTIVE
+  PAUSED
+  DRAFT
+  ARCHIVED
+  ERROR
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  CANCELLED
+  SKIPPED
+}
+
+enum AutomationTriggerType {
+  SCHEDULE
+  EVENT
+  WEBHOOK
+  CONDITION
+}
+
+enum AIModel {
+  GPT_4O
+  GPT_4O_MINI
+  CLAUDE_3_SONNET
+  CLAUDE_3_HAIKU
+  EMBEDDING_3_LARGE
+  DALL_E_3
+  WHISPER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+  BLOCKED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum Currency {
+  USD
+  EUR
+  GBP
+  JPY
+  CAD
+  AUD
+  INR
+  BRL
+}
+
+enum WeekDay {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+// ============================================================================
+// BASE - Abstract fields applied via generator or manually
+// NOTE: Prisma doesn't support model inheritance. Use comments as template.
+// Every model should include:
+//   id          String   @id @default(uuid()) @db.Uuid
+//   createdAt   DateTime @default(now())
+//   updatedAt   DateTime @updatedAt
+//   createdBy   String?  @db.Uuid
+//   updatedBy   String?  @db.Uuid
+//   organizationId String? @db.Uuid
+//   workspaceId String?   @db.Uuid
+//   isDeleted   Boolean  @default(false)
+//   deletedAt   DateTime?
+//   metadata    Json?
+// ============================================================================
+
+// ============================================================================
+// IDENTITY & AUTH
+// ============================================================================
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String    @unique @db.VarChar(255)
+  emailVerified Boolean   @default(false)
+  name          String    @db.VarChar(255)
+  avatar        String?   @db.VarChar(512)
+  passwordHash  String?   @db.VarChar(512)
+  phone         String?   @db.VarChar(50)
+  locale        String    @default("en-US") @db.VarChar(10)
+  timezone      String    @default("UTC") @db.VarChar(50)
+  lastLoginAt   DateTime?
+  isActive      Boolean   @default(true)
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  sessions            Session[]
+  refreshTokens       RefreshToken[]
+  apiKeys             ApiKey[]
+  memberships         OrganizationMember[]
+  teamMemberships     TeamMember[]
+  createdInvitations  Invitation[]         @relation("InvitedBy")
+  campaigns           Campaign[]           @relation("CampaignCreator")
+  socialPosts         SocialPost[]
+  conversations       AIConversation[]
+  messages            AIMessage[]
+  notifications       Notification[]
+  activities          Activity[]
+  auditLogs           AuditLog[]
+  usageRecords        Usage[]
+  executions          WorkflowExecution[]
+  preferences         UserPreference?
+  userRoleAssignments UserRoleAssignment[]
+
+  @@index([email])
+  @@index([isActive, isDeleted])
+  @@map("users")
+}
+
+model UserPreference {
+  id                      String   @id @default(uuid()) @db.Uuid
+  userId                  String   @unique @db.Uuid
+  theme                   String   @default("light") @db.VarChar(20)
+  sidebarCollapsed        Boolean  @default(false)
+  emailNotifications      Boolean  @default(true)
+  pushNotifications       Boolean  @default(true)
+  inAppNotifications      Boolean  @default(true)
+  digestFrequency         String   @default("never") @db.VarChar(20)
+  dashboardLayout         Json?
+  notificationPreferences Json?
+  metadata                Json?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+model Session {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  token      String   @unique @db.VarChar(512)
+  ipAddress  String?  @db.VarChar(45)
+  userAgent  String?  @db.VarChar(512)
+  deviceInfo Json?
+  expiresAt  DateTime
+  isRevoked  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  token     String   @unique @db.VarChar(512)
+  familyId  String?  @db.VarChar(128)
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+model ApiKey {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @db.Uuid
+  userId         String    @db.Uuid
+  name           String    @db.VarChar(255)
+  key            String    @unique @db.VarChar(512)
+  keyPrefix      String    @db.VarChar(20)
+  scopes         String[]  @default([])
+  permissions    String[]  @default([])
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  isActive       Boolean   @default(true)
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([keyPrefix])
+  @@map("api_keys")
+}
+
+// ============================================================================
+// ORGANIZATION & MULTI-TENANCY
+// ============================================================================
+
+model Organization {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @db.VarChar(255)
+  slug      String    @unique @db.VarChar(255)
+  plan      PlanTier  @default(FREE)
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+  metadata  Json?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  relations           OrganizationRelation?
+  members             OrganizationMember[]
+  workspaces          Workspace[]
+  invitations         Invitation[]
+  apiKeys             ApiKey[]
+  billing             Subscription?
+  campaigns           Campaign[]
+  socialAccounts      SocialAccount[]
+  brands              Brand[]
+  competitors         BrandMonitoringCompetitor[]
+  integrations        Integration[]
+  oauthTokens         OAuthToken[]
+  aiConversations     AIConversation[]
+  aiUsage             AIUsage[]
+  workflows           Workflow[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+  featureOverrides    OrganizationFeatureOverride[]
+  usageRecords        Usage[]
+  reports             Report[]
+  dashboardWidgets    DashboardWidget[]
+  metrics             Metric[]
+  creativeFiles       Creative[]
+  keywordGroups       Keyword[]
+  audiences           Audience[]
+  campaignGroups      CampaignGroup[]
+  budgetRecords       Budget[]
+  userRoleAssignments UserRoleAssignment[]
+  kpis                Kpi[]
+
+  @@index([slug])
+  @@index([plan])
+  @@index([isDeleted])
+  @@map("organizations")
+}
+
+model OrganizationRelation {
+  organizationId String   @id @unique @db.Uuid
+  ownerId        String   @db.Uuid
+  billingEmail   String?  @db.VarChar(255)
+  taxId          String?  @db.VarChar(100)
+  website        String?  @db.VarChar(512)
+  industry       String?  @db.VarChar(100)
+  size           String?  @db.VarChar(50)
+  phone          String?  @db.VarChar(50)
+  address        Json?
+  branding       Json?
+  security       Json?
+  settings       Json?
+  featureFlags   Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_relations")
+}
+
+model OrganizationMember {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  userId         String   @db.Uuid
+  role           UserRole @default(VIEWER)
+  joinedAt       DateTime @default(now())
+  isActive       Boolean  @default(true)
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+model Workspace {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  name           String    @db.VarChar(255)
+  slug           String    @db.VarChar(255)
+  description    String?   @db.VarChar(1024)
+  type           String    @default("team") @db.VarChar(50)
+  settings       Json?
+  isDefault      Boolean   @default(false)
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  teams            Team[]
+  campaigns        Campaign[]
+  socialPosts      SocialPost[]
+  reports          Report[]
+  conversations    AIConversation[]
+  notifications    Notification[]
+  tasks            Task[]
+  dashboardWidgets DashboardWidget[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([isDeleted])
+  @@map("workspaces")
+}
+
+model Team {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @db.Uuid
+  name        String    @db.VarChar(255)
+  description String?   @db.VarChar(1024)
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members   TeamMember[]
+
+  @@index([workspaceId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  teamId    String   @db.Uuid
+  userId    String   @db.Uuid
+  role      UserRole @default(EDITOR)
+  joinedAt  DateTime @default(now())
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+model Invitation {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  invitedById    String    @db.Uuid
+  email          String    @db.VarChar(255)
+  role           UserRole  @default(VIEWER)
+  token          String    @unique @db.VarChar(512)
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  declinedAt     DateTime?
+  revokedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([token])
+  @@map("invitations")
+}
+
+// ============================================================================
+// SECURITY - RBAC
+// ============================================================================
+
+model Role {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @db.VarChar(100)
+  description String?   @db.VarChar(512)
+  isSystem    Boolean   @default(false)
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  permissions RolePermission[]
+  userRoles   UserRoleAssignment[]
+
+  @@unique([name])
+  @@index([isSystem])
+  @@map("roles")
+}
+
+model Permission {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @unique @db.VarChar(150)
+  description String?   @db.VarChar(512)
+  module      String    @db.VarChar(100)
+  action      String    @db.VarChar(100)
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  roles RolePermission[]
+
+  @@index([module, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String  @id @default(uuid()) @db.Uuid
+  roleId       String  @db.Uuid
+  permissionId String  @db.Uuid
+  isDenied     Boolean @default(false)
+  conditions   Json?
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRoleAssignment {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  roleId         String    @db.Uuid
+  organizationId String?   @db.Uuid
+  workspaceId    String?   @db.Uuid
+  grantedBy      String?   @db.Uuid
+  grantedAt      DateTime  @default(now())
+  expiresAt      DateTime?
+  isActive       Boolean   @default(true)
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         Role          @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id])
+
+  @@unique([userId, roleId, organizationId, workspaceId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_role_assignments")
+}
+
+// ============================================================================
+// MARKETING - CAMPAIGNS
+// ============================================================================
+
+model CampaignGroup {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @db.Uuid
+  name           String         @db.VarChar(255)
+  description    String?        @db.VarChar(1024)
+  status         CampaignStatus @default(DRAFT)
+  startDate      DateTime?
+  endDate        DateTime?
+  isDeleted      Boolean        @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaigns    Campaign[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("campaign_groups")
+}
+
+model Campaign {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @db.Uuid
+  workspaceId    String?        @db.Uuid
+  groupId        String?        @db.Uuid
+  createdBy      String         @db.Uuid
+  name           String         @db.VarChar(255)
+  description    String?        @db.VarChar(2048)
+  platform       AdPlatform     @default(GOOGLE)
+  status         CampaignStatus @default(DRAFT)
+  objective      String?        @db.VarChar(255)
+  startDate      DateTime?
+  endDate        DateTime?
+  timezone       String         @default("UTC") @db.VarChar(50)
+  dailyBudget    Decimal?       @db.Decimal(12, 2)
+  lifetimeBudget Decimal?       @db.Decimal(12, 2)
+  currency       Currency       @default(USD)
+  totalSpent     Decimal        @default(0) @db.Decimal(12, 2)
+  targetAudience Json?
+  targeting      Json?
+  tracking       Json?
+  isDeleted      Boolean        @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace?       @relation(fields: [workspaceId], references: [id])
+  group        CampaignGroup?   @relation(fields: [groupId], references: [id])
+  creator      User             @relation("CampaignCreator", fields: [createdBy], references: [id])
+  creatives    Creative[]
+  keywords     Keyword[]
+  budgets      Budget[]
+  metrics      CampaignMetric[]
+
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([groupId])
+  @@index([status])
+  @@index([platform])
+  @@index([createdBy])
+  @@index([isDeleted])
+  @@map("campaigns")
+}
+
+model CampaignMetric {
+  id          String   @id @default(uuid()) @db.Uuid
+  campaignId  String   @unique @db.Uuid
+  impressions BigInt   @default(0)
+  clicks      BigInt   @default(0)
+  conversions BigInt   @default(0)
+  spend       Decimal  @default(0) @db.Decimal(12, 2)
+  revenue     Decimal  @default(0) @db.Decimal(12, 2)
+  ctr         Decimal? @db.Decimal(8, 4)
+  cpc         Decimal? @db.Decimal(10, 4)
+  cpm         Decimal? @db.Decimal(10, 4)
+  roas        Decimal? @db.Decimal(8, 4)
+  costPerConv Decimal? @db.Decimal(10, 4)
+  reach       BigInt   @default(0)
+  frequency   Decimal? @db.Decimal(8, 4)
+  metadata    Json?
+  updatedAt   DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("campaign_metrics")
+}
+
+model Audience {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  name           String    @db.VarChar(255)
+  description    String?   @db.VarChar(1024)
+  type           String    @db.VarChar(50)
+  criteria       Json?
+  size           BigInt    @default(0)
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("audiences")
+}
+
+model Creative {
+  id             String    @id @default(uuid()) @db.Uuid
+  campaignId     String    @db.Uuid
+  organizationId String?   @db.Uuid
+  name           String    @db.VarChar(255)
+  type           String    @db.VarChar(50)
+  headline       String?   @db.VarChar(255)
+  description    String?   @db.VarChar(2048)
+  url            String?   @db.VarChar(512)
+  mediaUrl       String?   @db.VarChar(512)
+  mediaType      String?   @db.VarChar(50)
+  cta            String?   @db.VarChar(100)
+  dimensions     String?   @db.VarChar(50)
+  content        String?
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  campaign     Campaign?     @relation(fields: [campaignId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([campaignId])
+  @@index([organizationId])
+  @@map("creatives")
+}
+
+model Keyword {
+  id             String    @id @default(uuid()) @db.Uuid
+  campaignId     String    @db.Uuid
+  organizationId String?   @db.Uuid
+  text           String    @db.VarChar(255)
+  matchType      String    @default("EXACT") @db.VarChar(50)
+  bidAmount      Decimal?  @db.Decimal(10, 2)
+  qualityScore   Int?
+  isNegative     Boolean   @default(false)
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  campaign     Campaign?     @relation(fields: [campaignId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([campaignId])
+  @@index([organizationId])
+  @@index([text])
+  @@map("keywords")
+}
+
+model Budget {
+  id             String    @id @default(uuid()) @db.Uuid
+  campaignId     String    @db.Uuid
+  organizationId String?   @db.Uuid
+  type           String    @default("DAILY") @db.VarChar(50)
+  amount         Decimal   @db.Decimal(12, 2)
+  spent          Decimal   @default(0) @db.Decimal(12, 2)
+  currency       Currency  @default(USD)
+  startDate      DateTime?
+  endDate        DateTime?
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  campaign     Campaign?     @relation(fields: [campaignId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([campaignId])
+  @@map("budgets")
+}
+
+// ============================================================================
+// SOCIAL MEDIA
+// ============================================================================
+
+model SocialAccount {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @db.Uuid
+  platform       SocialPlatform
+  accountId      String         @db.VarChar(255)
+  accountName    String         @db.VarChar(255)
+  accountEmail   String?        @db.VarChar(255)
+  avatarUrl      String?        @db.VarChar(512)
+  profileUrl     String?        @db.VarChar(512)
+  followerCount  BigInt         @default(0)
+  followingCount BigInt         @default(0)
+  isActive       Boolean        @default(true)
+  isDeleted      Boolean        @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  posts         SocialPost[]
+  conversations Conversation[]
+  comments      Comment[]
+
+  @@unique([organizationId, platform, accountId])
+  @@index([organizationId])
+  @@index([platform])
+  @@map("social_accounts")
+}
+
+model SocialPost {
+  id           String           @id @default(uuid()) @db.Uuid
+  workspaceId  String           @db.Uuid
+  accountId    String?          @db.Uuid
+  createdBy    String           @db.Uuid
+  content      String           @db.Text
+  mediaUrls    String[]         @default([])
+  platforms    SocialPlatform[]
+  status       PostStatus       @default(DRAFT)
+  scheduledAt  DateTime?
+  publishedAt  DateTime?
+  failedAt     DateTime?
+  errorMessage String?          @db.VarChar(512)
+  permalink    String?          @db.VarChar(512)
+  isDeleted    Boolean          @default(false)
+  deletedAt    DateTime?
+  metadata     Json?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  workspace     Workspace?        @relation(fields: [workspaceId], references: [id])
+  account       SocialAccount?    @relation(fields: [accountId], references: [id])
+  creator       User              @relation(fields: [createdBy], references: [id])
+  metrics       SocialPostMetric?
+  scheduledPost ScheduledPost?
+
+  @@index([workspaceId])
+  @@index([accountId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([createdBy])
+  @@map("social_posts")
+}
+
+model SocialPostMetric {
+  id             String   @id @default(uuid()) @db.Uuid
+  postId         String   @unique @db.Uuid
+  impressions    BigInt   @default(0)
+  reach          BigInt   @default(0)
+  likes          BigInt   @default(0)
+  comments       BigInt   @default(0)
+  shares         BigInt   @default(0)
+  saves          BigInt   @default(0)
+  clicks         BigInt   @default(0)
+  engagementRate Decimal? @db.Decimal(8, 4)
+  updatedAt      DateTime @updatedAt
+
+  post SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("social_post_metrics")
+}
+
+model Draft {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  title     String?          @db.VarChar(255)
+  content   String           @db.Text
+  platforms SocialPlatform[]
+  mediaUrls String[]         @default([])
+  tags      String[]         @default([])
+  isDeleted Boolean          @default(false)
+  deletedAt DateTime?
+  metadata  Json?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId])
+  @@map("drafts")
+}
+
+model ScheduledPost {
+  id          String     @id @default(uuid()) @db.Uuid
+  postId      String     @unique @db.Uuid
+  scheduledAt DateTime
+  timezone    String     @default("UTC") @db.VarChar(50)
+  status      PostStatus @default(SCHEDULED)
+  approvedBy  String?    @db.Uuid
+  approvedAt  DateTime?
+  isDeleted   Boolean    @default(false)
+  deletedAt   DateTime?
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  post SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledAt])
+  @@index([status])
+  @@map("scheduled_posts")
+}
+
+model CalendarEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @db.Uuid
+  title       String    @db.VarChar(255)
+  description String?   @db.Text
+  startDate   DateTime
+  endDate     DateTime?
+  type        String    @db.VarChar(50)
+  color       String?   @db.VarChar(20)
+  isAllDay    Boolean   @default(false)
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId])
+  @@index([startDate, endDate])
+  @@map("calendar_events")
+}
+
+model Conversation {
+  id          String         @id @default(uuid()) @db.Uuid
+  accountId   String         @db.Uuid
+  platform    SocialPlatform
+  externalId  String?        @db.VarChar(255)
+  participant String         @db.VarChar(255)
+  lastMessage String?        @db.Text
+  unreadCount Int            @default(0)
+  isResolved  Boolean        @default(false)
+  isDeleted   Boolean        @default(false)
+  deletedAt   DateTime?
+  metadata    Json?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  account  SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  comments Comment[]
+
+  @@index([accountId])
+  @@index([isResolved])
+  @@map("conversations")
+}
+
+model Comment {
+  id             String    @id @default(uuid()) @db.Uuid
+  conversationId String    @db.Uuid
+  accountId      String    @db.Uuid
+  externalId     String?   @db.VarChar(255)
+  authorName     String    @db.VarChar(255)
+  authorAvatar   String?   @db.VarChar(512)
+  content        String    @db.Text
+  isInternal     Boolean   @default(false)
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  conversation Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  account      SocialAccount @relation(fields: [accountId], references: [id])
+
+  @@index([conversationId])
+  @@map("comments")
+}
+
+// ============================================================================
+// BRAND MONITORING
+// ============================================================================
+
+model Brand {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  name           String    @db.VarChar(255)
+  description    String?   @db.VarChar(1024)
+  website        String?   @db.VarChar(512)
+  industry       String?   @db.VarChar(100)
+  keywords       String[]  @default([])
+  socialHandles  Json?
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  mentions     Mention[]
+  competitors  BrandMonitoringCompetitor[]
+
+  @@index([organizationId])
+  @@map("brands")
+}
+
+model Mention {
+  id              String        @id @default(uuid()) @db.Uuid
+  brandId         String        @db.Uuid
+  source          MentionSource @default(SOCIAL)
+  content         String        @db.Text
+  url             String?       @db.VarChar(512)
+  authorName      String?       @db.VarChar(255)
+  authorAvatar    String?       @db.VarChar(512)
+  authorFollowers BigInt        @default(0)
+  platform        String        @db.VarChar(100)
+  sentiment       Sentiment     @default(NEUTRAL)
+  sentimentScore  Decimal?      @db.Decimal(5, 2)
+  reach           BigInt        @default(0)
+  engagement      BigInt        @default(0)
+  isFlagged       Boolean       @default(false)
+  isResolved      Boolean       @default(false)
+  isDeleted       Boolean       @default(false)
+  deletedAt       DateTime?
+  metadata        Json?
+  detectedAt      DateTime
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId])
+  @@index([sentiment])
+  @@index([source])
+  @@index([detectedAt])
+  @@index([isResolved])
+  @@map("mentions")
+}
+
+model BrandMonitoringCompetitor {
+  id             String    @id @default(uuid()) @db.Uuid
+  brandId        String    @db.Uuid
+  organizationId String    @db.Uuid
+  name           String    @db.VarChar(255)
+  website        String?   @db.VarChar(512)
+  socialHandles  Json?
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  brand        Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([brandId])
+  @@index([organizationId])
+  @@map("brand_competitors")
+}
+
+// ============================================================================
+// ANALYTICS
+// ============================================================================
+
+model Metric {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  name           String    @db.VarChar(255)
+  category       String    @db.VarChar(100)
+  subcategory    String?   @db.VarChar(100)
+  value          Decimal   @db.Decimal(16, 4)
+  previousValue  Decimal?  @db.Decimal(16, 4)
+  changePercent  Decimal?  @db.Decimal(8, 4)
+  unit           String?   @db.VarChar(50)
+  dimension      String?   @db.VarChar(100)
+  granularity    String    @default("DAY") @db.VarChar(20)
+  recordedAt     DateTime
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, category, recordedAt])
+  @@index([organizationId, name, recordedAt])
+  @@index([recordedAt])
+  @@map("metrics")
+}
+
+model DashboardWidget {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  workspaceId    String?   @db.Uuid
+  userId         String?   @db.Uuid
+  title          String    @db.VarChar(255)
+  type           String    @db.VarChar(100)
+  config         Json?
+  position       Int       @default(0)
+  size           String    @default("MEDIUM") @db.VarChar(20)
+  isDefault      Boolean   @default(false)
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace?   @relation(fields: [workspaceId], references: [id])
+
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("dashboard_widgets")
+}
+
+model Report {
+  id              String       @id @default(uuid()) @db.Uuid
+  organizationId  String       @db.Uuid
+  workspaceId     String?      @db.Uuid
+  createdBy       String       @db.Uuid
+  name            String       @db.VarChar(255)
+  description     String?      @db.VarChar(2048)
+  type            ReportType   @default(PERFORMANCE)
+  config          Json?
+  schedule        Json?
+  format          ReportFormat @default(PDF)
+  lastGeneratedAt DateTime?
+  nextScheduledAt DateTime?
+  isDeleted       Boolean      @default(false)
+  deletedAt       DateTime?
+  metadata        Json?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace?   @relation(fields: [workspaceId], references: [id])
+
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([type])
+  @@map("reports")
+}
+
+model Kpi {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  name           String    @db.VarChar(255)
+  description    String?   @db.VarChar(512)
+  category       String    @db.VarChar(100)
+  formula        String?   @db.VarChar(512)
+  target         Decimal?  @db.Decimal(16, 4)
+  current        Decimal?  @db.Decimal(16, 4)
+  unit           String?   @db.VarChar(50)
+  icon           String?   @db.VarChar(100)
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, category])
+  @@map("kpis")
+}
+
+// ============================================================================
+// AI
+// ============================================================================
+
+model AIConversation {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @db.Uuid
+  workspaceId    String?   @db.Uuid
+  userId         String    @db.Uuid
+  title          String    @db.VarChar(255)
+  context        Json?
+  model          AIModel   @default(GPT_4O_MINI)
+  tokenCount     Int       @default(0)
+  messageCount   Int       @default(0)
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  workspace    Workspace?    @relation(fields: [workspaceId], references: [id])
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages     AIMessage[]
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([updatedAt])
+  @@map("ai_conversations")
+}
+
+model AIMessage {
+  id             String    @id @default(uuid()) @db.Uuid
+  conversationId String    @db.Uuid
+  userId         String    @db.Uuid
+  role           String    @db.VarChar(50)
+  content        String    @db.Text
+  model          AIModel?  @default(GPT_4O_MINI)
+  tokenCount     Int?
+  latencyMs      Int?
+  confidence     Decimal?  @db.Decimal(5, 2)
+  toolCalls      Json?
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+
+  conversation AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id])
+
+  @@index([conversationId])
+  @@index([createdAt])
+  @@map("ai_messages")
+}
+
+model Prompt {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @db.VarChar(255)
+  description String?   @db.VarChar(1024)
+  category    String    @db.VarChar(100)
+  template    String    @db.Text
+  variables   String[]  @default([])
+  model       AIModel   @default(GPT_4O_MINI)
+  temperature Decimal?  @db.Decimal(3, 2)
+  maxTokens   Int?
+  isSystem    Boolean   @default(false)
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  metadata    Json?
+  version     Int       @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([name, version])
+  @@index([category])
+  @@map("prompts")
+}
+
+model Agent {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @db.VarChar(255)
+  description String?   @db.VarChar(1024)
+  type        String    @db.VarChar(100)
+  config      Json?
+  model       AIModel   @default(GPT_4O)
+  isActive    Boolean   @default(true)
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([type])
+  @@index([isActive])
+  @@map("agents")
+}
+
+model AIUsage {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  model          AIModel
+  tokens         Int      @default(0)
+  cost           Decimal  @default(0) @db.Decimal(10, 6)
+  requestCount   Int      @default(1)
+  latencyMs      Int?
+  endpoint       String?  @db.VarChar(255)
+  recordedAt     DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, recordedAt])
+  @@index([recordedAt])
+  @@map("ai_usage")
+}
+
+// ============================================================================
+// AUTOMATION
+// ============================================================================
+
+model Workflow {
+  id             String                @id @default(uuid()) @db.Uuid
+  organizationId String                @db.Uuid
+  name           String                @db.VarChar(255)
+  description    String?               @db.VarChar(1024)
+  status         WorkflowStatus        @default(DRAFT)
+  config         Json?
+  triggerType    AutomationTriggerType
+  triggerConfig  Json?
+  actions        Json?
+  conditions     Json?
+  runCount       BigInt                @default(0)
+  lastRunAt      DateTime?
+  lastRunStatus  ExecutionStatus?
+  isDeleted      Boolean               @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  executions   WorkflowExecution[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([triggerType])
+  @@map("workflows")
+}
+
+model WorkflowExecution {
+  id          String          @id @default(uuid()) @db.Uuid
+  workflowId  String          @db.Uuid
+  triggeredBy String          @db.Uuid
+  status      ExecutionStatus @default(PENDING)
+  input       Json?
+  output      Json?
+  error       String?         @db.Text
+  startedAt   DateTime?
+  completedAt DateTime?
+  durationMs  Int?
+  retryCount  Int             @default(0)
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  workflow  Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  triggered User     @relation(fields: [triggeredBy], references: [id])
+
+  @@index([workflowId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("workflow_executions")
+}
+
+// ============================================================================
+// PLATFORM - NOTIFICATIONS, ACTIVITY, AUDIT
+// ============================================================================
+
+model Notification {
+  id             String               @id @default(uuid()) @db.Uuid
+  organizationId String?              @db.Uuid
+  workspaceId    String?              @db.Uuid
+  userId         String               @db.Uuid
+  title          String               @db.VarChar(255)
+  description    String?              @db.Text
+  type           NotificationType
+  severity       NotificationSeverity @default(INFO)
+  category       String?              @db.VarChar(100)
+  isRead         Boolean              @default(false)
+  readAt         DateTime?
+  actionUrl      String?              @db.VarChar(512)
+  actionLabel    String?              @db.VarChar(100)
+  isDeleted      Boolean              @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  workspace    Workspace?    @relation(fields: [workspaceId], references: [id])
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([createdAt])
+  @@index([type])
+  @@map("notifications")
+}
+
+model Activity {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  organizationId String?  @db.Uuid
+  workspaceId    String?  @db.Uuid
+  action         String   @db.VarChar(255)
+  resource       String   @db.VarChar(255)
+  resourceId     String?  @db.VarChar(255)
+  description    String?  @db.Text
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([workspaceId, createdAt])
+  @@index([action])
+  @@map("activities")
+}
+
+model AuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  userId         String   @db.Uuid
+  action         String   @db.VarChar(255)
+  resource       String   @db.VarChar(255)
+  resourceId     String   @db.VarChar(255)
+  changes        Json?
+  ipAddress      String?  @db.VarChar(45)
+  userAgent      String?  @db.VarChar(512)
+  sessionId      String?  @db.VarChar(255)
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// PLATFORM - INTEGRATIONS & OAUTH
+// ============================================================================
+
+model Integration {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @db.Uuid
+  provider       IntegrationProvider
+  name           String              @db.VarChar(255)
+  status         IntegrationStatus   @default(PENDING)
+  config         Json?
+  scopes         String[]            @default([])
+  lastSyncAt     DateTime?
+  lastSyncStatus String?             @db.VarChar(50)
+  errorMessage   String?             @db.VarChar(512)
+  isDeleted      Boolean             @default(false)
+  deletedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  oauthTokens  OAuthToken[]
+
+  @@unique([organizationId, provider])
+  @@index([organizationId])
+  @@index([provider])
+  @@index([status])
+  @@map("integrations")
+}
+
+model OAuthToken {
+  id             String    @id @default(uuid()) @db.Uuid
+  integrationId  String    @db.Uuid
+  organizationId String    @db.Uuid
+  accessToken    String    @db.Text
+  refreshToken   String?   @db.Text
+  tokenType      String    @default("Bearer") @db.VarChar(50)
+  expiresAt      DateTime?
+  scope          String?   @db.VarChar(512)
+  providerUserId String?   @db.VarChar(255)
+  isRevoked      Boolean   @default(false)
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  integration  Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([integrationId])
+  @@index([organizationId])
+  @@map("oauth_tokens")
+}
+
+// ============================================================================
+// PLATFORM - BILLING & SUBSCRIPTIONS
+// ============================================================================
+
+model Plan {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String   @unique @db.VarChar(100)
+  tier          PlanTier @unique
+  description   String?  @db.VarChar(1024)
+  priceMonthly  Decimal  @db.Decimal(10, 2)
+  priceYearly   Decimal  @db.Decimal(10, 2)
+  currency      Currency @default(USD)
+  maxUsers      Int      @default(1)
+  maxWorkspaces Int      @default(1)
+  maxCampaigns  Int      @default(10)
+  storageLimit  BigInt   @default(1073741824)
+  features      String[] @default([])
+  limits        Json?
+  isActive      Boolean  @default(true)
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                   String             @id @default(uuid()) @db.Uuid
+  organizationId       String             @unique @db.Uuid
+  planId               String             @db.Uuid
+  stripeCustomerId     String?            @db.VarChar(255)
+  stripeSubscriptionId String?            @db.VarChar(255)
+  status               SubscriptionStatus @default(TRIALING)
+  trialEndsAt          DateTime?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  canceledAt           DateTime?
+  metadata             Json?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id])
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+model Usage {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  userId         String   @db.Uuid
+  metric         String   @db.VarChar(100)
+  value          BigInt   @default(0)
+  unit           String   @db.VarChar(50)
+  recordedAt     DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([organizationId, metric, recordedAt])
+  @@index([recordedAt])
+  @@map("usage_records")
+}
+
+// ============================================================================
+// PLATFORM - FEATURE FLAGS
+// ============================================================================
+
+model FeatureFlag {
+  id             String    @id @default(uuid()) @db.Uuid
+  key            String    @unique @db.VarChar(150)
+  name           String    @db.VarChar(255)
+  description    String?   @db.VarChar(1024)
+  category       String    @db.VarChar(100)
+  defaultEnabled Boolean   @default(false)
+  tier           PlanTier? @default(FREE)
+  isActive       Boolean   @default(true)
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  overrides OrganizationFeatureOverride[]
+
+  @@index([category])
+  @@index([key])
+  @@map("feature_flags")
+}
+
+model OrganizationFeatureOverride {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @db.Uuid
+  flagId         String  @db.Uuid
+  enabled        Boolean @default(false)
+  conditions     Json?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  flag         FeatureFlag  @relation(fields: [flagId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, flagId])
+  @@map("organization_feature_overrides")
+}
+
+// ============================================================================
+// PLATFORM - TASKS
+// ============================================================================
+
+model Task {
+  id          String     @id @default(uuid()) @db.Uuid
+  workspaceId String     @db.Uuid
+  assigneeId  String?    @db.Uuid
+  createdBy   String     @db.Uuid
+  title       String     @db.VarChar(255)
+  description String?    @db.Text
+  status      TaskStatus @default(TODO)
+  priority    Priority   @default(MEDIUM)
+  dueDate     DateTime?
+  completedAt DateTime?
+  isDeleted   Boolean    @default(false)
+  deletedAt   DateTime?
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("tasks")
+}
+
+// ============================================================================
+// VIEWS (for common queries)
+// ============================================================================
+
+// Note: Views will be created via migration scripts
+// For now, these are documented query patterns:
+//
+// 1. Active Campaigns with Metrics:
+//    SELECT c.*, cm.* FROM campaigns c 
+//    LEFT JOIN campaign_metrics cm ON cm.campaign_id = c.id 
+//    WHERE c.status = 'ACTIVE' AND c.organization_id = $1
+//
+// 2. User Permissions:
+//    SELECT p.* FROM permissions p 
+//    JOIN role_permissions rp ON rp.permission_id = p.id 
+//    JOIN user_roles ur ON ur.role_id = rp.role_id 
+//    WHERE ur.user_id = $1 AND ur.organization_id = $2
+//
+// 3. Dashboard Metrics (last 30 days):
+//    SELECT * FROM metrics 
+//    WHERE organization_id = $1 
+//    AND recorded_at >= NOW() - INTERVAL '30 days'
+//    ORDER BY recorded_at DESC
