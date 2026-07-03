@@ -1,38 +1,66 @@
-import { TrendingUp } from "lucide-react";
+"use client";
+
+import { useEffect, useRef } from "react";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { summaryCards } from "./mock-data";
+
+const toneConfig = {
+  positive: { icon: TrendingUp, color: "text-success bg-success/10 border-success/20" },
+  negative: { icon: TrendingDown, color: "text-destructive bg-destructive/10 border-destructive/20" },
+  neutral: { icon: Minus, color: "text-muted-foreground bg-muted/10 border-border/60" },
+};
+
+function AnimatedValue({ value }: { value: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    ref.current.textContent = value;
+  }, [value]);
+
+  return <span ref={ref} className="tabular-nums">{value}</span>;
+}
 
 export function ExecutiveSummary() {
   return (
-    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {summaryCards.map((card) => (
-        <article key={card.label} className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-[0_10px_40px_rgba(2,8,23,0.25)]">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-slate-400">{card.label}</p>
-              <p className="mt-2 text-2xl font-semibold text-white">{card.value}</p>
-            </div>
-            <div className={`rounded-full px-2.5 py-1 text-xs font-semibold ${card.tone === "positive" ? "bg-emerald-500/10 text-emerald-300" : card.tone === "negative" ? "bg-rose-500/10 text-rose-300" : "bg-slate-800 text-slate-300"}`}>
-              {card.trend}
-            </div>
-          </div>
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {summaryCards.map((card) => {
+        const config = toneConfig[card.tone];
+        const TrendIcon = config.icon;
 
-          <div className="mt-4 flex items-end justify-between gap-2">
-            <div>
-              <p className="text-sm text-slate-400">{card.percentage}</p>
-              <p className="mt-1 text-sm text-slate-500">{card.comparison}</p>
+        return (
+          <article key={card.label} className="card card-padding-md hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">{card.label}</p>
+                <p className="mt-1.5 text-2xl font-bold tracking-tight text-foreground">
+                  <AnimatedValue value={card.value} />
+                </p>
+              </div>
+              <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${config.color}`}>
+                <TrendIcon size={12} />
+                {card.trend}
+              </span>
             </div>
-            <div className="flex items-center gap-1 text-cyan-300">
-              <TrendingUp size={14} />
-            </div>
-          </div>
 
-          <div className="mt-4 flex h-8 items-end gap-1">
-            {card.sparkline.map((point, index) => (
-              <div key={`${card.label}-${index}`} className="flex-1 rounded-full bg-gradient-to-t from-cyan-500/70 to-cyan-300/30" style={{ height: `${point}%` }} />
-            ))}
-          </div>
-        </article>
-      ))}
+            <div className="mt-3 flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">{card.percentage}</div>
+              <div className="text-xs text-muted-foreground">{card.comparison}</div>
+            </div>
+
+            {/* Sparkline bars */}
+            <div className="mt-3 flex h-8 items-end gap-1">
+              {card.sparkline.map((point, index) => (
+                <div
+                  key={index}
+                  className="flex-1 rounded-sm bg-primary/30"
+                  style={{ height: `${point}%` }}
+                />
+              ))}
+            </div>
+          </article>
+        );
+      })}
     </section>
   );
 }

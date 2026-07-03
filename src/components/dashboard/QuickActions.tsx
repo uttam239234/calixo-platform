@@ -1,39 +1,66 @@
-import { ArrowRight, PlayCircle, Settings2, Sparkles } from "lucide-react";
-import ActionButton from "./common/ActionButton";
-import { quickActions } from "./mock-data";
+"use client";
 
-const icons = [PlayCircle, Settings2, Sparkles] as const;
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Megaphone, PenSquare, FileText, BarChart3, Zap, Bot, ArrowRight } from "lucide-react";
+import { quickActions } from "./mock-data";
+import Link from "next/link";
+
+const actionIcons: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  megaphone: Megaphone,
+  "pen-square": PenSquare,
+  "file-text": FileText,
+  "bar-chart": BarChart3,
+  zap: Zap,
+  bot: Bot,
+};
+
+const actionLinks: Record<string, string> = {
+  "create-campaign": "/dashboard/ads/campaigns/new",
+  "compose-post": "/dashboard/social/compose",
+  "generate-report": "/dashboard/reports",
+  "open-analytics": "/dashboard/analytics",
+  "launch-workflow": "/dashboard/automation",
+  "ask-ai": "/dashboard/ai",
+};
 
 export default function QuickActions() {
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-white">Quick actions</h3>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1">
-        {quickActions.map((action, index) => {
-          const Icon = icons[index] ?? PlayCircle;
-
-          return (
-            <button
-              key={action.id}
-              className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-left transition hover:-translate-y-0.5 hover:border-cyan-500/40 hover:bg-slate-800"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="rounded-xl bg-cyan-500/10 p-2 text-cyan-300">
-                  <Icon size={16} />
+    <Card>
+      <CardHeader
+        title="Quick Actions"
+        description="Common tasks at your fingertips"
+        action={
+          <Link
+            href="/dashboard/analytics"
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          >
+            View All <ArrowRight size={12} />
+          </Link>
+        }
+      />
+      <CardContent>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {quickActions.map((action) => {
+            const Icon = actionIcons[action.icon] ?? Zap;
+            const href = actionLinks[action.id] ?? "#";
+            return (
+              <Link
+                key={action.id}
+                href={href}
+                className="flex flex-col items-center gap-3 rounded-2xl border border-border/50 bg-card/50 p-4 text-center transition-all duration-200 hover:border-primary/30 hover:shadow-md hover:-translate-y-1 group"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-ai/10 text-primary group-hover:from-primary/20 group-hover:to-ai/20 transition-all duration-200">
+                  <Icon size={22} />
                 </div>
-                <ArrowRight size={16} className="mt-0.5 text-slate-500" />
-              </div>
-              <p className="mt-4 font-medium text-white">{action.title}</p>
-              <p className="mt-1 text-sm text-slate-400">{action.description}</p>
-            </button>
-          );
-        })}
-      </div>
-
-      <ActionButton className="mt-4">Open command center</ActionButton>
-    </section>
+                <div className="space-y-0.5">
+                  <p className="text-sm font-semibold text-foreground">{action.title}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-1">{action.description}</p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

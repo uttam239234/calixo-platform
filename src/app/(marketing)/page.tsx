@@ -3,9 +3,9 @@ import Hero from "@/components/landing/Hero";
 import Features from "@/components/landing/Features";
 import Modules from "@/components/landing/Modules";
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
+    <main className="min-h-screen bg-background text-foreground">
       <Navbar />
       <Hero />
       <Features />

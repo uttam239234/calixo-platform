@@ -1,3 +1,31 @@
-import { Globe2, Users } from "lucide-react";
+"use client";
+
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Users, Globe2 } from "lucide-react";
 import type { Campaign } from "@/features/ads/types";
-export function CampaignAudience({ campaign }: { campaign: Campaign }) { return <section id="audience" className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-lg font-semibold text-white">Audience</h2><div className="mt-4 space-y-3"><div className="flex gap-3 rounded-2xl bg-slate-950/50 p-4"><Users className="text-cyan-300" size={19} /><div><p className="text-sm font-medium text-white">{campaign.audience}</p><p className="mt-1 text-xs text-slate-500">Estimated reach: 1.2M–1.8M people</p></div></div><div className="flex gap-3 rounded-2xl bg-slate-950/50 p-4"><Globe2 className="text-violet-300" size={19} /><div><p className="text-sm font-medium text-white">India, United Kingdom, United States</p><p className="mt-1 text-xs text-slate-500">English · Ages 24–54 · All devices</p></div></div></div></section>; }
+
+export function CampaignAudience({ campaign }: { campaign: Campaign }) {
+  return (
+    <Card>
+      <CardHeader title="Audience" description="Target demographics" />
+      <CardContent>
+        <div className="space-y-3">
+          <div className="flex gap-3 rounded-2xl border border-border/50 bg-card/50 p-4">
+            <Users size={19} className="text-primary shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-foreground">{campaign.audience}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Estimated reach: 1.2M–1.8M people</p>
+            </div>
+          </div>
+          <div className="flex gap-3 rounded-2xl border border-border/50 bg-card/50 p-4">
+            <Globe2 size={19} className="text-ai shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-foreground">India, United Kingdom, United States</p>
+              <p className="mt-1 text-xs text-muted-foreground">English · Ages 24–54 · All devices</p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

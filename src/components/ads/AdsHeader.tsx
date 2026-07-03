@@ -1,21 +1,43 @@
-import { CalendarDays, Download, RefreshCw } from "lucide-react";
+"use client";
+
+import { CalendarDays, Download, Plus, RefreshCw, Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export function AdsHeader() {
   return (
-    <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+    <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
       <div>
-        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">
-          <span className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_12px_#67e8f9]" />
-          Unified advertising
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles size={14} className="text-primary" />
+          <span className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">AI Advertising Command Center</span>
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Ads Manager</h1>
-        <p className="mt-2 text-sm text-slate-400 sm:text-base">Manage every advertising platform from one workspace.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Ads Manager</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Manage every advertising platform from one workspace.</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" className="h-10 border-slate-700 bg-slate-900/70 text-slate-300 hover:bg-slate-800"><CalendarDays /> Jul 1–31</Button>
-        <Button variant="outline" size="icon-lg" aria-label="Refresh data" className="border-slate-700 bg-slate-900/70 text-slate-300 hover:bg-slate-800"><RefreshCw /></Button>
-        <Button className="h-10 bg-cyan-400 px-4 text-slate-950 hover:bg-cyan-300"><Download /> Export</Button>
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-card/50 px-3.5 py-2 text-sm text-muted-foreground">
+          <Search size={15} className="text-muted-foreground/70" />
+          <span className="text-muted-foreground/60">Search campaigns...</span>
+          <kbd className="rounded-md border border-border bg-background/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/60">⌘F</kbd>
+        </div>
+        <Button variant="outline" size="sm">
+          <CalendarDays size={14} />
+          Jul 1–31
+        </Button>
+        <Button variant="outline" size="sm">
+          <RefreshCw size={14} />
+        </Button>
+        <Link href="/dashboard/ads/campaigns/new">
+          <Button variant="primary" size="sm">
+            <Plus size={14} />
+            Create Campaign
+          </Button>
+        </Link>
+        <Button variant="outline" size="sm">
+          <Download size={14} />
+          Export
+        </Button>
       </div>
     </div>
   );

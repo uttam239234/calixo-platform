@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Download, FileText, RefreshCw, Sparkles, TrendingUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Sparkles, TrendingUp } from "lucide-react";
 import { AnalyticsHeader } from "./AnalyticsHeader";
 import { AnalyticsFilters } from "./AnalyticsFilters";
 import { ExecutiveSummary } from "./ExecutiveSummary";
@@ -18,51 +17,68 @@ import { AIInsights } from "./AIInsights";
 import { ReportsPanel } from "./ReportsPanel";
 import { revenueSeries } from "./mock-data";
 
+const sectionVariants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] as const },
+  },
+};
+
 export function AnalyticsPage() {
   const [range, setRange] = useState<"7d" | "30d" | "90d" | "custom">("30d");
 
   const revenueData = useMemo(() => revenueSeries[range], [range]);
 
   return (
-    <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+    <div className="space-y-6 pb-8">
+      <motion.div variants={sectionVariants} initial="hidden" animate="visible">
         <AnalyticsHeader selectedRange={range} onRangeChange={setRange} />
       </motion.div>
 
-      <AnalyticsFilters />
+      <motion.div variants={sectionVariants} initial="hidden" animate="visible">
+        <AnalyticsFilters />
+      </motion.div>
 
-      <ExecutiveSummary />
+      <motion.div variants={sectionVariants} initial="hidden" animate="visible">
+        <ExecutiveSummary />
+      </motion.div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.7fr_0.9fr]">
+      <motion.div variants={sectionVariants} initial="hidden" animate="visible" className="grid gap-6 xl:grid-cols-[1.7fr_0.9fr]">
         <RevenueChart data={revenueData} range={range} />
         <TrafficAnalytics />
-      </div>
+      </motion.div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <motion.div variants={sectionVariants} initial="hidden" animate="visible" className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <ChannelPerformance />
         <CampaignPerformance />
-      </div>
+      </motion.div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <motion.div variants={sectionVariants} initial="hidden" animate="visible" className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <ConversionFunnel />
         <AudienceInsights />
-      </div>
+      </motion.div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <motion.div variants={sectionVariants} initial="hidden" animate="visible" className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <GeoPerformance />
         <AIInsights />
-      </div>
+      </motion.div>
 
-      <ReportsPanel />
+      <motion.div variants={sectionVariants} initial="hidden" animate="visible">
+        <ReportsPanel />
+      </motion.div>
 
-      <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-slate-800 bg-slate-900/70 p-4 text-sm text-slate-400">
-        <Sparkles size={16} className="text-cyan-300" />
-        Insights are refreshed every 15 minutes and aligned to your current conversion goals.
-        <div className="ml-auto flex items-center gap-2 text-cyan-300">
-          <TrendingUp size={16} />
-          AI forecast confidence: 91%
+      <motion.div variants={sectionVariants} initial="hidden" animate="visible">
+        <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-border bg-card p-4 text-sm text-muted-foreground shadow-sm">
+          <Sparkles size={16} className="text-primary" />
+          Insights are refreshed every 15 minutes and aligned to your current conversion goals.
+          <div className="ml-auto flex items-center gap-2 text-primary">
+            <TrendingUp size={16} />
+            AI forecast confidence: 91%
+          </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

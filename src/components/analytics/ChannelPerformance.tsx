@@ -1,47 +1,50 @@
+"use client";
+
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { channelPerformance } from "./mock-data";
+
+const statusColors: Record<string, string> = {
+  Healthy: "bg-success/10 text-success border-success/20",
+  Optimizing: "bg-primary/10 text-primary border-primary/20",
+  Monitoring: "bg-warning/10 text-warning border-warning/20",
+};
 
 export function ChannelPerformance() {
   return (
-    <section className="rounded-[28px] border border-slate-800 bg-slate-900/80 p-6 shadow-[0_12px_50px_rgba(2,8,23,0.25)]">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-white">Channel Performance</h2>
-          <p className="mt-1 text-sm text-slate-400">Spend efficiency and pipeline contribution</p>
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-2xl border border-slate-800">
-        <table className="min-w-full divide-y divide-slate-800 text-sm">
-          <thead className="bg-slate-950/80 text-left text-slate-400">
-            <tr>
-              <th className="px-4 py-3 font-medium">Channel</th>
-              <th className="px-4 py-3 font-medium">Spend</th>
-              <th className="px-4 py-3 font-medium">Revenue</th>
-              <th className="px-4 py-3 font-medium">ROAS</th>
-              <th className="px-4 py-3 font-medium">CPA</th>
-              <th className="px-4 py-3 font-medium">Leads</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800 bg-slate-900/70">
-            {channelPerformance.map((row) => (
-              <tr key={row.channel}>
-                <td className="px-4 py-3 font-medium text-white">{row.channel}</td>
-                <td className="px-4 py-3 text-slate-300">{row.spend}</td>
-                <td className="px-4 py-3 text-slate-300">{row.revenue}</td>
-                <td className="px-4 py-3 text-slate-300">{row.roas}</td>
-                <td className="px-4 py-3 text-slate-300">{row.cpa}</td>
-                <td className="px-4 py-3 text-slate-300">{row.leads}</td>
-                <td className="px-4 py-3">
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${row.status === "Healthy" ? "bg-emerald-500/10 text-emerald-300" : row.status === "Optimizing" ? "bg-cyan-500/10 text-cyan-300" : "bg-amber-500/10 text-amber-300"}`}>
-                    {row.status}
-                  </span>
-                </td>
+    <Card>
+      <CardHeader title="Channel Performance" description="Spend efficiency and pipeline contribution" />
+      <CardContent>
+        <div className="table-container">
+          <table className="table">
+            <thead className="table-header">
+              <tr>
+                <th className="table-header-cell">Channel</th>
+                <th className="table-header-cell">Spend</th>
+                <th className="table-header-cell">Revenue</th>
+                <th className="table-header-cell">ROAS</th>
+                <th className="table-header-cell">CPA</th>
+                <th className="table-header-cell">Leads</th>
+                <th className="table-header-cell">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
+            </thead>
+            <tbody>
+              {channelPerformance.map((row) => (
+                <tr key={row.channel} className="table-row">
+                  <td className="table-cell font-semibold text-foreground">{row.channel}</td>
+                  <td className="table-cell tabular-nums">{row.spend}</td>
+                  <td className="table-cell tabular-nums">{row.revenue}</td>
+                  <td className="table-cell tabular-nums">{row.roas}</td>
+                  <td className="table-cell tabular-nums">{row.cpa}</td>
+                  <td className="table-cell tabular-nums">{row.leads}</td>
+                  <td className="table-cell">
+                    <span className={`badge ${statusColors[row.status] ?? "badge-secondary"}`}>{row.status}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

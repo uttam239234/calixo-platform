@@ -1,74 +1,143 @@
 "use client";
 
-import { Download, Filter, TrendingUp } from "lucide-react";
-import { ResponsiveContainer, Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
-import Card from "./common/Card";
-import SectionTitle from "./common/SectionTitle";
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { SkeletonText } from "@/components/ui/Skeleton";
+import { TrendingUp, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ResponsiveContainer, Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis, Legend } from "recharts";
 import { performanceSeries } from "./mock-data";
 
-const chartData = performanceSeries.map((point) => ({
-  name: point.label,
-  revenue: point.value + 18,
-  leads: point.value + 8,
-  conversions: point.value - 4,
-  impressions: point.value + 30,
-}));
+interface MarketingPerformanceChartProps {
+  loading?: boolean;
+}
 
-export default function MarketingPerformanceChart() {
+function ChartSkeleton() {
   return (
-    <Card className="xl:col-span-2">
-      <SectionTitle
-        title="Marketing performance"
-        subtitle="Cross-channel growth for the last 7 days"
-        action={
-          <div className="flex items-center gap-2">
-            <button className="rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-slate-300 transition hover:border-cyan-500/40 hover:text-white">
-              <Filter size={16} />
-            </button>
-            <button className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-200 transition hover:bg-cyan-500/20">
-              <span className="flex items-center gap-2">
-                <Download size={14} /> Export
-              </span>
-            </button>
+    <Card>
+      <CardHeader title="Marketing Performance" description="Cross-channel growth trend" />
+      <CardContent>
+        <div className="space-y-4">
+          <div className="flex gap-3">
+            <SkeletonText className="h-6 w-20" />
+            <SkeletonText className="h-6 w-20" />
+            <SkeletonText className="h-6 w-20" />
+            <SkeletonText className="h-6 w-20" />
           </div>
+          <div className="h-72 w-full rounded-2xl bg-gradient-to-r from-border/40 via-border/60 to-border/40 animate-pulse" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function MarketingPerformanceChart({ loading = false }: MarketingPerformanceChartProps) {
+  if (loading) return <ChartSkeleton />;
+
+  return (
+    <Card>
+      <CardHeader
+        title="Marketing Performance"
+        description="Cross-channel growth trend — last 7 days"
+        action={
+          <Button variant="outline" size="sm" icon={<Download size={14} />}>
+            Export
+          </Button>
         }
       />
+      <CardContent>
+        {/* Metric pills */}
+        <div className="mb-5 flex flex-wrap gap-2">
+          {[
+            { label: "Revenue", value: "$104.2K", color: "bg-primary/10 text-primary" },
+            { label: "Leads", value: "1,340", color: "bg-success/10 text-success" },
+            { label: "Conversions", value: "7.8%", color: "bg-warning/10 text-warning" },
+            { label: "Impressions", value: "2.4M", color: "bg-muted/10 text-muted-foreground" },
+          ].map((metric) => (
+            <div
+              key={metric.label}
+              className={`inline-flex items-center gap-1.5 rounded-xl border border-border/60 px-3.5 py-1.5 text-xs font-semibold shadow-sm ${metric.color}`}
+            >
+              {metric.label}
+              <span className="text-foreground font-bold">{metric.value}</span>
+            </div>
+          ))}
+        </div>
 
-      <div className="mt-2 flex flex-wrap gap-2">
-        {[
-          { label: "Revenue", value: "$104.2K", tone: "text-cyan-300" },
-          { label: "Leads", value: "1,340", tone: "text-emerald-300" },
-          { label: "Conversions", value: "7.8%", tone: "text-amber-300" },
-          { label: "Impressions", value: "2.4M", tone: "text-rose-300" },
-        ].map((metric) => (
-          <div key={metric.label} className="rounded-full border border-slate-800 bg-slate-950/70 px-3 py-1.5 text-sm text-slate-300">
-            <span className={metric.tone}>{metric.label}</span> • {metric.value}
-          </div>
-        ))}
-      </div>
+        {/* Chart */}
+        <div className="h-72 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={performanceSeries}>
+              <defs>
+                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#4F46E5" stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="leadGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#10B981" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="var(--border)" vertical={false} strokeDasharray="4 4" strokeOpacity={0.4} />
+              <XAxis
+                dataKey="label"
+                stroke="var(--muted-foreground)"
+                tickLine={false}
+                axisLine={false}
+                fontSize={13}
+                dy={8}
+              />
+              <YAxis
+                stroke="var(--muted-foreground)"
+                tickLine={false}
+                axisLine={false}
+                fontSize={13}
+                dx={-4}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "var(--card)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "12px",
+                  fontSize: "13px",
+                  boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 4px 10px -6px rgba(0,0,0,0.05)",
+                  padding: "12px 16px",
+                }}
+                cursor={{ stroke: "var(--muted-foreground)", strokeWidth: 1, strokeDasharray: "4 4" }}
+              />
+              <Legend
+                wrapperStyle={{ fontSize: "13px", paddingTop: "12px" }}
+                iconType="circle"
+                iconSize={8}
+              />
+              <Area
+                type="monotone"
+                dataKey="revenue"
+                stroke="#4F46E5"
+                fill="url(#revGrad)"
+                strokeWidth={2.5}
+                name="Revenue"
+                dot={false}
+                activeDot={{ r: 5, fill: "#4F46E5", stroke: "white", strokeWidth: 2 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="leads"
+                stroke="#10B981"
+                fill="url(#leadGrad)"
+                strokeWidth={2}
+                name="Leads"
+                dot={false}
+                activeDot={{ r: 5, fill: "#10B981", stroke: "white", strokeWidth: 2 }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
 
-      <div className="mt-6 h-72 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData}>
-            <defs>
-              <linearGradient id="revenue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.36} />
-                <stop offset="95%" stopColor="#22d3ee" stopOpacity={0.02} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid stroke="rgba(148,163,184,0.14)" vertical={false} />
-            <XAxis dataKey="name" stroke="#64748b" tickLine={false} axisLine={false} />
-            <YAxis stroke="#64748b" tickLine={false} axisLine={false} />
-            <Tooltip />
-            <Area type="monotone" dataKey="revenue" stroke="#22d3ee" fill="url(#revenue)" strokeWidth={2.5} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="mt-4 flex items-center gap-2 text-sm text-slate-400">
-        <TrendingUp size={16} className="text-cyan-300" />
-        Conversion velocity is improving ahead of the next launch window.
-      </div>
+        <div className="mt-4 flex items-center gap-2 rounded-xl bg-primary/[0.03] border border-primary/10 px-4 py-3 text-sm text-muted-foreground">
+          <TrendingUp size={16} className="text-primary flex-shrink-0" />
+          <span>Conversion velocity improving ahead of the next launch window.</span>
+        </div>
+      </CardContent>
     </Card>
   );
 }

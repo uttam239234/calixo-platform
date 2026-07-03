@@ -1,14 +1,12 @@
-export interface WelcomeBannerData {
-  eyebrow: string;
-  title: string;
-  description: string;
-  focus: string;
-}
+// Dashboard Data Types
 
-export interface HealthScoreData {
-  score: number;
-  label: string;
-  description: string;
+export interface WelcomeHeroData {
+  greeting: string;
+  workspace: string;
+  healthScore: number;
+  healthLabel: string;
+  aiSummary: string;
+  date: string;
 }
 
 export interface KpiItem {
@@ -16,9 +14,54 @@ export interface KpiItem {
   title: string;
   value: string;
   change: string;
-  trend: "up" | "steady";
+  trend: "up" | "down" | "steady";
   sparkline: number[];
   comparison: string;
+  aiScore?: number;
+}
+
+export interface QuickActionItem {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+}
+
+export interface PerformancePoint {
+  label: string;
+  revenue: number;
+  leads: number;
+  conversions: number;
+  impressions: number;
+}
+
+export interface ChannelData {
+  id: string;
+  name: string;
+  platform: string;
+  spend: string;
+  clicks: string;
+  ctr: string;
+  trend: "up" | "down" | "steady";
+  status: "active" | "paused" | "error";
+}
+
+export interface ConnectedPlatform {
+  id: string;
+  name: string;
+  platform: string;
+  status: "connected" | "syncing" | "error" | "disconnected";
+  lastSync: string;
+}
+
+export interface ActivityItem {
+  id: string;
+  user: string;
+  initials: string;
+  action: string;
+  target: string;
+  timestamp: string;
+  type: "user" | "system" | "ai" | "integration";
 }
 
 export interface RecommendationItem {
@@ -26,37 +69,28 @@ export interface RecommendationItem {
   title: string;
   description: string;
   impact: string;
+  impactType: "positive" | "critical" | "opportunity";
   confidence: number;
+  action: string;
+  priority: "high" | "medium" | "low";
 }
 
-export interface QuickActionItem {
-  id: string;
-  title: string;
-  description: string;
-}
-
-export interface ActivityItem {
-  id: string;
-  title: string;
-  detail: string;
-  time: string;
-}
-
-export interface ConnectedAccountItem {
-  id: string;
-  name: string;
-  status: string;
-}
-
-export interface PerformancePoint {
-  label: string;
-  value: number;
-}
-
-export interface CalendarEventItem {
+export interface UpcomingTask {
   id: string;
   title: string;
   date: string;
   time: string;
-  tone: "cyan" | "amber" | "emerald";
+  type: "campaign" | "deadline" | "meeting" | "report";
+  priority: "high" | "medium" | "low";
+  assignee: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  severity: "critical" | "warning" | "info" | "success";
+  read: boolean;
+  action?: string;
 }

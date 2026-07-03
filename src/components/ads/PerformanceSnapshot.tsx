@@ -1,11 +1,54 @@
-import { ArrowUpRight, BarChart3 } from "lucide-react";
-import Card from "@/components/dashboard/common/Card";
+"use client";
+
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { BarChart3, ArrowUpRight } from "lucide-react";
 import { performance } from "@/features/ads/mock-data";
 
 export function PerformanceSnapshot() {
   const bars = [48, 56, 49, 65, 62, 74, 69, 82, 78, 91, 86, 100];
-  return <Card className="p-5" hover={false}><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Performance snapshot</p><h3 className="mt-1 font-semibold text-white">Blended return</h3></div><span className="rounded-xl bg-violet-500/10 p-2.5 text-violet-300"><BarChart3 size={19} /></span></div>
-    <div className="mt-5 flex items-end justify-between"><div><span className="text-3xl font-semibold text-white">{performance.roas.toFixed(2)}x</span><p className="mt-1 text-xs text-emerald-400"><ArrowUpRight size={13} className="inline" /> {performance.roasChange}% this month</p></div><div className="flex h-20 items-end gap-1.5">{bars.map((height, index) => <div key={index} className="w-2 rounded-t bg-cyan-400/70 transition hover:bg-cyan-300" style={{ height: `${height}%` }} />)}</div></div>
-    <div className="mt-5 grid grid-cols-3 divide-x divide-slate-800 rounded-2xl bg-slate-950/50 py-3 text-center"><div><p className="text-xs text-slate-500">Revenue</p><p className="mt-1 text-sm font-semibold text-white">$626.6K</p></div><div><p className="text-xs text-slate-500">CTR</p><p className="mt-1 text-sm font-semibold text-white">{performance.ctr}%</p></div><div><p className="text-xs text-slate-500">Conv.</p><p className="mt-1 text-sm font-semibold text-white">3,920</p></div></div>
-  </Card>;
+
+  return (
+    <Card>
+      <CardHeader
+        title="Performance Snapshot"
+        description="Blended return across platforms"
+        action={<BarChart3 size={18} className="text-primary" />}
+      />
+      <CardContent>
+        <div className="flex items-end justify-between">
+          <div>
+            <span className="text-3xl font-bold tracking-tight text-foreground tabular-nums">{performance.roas.toFixed(2)}x</span>
+            <p className="mt-1 text-xs text-success flex items-center gap-1">
+              <ArrowUpRight size={13} />
+              {performance.roasChange}% this month
+            </p>
+          </div>
+          <div className="flex h-20 items-end gap-1.5">
+            {bars.map((height, index) => (
+              <div
+                key={index}
+                className="w-2 rounded-t-sm bg-primary/60 transition-all duration-200 hover:bg-primary"
+                style={{ height: `${height}%` }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-3 divide-x divide-border rounded-2xl border border-border/50 bg-card/50 py-3 text-center">
+          <div>
+            <p className="text-xs text-muted-foreground">Revenue</p>
+            <p className="mt-1 text-sm font-semibold text-foreground tabular-nums">$626.6K</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">CTR</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{performance.ctr}%</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Conv.</p>
+            <p className="mt-1 text-sm font-semibold text-foreground tabular-nums">3,920</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }

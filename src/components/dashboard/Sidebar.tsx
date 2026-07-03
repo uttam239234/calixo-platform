@@ -4,22 +4,24 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Bot, ChevronLeft, ChevronRight, Sparkles, Star } from "lucide-react";
-import { navigation } from "@/lib/navigation";
+import { navigation, type NavSection, type NavItem } from "@/lib/navigation";
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-
-  useEffect(() => {
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
     const stored = window.localStorage.getItem("calixo-sidebar-collapsed");
-    if (stored === "true") {
-      setCollapsed(true);
-    }
-  }, []);
+    return stored === "true";
+  });
 
   useEffect(() => {
     window.localStorage.setItem("calixo-sidebar-collapsed", collapsed ? "true" : "false");
   }, [collapsed]);
+
+  const isActive = (href: string) => {
+    if (href === "/dashboard") return pathname === "/dashboard";
+    return pathname?.startsWith(href + "/") || pathname === href;
+  };
 
   return (
     <aside className={`flex h-screen flex-col border-r border-slate-800/80 bg-slate-950/95 py-5 transition-all duration-300 ${collapsed ? "w-20" : "w-72"}`}>
@@ -47,27 +49,47 @@ export default function Sidebar() {
         </button>
       </div>
 
-      <nav className="mt-6 flex-1 space-y-1.5 px-3">
-        {navigation.map((item) => {
-          const Icon = item.icon;
-          const active = pathname === item.href;
+      <nav className="mt-6 flex-1 space-y-3 overflow-y-auto px-3 scrollbar-thin">
+        {navigation.map((section: NavSection) => (
+          <div key={section.title}>
+            {!collapsed && (
+              <p className="px-3 mb-1.5 text-[10px] font-semibold tracking-[0.08em] uppercase text-slate-500">
+                {section.title}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item: NavItem) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
 
-          return (
-            <Link
-              key={item.title}
-              href={item.href}
-              title={item.title}
-              className={`flex items-center rounded-2xl px-3 py-3 text-sm font-medium transition-all ${collapsed ? "justify-center" : "gap-3"} ${
-                active
-                  ? "bg-cyan-500/15 text-cyan-200 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.2)]"
-                  : "text-slate-300 hover:bg-slate-800/90 hover:text-white"
-              }`}
-            >
-              <Icon size={18} />
-              {!collapsed ? <span>{item.title}</span> : null}
-            </Link>
-          );
-        })}
+                return (
+                  <Link
+                    key={item.title}
+                    href={item.href}
+                    title={item.title}
+                    className={`flex items-center rounded-2xl px-3 py-2.5 text-sm font-medium transition-all ${
+                      collapsed ? "justify-center" : "gap-3"
+                    } ${
+                      active
+                        ? "bg-cyan-500/15 text-cyan-200 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.2)]"
+                        : "text-slate-300 hover:bg-slate-800/90 hover:text-white"
+                    }`}
+                  >
+                    <Icon size={18} />
+                    {!collapsed && (
+                      <span className="flex-1">{item.title}</span>
+                    )}
+                    {!collapsed && item.badge && (
+                      <span className="inline-flex items-center rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       <div className="mx-3 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">

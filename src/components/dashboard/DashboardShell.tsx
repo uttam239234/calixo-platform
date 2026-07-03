@@ -1,42 +1,87 @@
 "use client";
 
-import { motion } from "framer-motion";
-import WelcomeBanner from "./WelcomeBanner";
-import HealthScore from "./HealthScore";
+import { useState, useEffect } from "react";
+import WelcomeHero from "./WelcomeHero";
 import KpiGrid from "./KpiGrid";
-import AiRecommendations from "./AiRecommendations";
 import QuickActions from "./QuickActions";
-import ConnectedAccounts from "./ConnectedAccounts";
-import RecentActivity from "./RecentActivity";
 import MarketingPerformanceChart from "./MarketingPerformanceChart";
-import CalendarWidget from "./CalendarWidget";
+import ChannelOverview from "./ChannelOverview";
+import RecentActivity from "./RecentActivity";
+import AiRecommendations from "./AiRecommendations";
+import UpcomingTasks from "./UpcomingTasks";
+import ConnectedPlatforms from "./ConnectedPlatforms";
+import { motion, type Variants } from "framer-motion";
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.06,
+    },
+  },
+};
+
+const sectionVariants: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+  },
+};
 
 export default function DashboardShell() {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-        <WelcomeBanner />
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6 pb-8"
+    >
+      {/* Section 1: Hero Section */}
+      <motion.div variants={sectionVariants}>
+        <WelcomeHero />
       </motion.div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] xl:grid-cols-[1.2fr_0.8fr]">
-        <HealthScore />
+      {/* Section 2: KPI Cards */}
+      <motion.div variants={sectionVariants}>
+        <KpiGrid loading={loading} />
+      </motion.div>
+
+      {/* Section 3: Marketing Performance Chart */}
+      <motion.div variants={sectionVariants}>
+        <MarketingPerformanceChart loading={loading} />
+      </motion.div>
+
+      {/* Section 4: Channel Overview */}
+      <motion.div variants={sectionVariants}>
+        <ChannelOverview loading={loading} />
+      </motion.div>
+
+      {/* Section 5: Quick Actions */}
+      <motion.div variants={sectionVariants}>
         <QuickActions />
-      </div>
+      </motion.div>
 
-      <KpiGrid />
+      {/* Section 6: Two Column - Recent Activity + Upcoming Tasks */}
+      <motion.div variants={sectionVariants} className="grid gap-6 lg:grid-cols-2">
+        <RecentActivity loading={loading} />
+        <UpcomingTasks loading={loading} />
+      </motion.div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-        <MarketingPerformanceChart />
-        <div className="space-y-6">
-          <AiRecommendations />
-          <CalendarWidget />
-        </div>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <ConnectedAccounts />
-        <RecentActivity />
-      </div>
-    </div>
+      {/* Section 7: Two Column - AI Recommendations + Connected Platforms */}
+      <motion.div variants={sectionVariants} className="grid gap-6 lg:grid-cols-2">
+        <AiRecommendations loading={loading} />
+        <ConnectedPlatforms loading={loading} />
+      </motion.div>
+    </motion.div>
   );
 }

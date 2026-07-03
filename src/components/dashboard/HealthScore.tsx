@@ -1,9 +1,11 @@
+"use client";
+
 import { ArrowUpRight, Sparkles } from "lucide-react";
 import ProgressRing from "./common/ProgressRing";
-import { healthScoreData } from "./mock-data";
+import { welcomeHeroData } from "./mock-data";
 
 export default function HealthScore() {
-  const { score, label, description } = healthScoreData;
+  const { healthScore: score, healthLabel: label } = welcomeHeroData;
 
   const grade = score >= 85 ? "Excellent" : score >= 70 ? "Good" : score >= 55 ? "Average" : "Poor";
   const tone = score >= 85 ? "cyan" : score >= 70 ? "emerald" : score >= 55 ? "amber" : "rose";
@@ -17,7 +19,7 @@ export default function HealthScore() {
             <p className="text-4xl font-semibold text-white">{score}%</p>
             <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1 text-sm text-cyan-300">{grade}</span>
           </div>
-          <p className="mt-3 text-sm text-slate-400">{description}</p>
+          <p className="mt-3 text-sm text-slate-400">Strong momentum across campaigns, automation, and activation.</p>
         </div>
 
         <div className="flex items-center gap-4">
