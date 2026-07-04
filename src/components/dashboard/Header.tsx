@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, ChevronDown, Moon, Search, Sparkles, SunMedium, User } from "lucide-react";
+import { Bell, ChevronDown, Moon, Search, Sparkles, User } from "lucide-react";
 
 export default function Header() {
   return (

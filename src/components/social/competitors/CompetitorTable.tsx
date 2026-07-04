@@ -1,10 +1,8 @@
 "use client";
 import {
   Edit3,
-  Heart,
   Trash2,
   BarChart3,
-  Eye,
   Star,
   ChevronRight,
 } from "lucide-react";

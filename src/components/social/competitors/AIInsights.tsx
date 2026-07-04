@@ -2,7 +2,6 @@
 import { useState } from "react";
 import {
   Lightbulb,
-  Brain,
   Target,
   Zap,
   AlertTriangle,

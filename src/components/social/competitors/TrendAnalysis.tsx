@@ -1,11 +1,6 @@
 "use client";
 import { useState } from "react";
 import {
-  TrendingUp,
-  Hash,
-  Clock,
-  Lightbulb,
-  BarChart3,
 } from "lucide-react";
 import { useCompetitors } from "@/features/social/competitors/CompetitorProvider";
 import Card from "@/components/dashboard/common/Card";

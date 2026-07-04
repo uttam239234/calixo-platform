@@ -9,9 +9,6 @@ import {
   TrendingUp,
   Eye,
   Heart,
-  MessageCircle,
-  Share2,
-  Play,
   Star,
   Hash,
 } from "lucide-react";

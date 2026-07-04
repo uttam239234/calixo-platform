@@ -1,10 +1,9 @@
 "use client";
 import { useState } from "react";
-import { Play, Eye, Heart, MessageCircle, Share2, Calendar } from "lucide-react";
+import { Play, Eye, Heart, MessageCircle, Share2 } from "lucide-react";
 import { useCompetitors } from "@/features/social/competitors/CompetitorProvider";
 import Card from "@/components/dashboard/common/Card";
 import SectionTitle from "@/components/dashboard/common/SectionTitle";
-import { Button } from "@/components/ui/button";
 
 const tabs = ["Top Posts", "Top Videos", "Top Reels", "Top Shorts"] as const;
 type ContentTab = (typeof tabs)[number];

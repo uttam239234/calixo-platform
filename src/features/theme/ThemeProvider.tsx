@@ -20,7 +20,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return true;
   });
 
-  const toggle = () => {
+  const _toggle = () => {
     const next = theme === "light" ? "dark" : "light";
     setTheme(next);
     localStorage.setItem(STORAGE_KEY, next);

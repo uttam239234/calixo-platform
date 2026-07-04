@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { navigation, type NavSection, type NavItem } from "@/lib/navigation";
+import "@/core/modules/bootstrap";
+import { ModuleNavigation } from "@/core/modules";
+import type { ModuleNavSection, ModuleNavItem } from "@/core/modules";
 import { ChevronLeft, ChevronRight, Zap, HardDrive, CreditCard } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -63,7 +65,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 pb-3 scrollbar-none" aria-label="Main navigation">
-        {navigation.map((section: NavSection) => (
+        {ModuleNavigation.getSidebarNavigation().map((section: ModuleNavSection) => (
           <div key={section.title} className="mb-5">
             <AnimatePresence>
               {!collapsed && (
@@ -78,7 +80,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
               )}
             </AnimatePresence>
             <div className="space-y-0.5">
-              {section.items.map((item: NavItem) => {
+              {section.items.map((item: ModuleNavItem) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
 
@@ -103,12 +105,14 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                         transition={{ type: "spring", stiffness: 500, damping: 35 }}
                       />
                     )}
-                    <Icon
-                      size={collapsed ? 20 : 18}
-                      className={`flex-shrink-0 transition-all duration-150 ${
-                        active ? "text-primary" : "text-sidebar-muted group-hover:text-primary"
-                      }`}
-                    />
+                    {Icon && (
+                      <Icon
+                        size={collapsed ? 20 : 18}
+                        className={`flex-shrink-0 transition-all duration-150 ${
+                          active ? "text-primary" : "text-sidebar-muted group-hover:text-primary"
+                        }`}
+                      />
+                    )}
                     {active && collapsed && (
                       <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-sidebar" />
                     )}
