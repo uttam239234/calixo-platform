@@ -1,16 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import WelcomeHero from "./WelcomeHero";
 import KpiGrid from "./KpiGrid";
 import QuickActions from "./QuickActions";
 import MarketingPerformanceChart from "./MarketingPerformanceChart";
 import ChannelOverview from "./ChannelOverview";
+import PendingApprovals from "./PendingApprovals";
 import RecentActivity from "./RecentActivity";
 import AiRecommendations from "./AiRecommendations";
 import UpcomingTasks from "./UpcomingTasks";
 import ConnectedPlatforms from "./ConnectedPlatforms";
 import { motion, type Variants } from "framer-motion";
+import { useDashboard } from "@/hooks/useDashboard";
+import { useNotifications } from "@/hooks/useNotifications";
+import { initializeDashboardFoundation, registerDashboardSkills } from "@/core/dashboard";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -33,11 +37,21 @@ const sectionVariants: Variants = {
 
 export default function DashboardShell() {
   const [loading, setLoading] = useState(true);
+  const dashboard = useDashboard();
+  const notifications = useNotifications();
+  const { refresh: refreshDashboard } = dashboard;
+  const { refresh: refreshNotifications } = notifications;
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
+    (async () => {
+      const minDelay = new Promise(resolve => setTimeout(resolve, 600));
+      await Promise.all([initializeDashboardFoundation(), minDelay]);
+      registerDashboardSkills();
+      refreshDashboard();
+      await refreshNotifications();
+      setLoading(false);
+    })();
+  }, [refreshDashboard, refreshNotifications]);
 
   return (
     <motion.div
@@ -69,6 +83,11 @@ export default function DashboardShell() {
       {/* Section 5: Quick Actions */}
       <motion.div variants={sectionVariants}>
         <QuickActions />
+      </motion.div>
+
+      {/* Section 5b: Pending Approvals — live from WorkflowEngine */}
+      <motion.div variants={sectionVariants}>
+        <PendingApprovals kpis={dashboard.kpis} approvals={dashboard.pendingApprovals} loading={loading} />
       </motion.div>
 
       {/* Section 6: Two Column - Recent Activity + Upcoming Tasks */}

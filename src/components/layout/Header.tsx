@@ -1,8 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Search, Bell, Moon, Sun, ChevronDown, Plus, CalendarDays } from "lucide-react";
+import { Search, Moon, Sun, ChevronDown, Plus, CalendarDays } from "lucide-react";
 import { useTheme } from "@/features/theme/ThemeContext";
+import { NotificationBell } from "./NotificationBell";
 
 export default function Header() {
   const pathname = usePathname();
@@ -116,15 +117,7 @@ export default function Header() {
         </button>
 
         {/* Notifications */}
-        <button
-          type="button"
-          className="relative flex h-9 w-9 items-center justify-center rounded-2xl text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-150"
-          aria-label="Notifications"
-        >
-          <Bell size={16} />
-          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive ring-2 ring-card" aria-hidden="true" />
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[8px] font-bold text-white">3</span>
-        </button>
+        <NotificationBell />
 
         {/* Quick Create */}
         <button

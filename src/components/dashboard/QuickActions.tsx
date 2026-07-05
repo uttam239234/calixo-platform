@@ -19,7 +19,7 @@ const actionLinks: Record<string, string> = {
   "compose-post": "/dashboard/social/compose",
   "generate-report": "/dashboard/reports",
   "open-analytics": "/dashboard/analytics",
-  "launch-workflow": "/dashboard/automation",
+  "launch-workflow": "/dashboard/workflows",
   "ask-ai": "/dashboard/ai",
 };
 
