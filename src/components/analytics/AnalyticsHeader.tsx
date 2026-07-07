@@ -1,14 +1,24 @@
 "use client";
 
-import { CalendarDays, Download, FileText, RefreshCw, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { CalendarDays, Check, Download, FileText, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface AnalyticsHeaderProps {
   selectedRange: "7d" | "30d" | "90d" | "custom";
   onRangeChange: (range: "7d" | "30d" | "90d" | "custom") => void;
+  onExport: (format: "pdf" | "excel") => void;
+  onRefresh: () => void;
 }
 
-export function AnalyticsHeader({ selectedRange, onRangeChange }: AnalyticsHeaderProps) {
+export function AnalyticsHeader({ selectedRange, onRangeChange, onExport, onRefresh }: AnalyticsHeaderProps) {
+  const [refreshed, setRefreshed] = useState(false);
+
+  const handleRefresh = () => {
+    onRefresh();
+    setRefreshed(true);
+    setTimeout(() => setRefreshed(false), 1500);
+  };
   return (
     <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -24,17 +34,17 @@ export function AnalyticsHeader({ selectedRange, onRangeChange }: AnalyticsHeade
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => onExport("pdf")}>
             <FileText size={14} />
             Export PDF
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => onExport("excel")}>
             <Download size={14} />
             Export Excel
           </Button>
-          <Button variant="outline" size="sm">
-            <RefreshCw size={14} />
-            Refresh
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
+            {refreshed ? <Check size={14} /> : <RefreshCw size={14} />}
+            {refreshed ? "Refreshed" : "Refresh"}
           </Button>
           <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface/50 px-3 py-2 text-sm text-muted-foreground">
             <CalendarDays size={15} className="text-muted-foreground/70" />

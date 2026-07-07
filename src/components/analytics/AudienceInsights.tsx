@@ -1,9 +1,13 @@
 "use client";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
-import { audienceInsights } from "./mock-data";
+import type { AnalyticsAudienceSegment } from "@/core/analytics";
 
-export function AudienceInsights() {
+interface AudienceInsightsProps {
+  items: AnalyticsAudienceSegment[];
+}
+
+export function AudienceInsights({ items: audienceInsights }: AudienceInsightsProps) {
   return (
     <Card>
       <CardHeader title="Audience Insights" description="Who is converting and what they care about" />

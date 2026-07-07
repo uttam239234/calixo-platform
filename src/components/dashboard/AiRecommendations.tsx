@@ -4,26 +4,24 @@ import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 import { SkeletonText } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Lightbulb, TrendingUp, AlertTriangle, Sparkles, ArrowRight, BrainCircuit } from "lucide-react";
-import { recommendationData } from "./mock-data";
-import type { RecommendationItem } from "./types";
+import { Lightbulb, TrendingUp, AlertTriangle, Sparkles, Check, X, BrainCircuit } from "lucide-react";
+import type { DashboardRecommendation } from "@/core/dashboard";
 
-const impactConfig = {
-  positive: { icon: TrendingUp, className: "border-success/20 bg-success/10 text-success" },
-  critical: { icon: AlertTriangle, className: "border-destructive/20 bg-destructive/10 text-destructive" },
-  opportunity: { icon: Lightbulb, className: "border-warning/20 bg-warning/10 text-warning" },
+const priorityIcon = {
+  high: { icon: AlertTriangle, className: "border-destructive/20 bg-destructive/10 text-destructive" },
+  medium: { icon: Lightbulb, className: "border-warning/20 bg-warning/10 text-warning" },
+  low: { icon: TrendingUp, className: "border-success/20 bg-success/10 text-success" },
 };
 
 const priorityOrder = { high: 0, medium: 1, low: 2 };
 
-function RecommendationCard({ item }: { item: RecommendationItem }) {
-  const config = impactConfig[item.impactType];
+function RecommendationCard({ item, onApply, onDismiss }: { item: DashboardRecommendation; onApply: (id: string) => void; onDismiss: (id: string) => void }) {
+  const config = priorityIcon[item.priority];
   const ImpactIcon = config.icon;
+  const applied = item.status === "applied";
 
   return (
-    <div className={`rounded-xl border border-border/50 bg-card/50 p-4 transition-all duration-200 hover:bg-accent/50 hover:border-border/80 hover:shadow-sm ${
-      item.priority === "high" ? "border-l-[3px] border-l-primary" : ""
-    }`}>
+    <div className={`rounded-xl border border-border/50 bg-card/50 p-4 transition-all duration-200 hover:bg-accent/50 hover:border-border/80 hover:shadow-sm ${item.priority === "high" ? "border-l-[3px] border-l-primary" : ""} ${applied ? "opacity-60" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
           <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${config.className}`}>
@@ -32,11 +30,10 @@ function RecommendationCard({ item }: { item: RecommendationItem }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-sm font-semibold text-foreground">{item.title}</p>
-              {item.priority === "high" && (
-                <span className="inline-flex items-center rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-[10px] font-bold text-destructive tracking-wider">
-                  HIGH PRIORITY
-                </span>
+              {item.priority === "high" && !applied && (
+                <span className="inline-flex items-center rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-[10px] font-bold text-destructive tracking-wider">HIGH PRIORITY</span>
               )}
+              {applied && <span className="inline-flex items-center rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] font-bold text-success tracking-wider">APPLIED</span>}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -51,9 +48,16 @@ function RecommendationCard({ item }: { item: RecommendationItem }) {
             </div>
           </div>
         </div>
-        <Button variant="outline" size="sm" className="flex-shrink-0 gap-1">
-          {item.action} <ArrowRight size={14} />
-        </Button>
+        {!applied && (
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <Button variant="ghost" size="icon-sm" aria-label="Dismiss" onClick={() => onDismiss(item.id)}>
+              <X size={14} />
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1" onClick={() => onApply(item.id)}>
+              <Check size={14} /> Apply
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -78,10 +82,13 @@ function RecommendationSkeleton() {
 }
 
 interface AiRecommendationsProps {
+  items: DashboardRecommendation[];
   loading?: boolean;
+  onApply: (id: string) => void;
+  onDismiss: (id: string) => void;
 }
 
-export default function AiRecommendations({ loading = false }: AiRecommendationsProps) {
+export default function AiRecommendations({ items, loading = false, onApply, onDismiss }: AiRecommendationsProps) {
   if (loading) {
     return (
       <Card>
@@ -97,38 +104,26 @@ export default function AiRecommendations({ loading = false }: AiRecommendations
     );
   }
 
-  if (recommendationData.length === 0) {
+  if (items.length === 0) {
     return (
       <Card>
         <CardHeader title="AI Recommendations" description="Prioritized by impact" />
         <CardContent>
-          <EmptyState
-            icon={<BrainCircuit size={32} />}
-            title="No recommendations yet"
-            description="AI will surface actionable insights as data accumulates."
-          />
+          <EmptyState icon={<BrainCircuit size={32} />} title="No recommendations yet" description="AI will surface actionable insights as data accumulates." />
         </CardContent>
       </Card>
     );
   }
 
-  const sorted = [...recommendationData].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+  const sorted = [...items].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
 
   return (
     <Card>
-      <CardHeader
-        title="AI Recommendations"
-        description="Prioritized by impact"
-        action={
-          <Button variant="ghost" size="sm" className="gap-1 text-primary">
-            View All <ArrowRight size={14} />
-          </Button>
-        }
-      />
+      <CardHeader title="AI Recommendations" description="Live from Analytics insights and workflow signals" />
       <CardContent>
         <div className="space-y-3">
           {sorted.map((item) => (
-            <RecommendationCard key={item.id} item={item} />
+            <RecommendationCard key={item.id} item={item} onApply={onApply} onDismiss={onDismiss} />
           ))}
         </div>
       </CardContent>

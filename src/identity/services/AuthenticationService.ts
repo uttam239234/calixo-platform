@@ -88,7 +88,7 @@ export class AuthenticationService {
     user.lastLoginAt = new Date().toISOString();
 
     // Create tokens
-    const tokenPair = tokenService.createTokenPair({
+    const tokenPair = await tokenService.createTokenPair({
       id: user.id,
       email: user.email,
       name: user.name,
@@ -163,7 +163,7 @@ export class AuthenticationService {
     this.emailIndex.set(user.email, user.id);
 
     // Create tokens
-    const tokenPair = tokenService.createTokenPair({
+    const tokenPair = await tokenService.createTokenPair({
       id: user.id,
       email: user.email,
       name: user.name,
@@ -211,12 +211,12 @@ export class AuthenticationService {
     }
 
     // Verify the refresh token
-    if (!tokenService.verifyToken(refreshToken)) {
+    if (!(await tokenService.verifyToken(refreshToken, 'refresh'))) {
       throw new AuthenticationError('Refresh token is expired or invalid');
     }
 
     // Create new token pair
-    const tokenPair = tokenService.refreshAccessToken(
+    const tokenPair = await tokenService.refreshAccessToken(
       { id: user.id, email: user.email, name: user.name, role: user.role },
       refreshToken
     );

@@ -12,26 +12,49 @@
 
 import { initializeCommunicationPlatform } from "@/communication";
 import { seedDashboardNotifications } from "./mock/seedDashboardNotifications";
+import { seedDashboardLayouts } from "./layouts/seedDashboardLayouts";
+import { seedDashboardConnections } from "./integrations/seedDashboardConnections";
+import { registerDashboardReports } from "./reports/registerDashboardReports";
+import { registerDashboardSettings } from "./settings/registerDashboardSettings";
 
 export * from "./types";
+export * from "./layouts/types";
+export { GoalEngine, goalEngine } from "@/core/platform/goals";
+export type { Goal, GoalPeriod, GoalScorecardEntry, GoalStatus } from "@/core/platform/goals";
 
 export { DashboardEngine, dashboardEngine } from "./engine/DashboardEngine";
+export { DashboardLayoutRegistry, dashboardLayoutRegistry } from "./layouts/DashboardLayoutRegistry";
+export { dashboardActivityLog } from "./activity/DashboardActivityLog";
 
 export { registerDashboardSkills } from "./skills/registerDashboardSkills";
+export { registerDashboardReports } from "./reports/registerDashboardReports";
+export { registerDashboardSettings } from "./settings/registerDashboardSettings";
+export { seedDashboardLayouts } from "./layouts/seedDashboardLayouts";
+export { seedDashboardConnections, DASHBOARD_ORGANIZATION_ID } from "./integrations/seedDashboardConnections";
 
 export { seedDashboardNotifications, DASHBOARD_CURRENT_USER_ID } from "./mock/seedDashboardNotifications";
 
-let initialized = false;
+let initPromise: Promise<void> | null = null;
 
 /**
- * Boots the Communication Platform (previously built but never invoked
- * anywhere in the app) and seeds a small, realistic set of demo
- * notifications for the current session user via the real
- * `notificationService`. Safe to call more than once.
+ * Boots the Communication Platform, seeds demo notifications, registers
+ * the nine default dashboard layouts, seeds real Integration Framework
+ * connections, registers Dashboard's Reports-platform report definitions,
+ * and registers Dashboard's personalization settings. Safe to call more
+ * than once — concurrent callers (e.g. React Strict Mode's double effect
+ * invocation) all await the same in-flight promise rather than racing a
+ * boolean guard.
  */
-export async function initializeDashboardFoundation(): Promise<void> {
-  if (initialized) return;
-  initialized = true;
-  await initializeCommunicationPlatform();
-  await seedDashboardNotifications();
+export function initializeDashboardFoundation(): Promise<void> {
+  if (!initPromise) {
+    initPromise = (async () => {
+      await initializeCommunicationPlatform();
+      await seedDashboardNotifications();
+      seedDashboardLayouts();
+      await seedDashboardConnections();
+      registerDashboardReports();
+      registerDashboardSettings();
+    })();
+  }
+  return initPromise;
 }

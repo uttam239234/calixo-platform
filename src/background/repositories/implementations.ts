@@ -51,8 +51,13 @@ export class InMemoryJobRepository implements JobRepository {
 
   async getNextDue(limit: number = 10): Promise<Job[]> {
     const now = new Date().toISOString();
+    // Also picks up 'scheduled' (future-dated on creation) and 'retrying' (backed off after a
+    // failure) jobs once their `scheduledAt` arrives — previously only 'queued' was matched here,
+    // so `updateScheduledAt`/`incrementRetry` (which both set status to 'scheduled'/'retrying')
+    // left jobs permanently stuck: nothing ever transitioned them back to 'queued', so scheduled
+    // jobs and retries never actually ran. Found via the Enterprise Execution Platform audit.
     return Array.from(this.jobs.values())
-      .filter(j => !j.isDeleted && j.status === 'queued' && (!j.scheduledAt || j.scheduledAt <= now))
+      .filter(j => !j.isDeleted && (j.status === 'queued' || j.status === 'scheduled' || j.status === 'retrying') && (!j.scheduledAt || j.scheduledAt <= now))
       .sort((a, b) => {
         const priorityOrder: Record<JobPriority, number> = { critical: 0, high: 1, medium: 2, low: 3 };
         const pDiff = (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2);

@@ -2,7 +2,7 @@
  * Calixo Platform - Visualization Engine
  *
  * Architecture only. Describes and validates widget configuration for
- * the 12 supported widget types — it never renders a chart.
+ * the 14 supported widget types — it never renders a chart.
  */
 
 import { generateId } from "@/shared/utils/string";
@@ -21,6 +21,8 @@ const WIDGET_CATALOG: Record<WidgetType, WidgetTypeDefinition> = {
   scorecard: { type: "scorecard", label: "Scorecard", description: "A set of metrics graded against targets", minMetrics: 1, minDimensions: 0, defaultConfig: {} },
   funnel: { type: "funnel", label: "Funnel", description: "Sequential stage drop-off visualization", minMetrics: 1, minDimensions: 1, defaultConfig: {} },
   treemap: { type: "treemap", label: "TreeMap", description: "Hierarchical, proportionally sized categories", minMetrics: 1, minDimensions: 1, defaultConfig: {} },
+  waterfall: { type: "waterfall", label: "Waterfall", description: "Cumulative bridge from a starting to an ending value", minMetrics: 1, minDimensions: 1, defaultConfig: {} },
+  scatter: { type: "scatter", label: "Scatter Plot", description: "Two-metric correlation across categories", minMetrics: 2, minDimensions: 0, defaultConfig: {} },
 };
 
 export class VisualizationEngine {

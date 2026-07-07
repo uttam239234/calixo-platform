@@ -1,16 +1,26 @@
 "use client";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
-import { campaignPerformance } from "./mock-data";
+import type { AnalyticsCampaignRow } from "@/core/analytics";
 
-export function CampaignPerformance() {
+interface CampaignPerformanceProps {
+  rows: AnalyticsCampaignRow[];
+  activeCampaign?: string;
+  onSelectCampaign?: (campaign: string) => void;
+}
+
+export function CampaignPerformance({ rows: campaignPerformance, activeCampaign, onSelectCampaign }: CampaignPerformanceProps) {
   return (
     <Card>
-      <CardHeader title="Campaign Performance" description="High-yield initiatives and conversion efficiency" />
+      <CardHeader title="Campaign Performance" description={onSelectCampaign ? "High-yield initiatives and conversion efficiency — click a card to cross-filter" : "High-yield initiatives and conversion efficiency"} />
       <CardContent>
         <div className="space-y-4">
           {campaignPerformance.map((campaign) => (
-            <div key={campaign.name} className="rounded-2xl border border-border/50 bg-card/50 p-4 transition-all duration-150 hover:bg-accent/50 hover:border-border/80">
+            <div
+              key={campaign.name}
+              onClick={() => onSelectCampaign?.(campaign.name)}
+              className={`rounded-2xl border border-border/50 bg-card/50 p-4 transition-all duration-150 hover:bg-accent/50 hover:border-border/80 ${onSelectCampaign ? "cursor-pointer" : ""} ${activeCampaign === campaign.name ? "border-primary/50 bg-primary/5" : ""}`}
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">{campaign.name}</h3>

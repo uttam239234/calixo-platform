@@ -19,7 +19,9 @@ export type WidgetType =
   | "gauge"
   | "scorecard"
   | "funnel"
-  | "treemap";
+  | "treemap"
+  | "waterfall"
+  | "scatter";
 
 export const WIDGET_TYPES: WidgetType[] = [
   "kpi-card",
@@ -34,6 +36,8 @@ export const WIDGET_TYPES: WidgetType[] = [
   "scorecard",
   "funnel",
   "treemap",
+  "waterfall",
+  "scatter",
 ];
 
 export interface WidgetTypeDefinition {

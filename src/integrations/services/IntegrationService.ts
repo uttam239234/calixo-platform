@@ -12,12 +12,11 @@ import { connectorRegistry } from '@/integrations/registry/ConnectorRegistry';
 import { integrationOAuthService } from '@/integrations/oauth/OAuthService';
 import { integrationSyncService } from '@/integrations/sync/SyncService';
 import { integrationHealthMonitor } from '@/integrations/health/HealthMonitor';
-import { integrationWebhookService } from '@/integrations/webhooks/WebhookService';
+import { secretVault } from '@/integrations/secrets/SecretVault';
 import type {
   IntegrationService,
-  Connection, ConnectionId, ConnectionHealth, ConnectionStatus,
+  Connection, ConnectionId, ConnectionHealth,
   ProviderDefinition, ProviderId, SyncDataType, SyncJob,
-  AuthCredentials, TokenResponse,
 } from '@/integrations/types';
 
 export class MainIntegrationService implements IntegrationService {
@@ -106,6 +105,40 @@ export class MainIntegrationService implements IntegrationService {
     conn.updatedAt = new Date().toISOString();
   }
 
+  async pause(id: ConnectionId): Promise<Connection> {
+    const conn = this.connections.get(id);
+    if (!conn) throw new NotFoundError('Connection');
+    conn.status = 'paused';
+    conn.updatedAt = new Date().toISOString();
+    return { ...conn };
+  }
+
+  async resume(id: ConnectionId): Promise<Connection> {
+    const conn = this.connections.get(id);
+    if (!conn) throw new NotFoundError('Connection');
+    conn.status = 'connected';
+    conn.updatedAt = new Date().toISOString();
+    return { ...conn };
+  }
+
+  async duplicateConnection(id: ConnectionId): Promise<Connection> {
+    const source = this.connections.get(id);
+    if (!source) throw new NotFoundError('Connection');
+    const now = new Date().toISOString();
+    const duplicate: Connection = {
+      ...source,
+      id: generateId(16),
+      name: `${source.name} (Copy)`,
+      status: 'pending',
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.connections.set(duplicate.id, duplicate);
+    this.organizationConnections.get(source.organizationId)!.push(duplicate.id);
+    appLogger.info('IntegrationService', `Connection duplicated: ${id} -> ${duplicate.id}`);
+    return { ...duplicate };
+  }
+
   async testConnection(id: ConnectionId): Promise<ConnectionHealth> {
     return integrationHealthMonitor.checkConnection(id);
   }
@@ -137,8 +170,33 @@ export class MainIntegrationService implements IntegrationService {
 
   async completeOAuth(providerId: ProviderId, code: string, state: string): Promise<Connection> {
     const tokenResponse = await integrationOAuthService.completeFlow(providerId, code, state);
-    // In production, create connection with credentials
-    throw new ValidationError('OAuth completion requires provider-specific implementation');
+
+    const connection = await this.createConnection(tokenResponse.organizationId, providerId, {});
+
+    const sealedAccessToken = await secretVault.seal(tokenResponse.accessToken);
+    const sealedRefreshToken = tokenResponse.refreshToken ? await secretVault.seal(tokenResponse.refreshToken) : undefined;
+
+    const stored = this.connections.get(connection.id);
+    if (!stored) throw new NotFoundError('Connection');
+    stored.status = 'connected';
+    stored.auth = {
+      type: 'oauth2',
+      status: 'valid',
+      oauth2: {
+        // References into `SecretVault`, NOT plaintext tokens — see the
+        // Integration Architecture Audit finding on `SecretVault.ts`.
+        accessToken: sealedAccessToken,
+        refreshToken: sealedRefreshToken,
+        tokenType: tokenResponse.tokenType,
+        expiresAt: new Date(Date.now() + tokenResponse.expiresIn * 1000).toISOString(),
+        scope: tokenResponse.scope,
+        providerUserId: tokenResponse.providerUserId,
+      },
+    };
+    stored.updatedAt = new Date().toISOString();
+
+    appLogger.info('IntegrationService', `OAuth connection established: ${connection.id} (${providerId})`);
+    return { ...stored };
   }
 
   async getConnectionHealth(id: ConnectionId): Promise<ConnectionHealth> {

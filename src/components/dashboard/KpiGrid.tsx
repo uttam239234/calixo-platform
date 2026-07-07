@@ -3,18 +3,19 @@
 import { useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { SkeletonText } from "@/components/ui/Skeleton";
-import { CircleDollarSign, Users, Rocket, TrendingUp, Share2, BrainCircuit, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { CircleDollarSign, Users, TrendingDown, TrendingUp, Percent, BarChart3, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { kpiData } from "./mock-data";
-import type { KpiItem } from "./types";
+import type { DashboardMarketingKpi } from "@/core/dashboard";
 
 const iconMap: Record<string, LucideIcon> = {
   revenue: CircleDollarSign,
+  spend: TrendingDown,
+  roas: BarChart3,
+  cpa: TrendingDown,
+  "conversion-rate": Percent,
   leads: Users,
-  campaigns: Rocket,
-  conversions: TrendingUp,
-  "social-reach": Share2,
-  "ai-score": BrainCircuit,
+  sales: TrendingUp,
+  growth: TrendingUp,
 };
 
 const trendIconMap: Record<string, LucideIcon> = {
@@ -26,50 +27,49 @@ const trendIconMap: Record<string, LucideIcon> = {
 function AnimatedNumber({ value, duration = 800 }: { value: string; duration?: number }) {
   const displayRef = useRef<HTMLSpanElement>(null);
   const initialValue = value;
-  
+
   useEffect(() => {
     let cancelled = false;
-    
-    // Extract numeric parts
-    const match = value.match(/^([$,]?)([\d,.]+)([KMB%pts]?)$/);
+
+    const match = value.match(/^([$,]?)([\d,.]+)([KMBx%pts]*)$/);
     if (!match || !match[2]) {
       return;
     }
-    
+
     const prefix = match[1] || "";
     const numStr = match[2];
     const suffix = match[3] || "";
     const targetNum = parseFloat(numStr.replace(/,/g, ""));
-    
+
     if (isNaN(targetNum)) {
       return;
     }
-    
+
     const startTime = performance.now();
-    
+
     function animate(currentTime: number) {
       if (cancelled || !displayRef.current) return;
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
       const current = targetNum * eased;
-      
+
       if (Number.isInteger(targetNum)) {
         displayRef.current.textContent = `${prefix}${Math.round(current)}${suffix}`;
       } else {
         const decimals = numStr.split(".")[1]?.length || 0;
         displayRef.current.textContent = `${prefix}${current.toFixed(decimals)}${suffix}`;
       }
-      
+
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
         displayRef.current.textContent = value;
       }
     }
-    
+
     requestAnimationFrame(animate);
-    
+
     return () => {
       cancelled = true;
     };
@@ -78,10 +78,10 @@ function AnimatedNumber({ value, duration = 800 }: { value: string; duration?: n
   return <span ref={displayRef} className="tabular-nums">{initialValue}</span>;
 }
 
-function KpiCard({ item }: { item: KpiItem }) {
+function KpiCard({ item }: { item: DashboardMarketingKpi }) {
   const Icon: LucideIcon = iconMap[item.id] ?? TrendingUp;
   const TrendIcon: LucideIcon = trendIconMap[item.trend] ?? Minus;
-  const trendColor = item.trend === "up" ? "text-success" : item.trend === "down" ? "text-destructive" : "text-muted-foreground";
+  const trendColor = item.tone === "positive" ? "text-success" : item.tone === "negative" ? "text-destructive" : "text-muted-foreground";
 
   return (
     <Card className="transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5">
@@ -106,7 +106,6 @@ function KpiCard({ item }: { item: KpiItem }) {
           <span className="text-xs text-muted-foreground">{item.comparison}</span>
         </div>
 
-        {/* Sparkline */}
         <div className="mt-3 h-8 w-full">
           <svg viewBox="0 0 100 32" className="h-full w-full overflow-visible">
             <defs>
@@ -123,7 +122,7 @@ function KpiCard({ item }: { item: KpiItem }) {
                 const min = Math.min(...item.sparkline);
                 const range = max - min || 1;
                 const y = 32 - ((v - min) / range) * 24 - 4;
-                return `${i === 0 ? "L" : "L"}${x},${y}`;
+                return `${i === 0 ? "" : "L"}${x},${y}`;
               }).join(" ")} L100,32 L0,32 Z`}
             />
             <polyline
@@ -142,13 +141,6 @@ function KpiCard({ item }: { item: KpiItem }) {
             />
           </svg>
         </div>
-
-        {item.aiScore !== undefined && (
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <BrainCircuit size={12} className="text-primary" />
-            <span>AI Confidence: <span className="font-semibold text-foreground">{item.aiScore}%</span></span>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -170,14 +162,15 @@ function KpiCardSkeleton() {
 }
 
 interface KpiGridProps {
+  items: DashboardMarketingKpi[];
   loading?: boolean;
 }
 
-export default function KpiGrid({ loading = false }: KpiGridProps) {
+export default function KpiGrid({ items, loading = false }: KpiGridProps) {
   if (loading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {Array.from({ length: 6 }).map((_, i) => (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, i) => (
           <KpiCardSkeleton key={i} />
         ))}
       </div>
@@ -185,8 +178,8 @@ export default function KpiGrid({ loading = false }: KpiGridProps) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-      {kpiData.map((item) => (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {items.map((item) => (
         <KpiCard key={item.id} item={item} />
       ))}
     </div>

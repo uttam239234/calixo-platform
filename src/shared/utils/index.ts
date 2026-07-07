@@ -5,5 +5,4 @@ export * from './string';
 export * from './file';
 export * from './validation';
 export * from './formatter';
-export * from './logger';
 export * from './encryption';

@@ -4,14 +4,15 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 import { Download, Maximize2 } from "lucide-react";
-import type { RevenuePoint } from "./types";
+import type { AnalyticsRevenuePoint } from "@/core/analytics";
 
 interface RevenueChartProps {
-  data: RevenuePoint[];
+  data: AnalyticsRevenuePoint[];
   range: "7d" | "30d" | "90d" | "custom";
+  onExport: () => void;
 }
 
-export function RevenueChart({ data, range }: RevenueChartProps) {
+export function RevenueChart({ data, range, onExport }: RevenueChartProps) {
   return (
     <Card>
       <CardHeader
@@ -19,7 +20,7 @@ export function RevenueChart({ data, range }: RevenueChartProps) {
         description={`Performance across ${range === "7d" ? "the last 7 days" : range === "30d" ? "the last 30 days" : range === "90d" ? "the last 90 days" : "your custom date range"}`}
         action={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={onExport}>
               <Download size={14} />
               Export
             </Button>

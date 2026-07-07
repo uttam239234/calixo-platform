@@ -4,6 +4,8 @@ export interface BrandProfile {
   id: string; organizationName: string; brandName: string; shortName: string;
   description: string; mission: string; vision: string; tagline: string;
   website: string; industry: string; businessType: string; timezone: string; defaultLanguage: string;
+  /** Tenant ownership — optional so existing mock brands (created before the Platform Foundation) stay valid; every NEW brand should set both. */
+  organizationId?: string; workspaceId?: string;
 }
 
 export interface LogoSet {

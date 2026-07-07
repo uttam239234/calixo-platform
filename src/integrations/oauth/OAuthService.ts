@@ -52,7 +52,7 @@ export class IntegrationOAuthService implements OAuthService {
     return { url, state, codeVerifier };
   }
 
-  async completeFlow(providerId: ProviderId, code: string, state: string): Promise<TokenResponse> {
+  async completeFlow(providerId: ProviderId, code: string, state: string): Promise<TokenResponse & { organizationId: string }> {
     const oauthState = this.states.get(state);
     if (!oauthState) {
       throw new ValidationError('Invalid or expired OAuth state');
@@ -74,14 +74,16 @@ export class IntegrationOAuthService implements OAuthService {
       throw new ValidationError(`Provider ${providerId} not found`);
     }
 
+    const { organizationId } = oauthState;
+
     // Clean up state
     this.states.delete(state);
 
     const tokenResponse = await connector.exchangeCode(code, state);
-    
+
     appLogger.info('OAuthService', `OAuth flow completed for ${providerId}`);
 
-    return tokenResponse;
+    return { ...tokenResponse, organizationId };
   }
 
   async refreshToken(connectionId: ConnectionId): Promise<OAuth2Credentials> {

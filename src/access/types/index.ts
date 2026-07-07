@@ -12,7 +12,26 @@
 
 export type AccessEntityType = 'organization' | 'workspace' | 'department' | 'team';
 
-export type PolicyType = 'organization' | 'workspace' | 'team' | 'feature' | 'subscription' | 'time_based';
+export type PolicyType =
+  | 'organization'
+  | 'workspace'
+  | 'team'
+  | 'feature'
+  | 'subscription'
+  | 'time_based'
+  // Additive — Enterprise Access Control Platform (Track 1 Phase 3). Purely a
+  // categorization label: `AuthorizationEngine.evaluatePolicies()` never
+  // switches on `policy.type`, only `scope`/`conditions`/`effect`/`priority`,
+  // so adding new categories here changes no existing evaluation behavior.
+  | 'brand'
+  | 'resource'
+  | 'connector'
+  | 'ai'
+  | 'api'
+  | 'location'
+  | 'device'
+  | 'delegation'
+  | 'approval';
 
 export type PolicyEffect = 'allow' | 'deny';
 
@@ -41,7 +60,17 @@ export type AuditEventType =
   | 'authorization_failure'
   | 'membership_added'
   | 'membership_removed'
-  | 'membership_changed';
+  | 'membership_changed'
+  // Additive — Enterprise Data & Persistence Platform (Track 1 Phase 4). Same
+  // safety reasoning as `PolicyType` above: `AuditService`/`InMemoryAuditEventRepository`
+  // only ever store/filter `eventType` by equality, never switch on it.
+  | 'entity_created'
+  | 'entity_updated'
+  | 'entity_deleted'
+  | 'entity_restored'
+  | 'entity_version_created'
+  | 'transaction_committed'
+  | 'transaction_rolled_back';
 
 // ============================================================================
 // Team

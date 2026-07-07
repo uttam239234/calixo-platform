@@ -9,8 +9,9 @@ import { appLogger } from '@/logging';
 import { NotFoundError, ValidationError } from '@/errors';
 import type { Role, CreateRoleRequest, UpdateRoleRequest, UserRoleAssignment, PaginatedRoles } from '@/access/types';
 import type { RoleRepository, UserRoleAssignmentRepository, RolePermissionAssignmentRepository } from '@/access/repositories/interfaces';
-import { InMemoryRoleRepository, InMemoryUserRoleAssignmentRepository, InMemoryRolePermissionAssignmentRepository } from '@/access/repositories/implementations';
-import { createSystemRoles } from '@/access/config/roles';
+import { InMemoryRoleRepository, InMemoryRolePermissionAssignmentRepository } from '@/access/repositories/implementations';
+import { sharedUserRoleAssignmentRepository } from '@/access/repositories/sharedInstances';
+import { createSystemRoles, SYSTEM_ROLES } from '@/access/config/roles';
 
 export class RoleService {
   private roleRepo: RoleRepository;
@@ -23,7 +24,8 @@ export class RoleService {
     rolePermissionRepo?: RolePermissionAssignmentRepository
   ) {
     this.roleRepo = roleRepo || new InMemoryRoleRepository();
-    this.userAssignmentRepo = userAssignmentRepo || new InMemoryUserRoleAssignmentRepository();
+    // Shared with `AuthorizationEngine`'s default instance — see `sharedInstances.ts`.
+    this.userAssignmentRepo = userAssignmentRepo || sharedUserRoleAssignmentRepository;
     this.rolePermissionRepo = rolePermissionRepo || new InMemoryRolePermissionAssignmentRepository();
   }
 
@@ -34,15 +36,31 @@ export class RoleService {
     }
 
     const roles = createSystemRoles();
+    const systemRoleDefs = new Map(SYSTEM_ROLES.map(def => [def.name, def.permissions]));
     const created: Role[] = [];
 
     for (const role of roles) {
       const existingRole = await this.roleRepo.getBySlug(role.slug);
       if (!existingRole) {
-        const createdRole = await this.roleRepo.create({
+        // `createSystemRole()` (not `create()`) — `create()` always stamps
+        // `isSystem: false`, which silently mis-flagged every system role as
+        // custom (`getSystemRoles()` always returned empty, and the
+        // `isSystem` modify/delete guard in `updateRole()`/`deleteRole()`
+        // never actually protected them). Found via live integration
+        // testing while building the Enterprise Integration & Connector
+        // Platform (Track 1 Phase 5).
+        const createdRole = await this.roleRepo.createSystemRole({
           name: role.name,
           description: role.description,
+          priority: role.priority,
         });
+        // System roles carry their permission list in `SYSTEM_ROLES` (config/roles.ts),
+        // not on the `Role` entity itself — assign + sync it the same way `createRole()` does.
+        const permissions = systemRoleDefs.get(role.name) ?? [];
+        for (const permName of permissions) {
+          await this.rolePermissionRepo.assign(createdRole.id, permName);
+        }
+        this.userAssignmentRepo.setRolePermissions(createdRole.id, permissions);
         created.push(createdRole);
       }
     }
@@ -101,6 +119,12 @@ export class RoleService {
         await this.rolePermissionRepo.assign(role.id, permName);
       }
     }
+    // Keep `userAssignmentRepo`'s own roleId->permissions index in sync — this
+    // is what `getPermissionNamesByUser()` (and therefore every RBAC check in
+    // `AuthorizationEngine`) actually reads from; without this call a role's
+    // permissions were assigned in `rolePermissionRepo` but never resolvable
+    // for any user holding that role.
+    this.userAssignmentRepo.setRolePermissions(role.id, data.permissions ?? []);
 
     appLogger.info('RoleService', `Role created: ${role.name} (${role.id})`);
     return role;
@@ -121,6 +145,7 @@ export class RoleService {
       for (const permName of data.permissions) {
         await this.rolePermissionRepo.assign(id, permName);
       }
+      this.userAssignmentRepo.setRolePermissions(id, data.permissions);
     }
 
     return updated;
@@ -148,12 +173,14 @@ export class RoleService {
     const role = await this.roleRepo.getById(roleId);
     if (!role) throw new NotFoundError('Role');
     await this.rolePermissionRepo.assign(roleId, permissionName);
+    this.userAssignmentRepo.setRolePermissions(roleId, await this.rolePermissionRepo.getPermissionNamesByRole(roleId));
   }
 
   async removePermissionFromRole(roleId: string, permissionName: string): Promise<void> {
     const role = await this.roleRepo.getById(roleId);
     if (!role) throw new NotFoundError('Role');
     await this.rolePermissionRepo.remove(roleId, permissionName);
+    this.userAssignmentRepo.setRolePermissions(roleId, await this.rolePermissionRepo.getPermissionNamesByRole(roleId));
   }
 
   // ============================================================================

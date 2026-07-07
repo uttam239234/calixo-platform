@@ -23,8 +23,14 @@ export interface LogEntry {
   context?: {
     userId?: string;
     organizationId?: string;
+    workspaceId?: string;
     sessionId?: string;
     traceId?: string;
+    correlationId?: string;
+    executionId?: string;
+    connectorId?: string;
+    apiId?: string;
+    aiContext?: { model?: string; provider?: string };
   };
 }
 
@@ -66,6 +72,24 @@ class AppLogger {
     this.config = { ...this.config, ...config };
   }
 
+  /**
+   * Returns a scoped logger carrying the given context on every call,
+   * without mutating the shared `this.context` — `setContext()` is process-
+   * global and unsafe for per-request/per-execution data in a concurrent
+   * async runtime (one request's context could leak into another's log
+   * lines between awaits). This is the Observability Platform's real entry
+   * point for trace/correlation/execution-scoped structured logging.
+   */
+  withContext(context: LogEntry['context']): Pick<AppLogger, 'debug' | 'info' | 'warn' | 'error'> {
+    const merged: LogEntry['context'] = { ...this.context, ...context };
+    return {
+      debug: (module: string, message: string, data?: unknown) => this.output(this.createEntry('debug', module, message, data, undefined, merged)),
+      info: (module: string, message: string, data?: unknown) => this.output(this.createEntry('info', module, message, data, undefined, merged)),
+      warn: (module: string, message: string, data?: unknown, error?: unknown) => this.output(this.createEntry('warn', module, message, data, error, merged)),
+      error: (module: string, message: string, error?: unknown, data?: unknown) => this.output(this.createEntry('error', module, message, data, error, merged)),
+    };
+  }
+
   private shouldLog(level: LogLevel): boolean {
     return LOG_LEVEL_RANK[level] >= LOG_LEVEL_RANK[this.config.minLevel];
   }
@@ -74,13 +98,13 @@ class AppLogger {
     return Math.random() < this.config.sampleRate;
   }
 
-  private createEntry(level: LogLevel, module: string, message: string, data?: unknown, error?: unknown): LogEntry {
+  private createEntry(level: LogLevel, module: string, message: string, data?: unknown, error?: unknown, contextOverride?: LogEntry['context']): LogEntry {
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
       module,
       message,
-      context: this.context,
+      context: contextOverride ?? this.context,
     };
 
     if (data !== undefined) {

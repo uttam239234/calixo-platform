@@ -36,6 +36,7 @@ export { UserValidationEngine, userValidationEngine } from "./validation/UserVal
 export { MemoryUserStorageProvider, memoryUserStorageProvider } from "./storage/UserStorageProvider";
 
 export { registerUsersSkills } from "./skills/registerUsersSkills";
+export { UsersPlatformAPI, usersPlatformAPI } from "./platform/UsersPlatformAPI";
 
 export { seedUsersPlatformMockData } from "./mock/seed";
 export type { UsersMockSeedResult } from "./mock/seed";

@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { dashboardEngine, DASHBOARD_CURRENT_USER_ID } from "@/core/dashboard";
+import { dashboardEngine, initializeDashboardFoundation, DASHBOARD_CURRENT_USER_ID } from "@/core/dashboard";
 import type { DashboardNotificationEntry } from "@/core/dashboard";
 
 export function useNotifications(userId: string = DASHBOARD_CURRENT_USER_ID) {
@@ -17,7 +17,17 @@ export function useNotifications(userId: string = DASHBOARD_CURRENT_USER_ID) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  /**
+   * Self-initializes the shared Dashboard foundation before every refresh.
+   * This hook is mounted independently in more than one place (the global
+   * Header bell and the Dashboard landing page) — each instance must be
+   * able to guarantee seeding has finished on its own rather than relying
+   * on some other component to have already awaited it first.
+   * `initializeDashboardFoundation()` is idempotent/memoized, so calling
+   * it from every instance is cheap and race-free.
+   */
   const refresh = useCallback(async () => {
+    await initializeDashboardFoundation();
     const [items, count] = await Promise.all([dashboardEngine.getNotifications(userId, 10), dashboardEngine.getUnreadNotificationCount(userId)]);
     setNotifications(items);
     setUnreadCount(count);
@@ -32,10 +42,10 @@ export function useNotifications(userId: string = DASHBOARD_CURRENT_USER_ID) {
 
   const markRead = useCallback(
     async (id: string) => {
-      await dashboardEngine.markNotificationRead(id);
+      await dashboardEngine.markNotificationRead(userId, id);
       await refresh();
     },
-    [refresh]
+    [userId, refresh]
   );
 
   const markAllRead = useCallback(async () => {

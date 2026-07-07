@@ -117,6 +117,8 @@ export interface RoleRepository {
     isSystem?: boolean;
   }): Promise<PaginatedRoles>;
   create(data: CreateRoleRequest): Promise<Role>;
+  /** Additive — Enterprise Integration & Connector Platform (Track 1 Phase 5) bug fix: `create()` always hardcoded `isSystem: false`, so `initializeSystemRoles()`'s seeded roles (Owner, Admin, ...) were silently mis-flagged as custom — `getSystemRoles()` always returned empty and the `isSystem` modify/delete guard never protected them. This is the only path that sets `isSystem: true`. */
+  createSystemRole(data: CreateRoleRequest & { priority: number }): Promise<Role>;
   update(id: string, data: UpdateRoleRequest): Promise<Role>;
   delete(id: string): Promise<boolean>;
   exists(id: string): Promise<boolean>;
@@ -183,6 +185,8 @@ export interface UserRoleAssignmentRepository {
   activate(id: string): Promise<UserRoleAssignment>;
   getPermissionNamesByUser(userId: string, organizationId?: string): Promise<string[]>;
   getRoleNamesByUser(userId: string, organizationId?: string): Promise<string[]>;
+  /** Keeps this repository's own roleId->permissionName index in sync with `RolePermissionAssignmentRepository` — `RoleService` calls this whenever a role's permissions change (create/update/system-role init) so `getPermissionNamesByUser()` can resolve them without a second repository reference. */
+  setRolePermissions(roleId: string, permissions: string[]): void;
 }
 
 // ============================================================================

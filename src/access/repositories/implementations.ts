@@ -467,6 +467,24 @@ export class InMemoryRoleRepository implements RoleRepository {
     return { ...role };
   }
 
+  async createSystemRole(data: CreateRoleRequest & { priority: number }): Promise<Role> {
+    const now = new Date().toISOString();
+    const role: Role = {
+      id: generateId(16),
+      name: data.name,
+      slug: slugify(data.name),
+      description: data.description,
+      isSystem: true,
+      isCustom: false,
+      priority: data.priority,
+      isDeleted: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.roles.set(role.id, role);
+    return { ...role };
+  }
+
   async update(id: string, data: UpdateRoleRequest): Promise<Role> {
     const role = this.roles.get(id);
     if (!role || role.isDeleted) throw new Error('Role not found');
@@ -761,9 +779,21 @@ export class InMemoryUserRoleAssignmentRepository implements UserRoleAssignmentR
     return { ...assignment };
   }
 
-  async getPermissionNamesByUser(userId: string, _organizationId?: string): Promise<string[]> {
+  /**
+   * Tenant-scoped: an assignment only applies when either it carries no
+   * `organizationId` (a genuine global/platform-wide grant) or its
+   * `organizationId` matches the one being queried. Found during the Track
+   * 1 Enterprise Platform Certification: this previously ignored
+   * `organizationId` entirely, so a user's wildcard/owner role in
+   * Organization A was granted in every other organization they had any
+   * active assignment in — a real cross-tenant privilege escalation, not
+   * just a caller-discipline gap, since `AuthorizationEngine` already
+   * threads `organizationId` all the way down to this call correctly.
+   */
+  async getPermissionNamesByUser(userId: string, organizationId?: string): Promise<string[]> {
     const userAssignments = Array.from(this.assignments.values())
-      .filter(a => a.userId === userId && a.isActive);
+      .filter(a => a.userId === userId && a.isActive)
+      .filter(a => !organizationId || !a.organizationId || a.organizationId === organizationId);
 
     const permissionSet = new Set<string>();
     for (const assignment of userAssignments) {
@@ -781,7 +811,8 @@ export class InMemoryUserRoleAssignmentRepository implements UserRoleAssignmentR
 
   async getRoleNamesByUser(userId: string, organizationId?: string): Promise<string[]> {
     const userAssignments = Array.from(this.assignments.values())
-      .filter(a => a.userId === userId && a.isActive);
+      .filter(a => a.userId === userId && a.isActive)
+      .filter(a => !organizationId || !a.organizationId || a.organizationId === organizationId);
 
     return userAssignments.map(a => a.roleId);
   }

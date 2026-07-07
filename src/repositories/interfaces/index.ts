@@ -1,9 +1,18 @@
 /**
  * Calixo Platform - Repository Interfaces
- * 
+ *
  * Repository pattern interfaces for data access abstraction.
  * These interfaces define the contract for data operations
  * without coupling to specific implementations.
+ *
+ * DEPRECATED / SUPERSEDED (Enterprise Data Architecture Audit, Track 1
+ * Phase 4): confirmed via repo-wide search to have zero implementations
+ * and zero imports anywhere. The canonical generic repository contracts
+ * now live in `src/core/platform/data/repositoryContracts.ts`
+ * (`Repository`/`CrudRepository`/`PaginatedRepository`/...), reusing this
+ * file's shape rather than redesigning it. Left in place, not deleted,
+ * since it is inert and removing unreferenced files is out of scope for
+ * this phase — but new code should use the `core/platform/data` versions.
  */
 
 import type {

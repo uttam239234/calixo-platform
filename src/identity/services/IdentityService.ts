@@ -161,9 +161,9 @@ export class IdentityService {
   }
 
   /**
-   * Check if an access token is still valid.
+   * Check if an access token is still valid (signature + expiry).
    */
-  isTokenValid(token: string): boolean {
+  isTokenValid(token: string): Promise<boolean> {
     return tokenService.verifyToken(token);
   }
 

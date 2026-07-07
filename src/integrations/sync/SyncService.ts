@@ -99,6 +99,14 @@ export class IntegrationSyncService implements SyncService {
     this.activeSyncs.delete(job.id);
   }
 
+  recordExternalJob(job: SyncJob): void {
+    this.jobs.set(job.id, { ...job });
+    if (!this.connectionJobs.has(job.connectionId)) {
+      this.connectionJobs.set(job.connectionId, []);
+    }
+    this.connectionJobs.get(job.connectionId)!.push(job.id);
+  }
+
   async cancelSync(jobId: string): Promise<void> {
     const job = this.jobs.get(jobId);
     if (!job) {

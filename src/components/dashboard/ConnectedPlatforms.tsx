@@ -1,52 +1,55 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 import { SkeletonText } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Globe, RefreshCw, AlertCircle, Wifi, WifiOff, Loader2 } from "lucide-react";
-import { connectedPlatforms } from "./mock-data";
-import type { ConnectedPlatform } from "./types";
+import type { DashboardConnectedPlatform } from "@/core/dashboard";
 
-const platformColors: Record<string, string> = {
-  google: "text-blue-500",
-  meta: "text-blue-600",
-  linkedin: "text-blue-700",
-  instagram: "text-pink-500",
-  youtube: "text-red-500",
-};
-
-const statusConfig = {
+const statusConfig: Record<DashboardConnectedPlatform["status"], { label: string; icon: typeof Wifi; className: string }> = {
   connected: { label: "Connected", icon: Wifi, className: "text-success bg-success/10 border-success/20" },
-  syncing: { label: "Syncing", icon: Loader2, className: "text-primary bg-primary/10 border-primary/20" },
+  connecting: { label: "Connecting", icon: Loader2, className: "text-primary bg-primary/10 border-primary/20" },
+  pending: { label: "Pending", icon: Loader2, className: "text-primary bg-primary/10 border-primary/20" },
   error: { label: "Error", icon: AlertCircle, className: "text-destructive bg-destructive/10 border-destructive/20" },
   disconnected: { label: "Disconnected", icon: WifiOff, className: "text-muted-foreground bg-muted/10 border-border/60" },
 };
 
-function PlatformRow({ platform }: { platform: ConnectedPlatform }) {
+function PlatformRow({ platform, onRetry }: { platform: DashboardConnectedPlatform; onRetry: (id: string) => void }) {
   const status = statusConfig[platform.status];
   const StatusIcon = status.icon;
-  const color = platformColors[platform.platform] ?? "text-foreground";
+  const [retrying, setRetrying] = useState(false);
 
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-border/50 bg-background/60 px-4 py-3.5 transition-all duration-150 hover:bg-accent/50 hover:border-border/80">
       <div className="flex items-center gap-3">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-card/80 border border-border/30 ${color}`}>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-card/80 border border-border/30 text-foreground">
           <Globe size={18} />
         </div>
         <div>
           <p className="text-sm font-semibold text-foreground">{platform.name}</p>
-          <p className="text-xs text-muted-foreground">{platform.lastSync}</p>
+          <p className="text-xs text-muted-foreground">{platform.lastSyncAt ? new Date(platform.lastSyncAt).toLocaleString() : platform.errorMessage ?? "Not yet synced"}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
         <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-0.5 text-xs font-medium ${status.className}`}>
-          <StatusIcon size={12} className={platform.status === "syncing" ? "animate-spin" : ""} />
+          <StatusIcon size={12} className={platform.status === "connecting" || platform.status === "pending" ? "animate-spin" : ""} />
           {status.label}
         </span>
-        {platform.status === "error" && (
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-            Retry
+        {(platform.status === "disconnected" || platform.status === "error") && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={retrying}
+            onClick={async () => {
+              setRetrying(true);
+              await onRetry(platform.id);
+              setRetrying(false);
+            }}
+          >
+            {retrying ? "Retrying…" : "Retry"}
           </Button>
         )}
       </div>
@@ -70,10 +73,13 @@ function PlatformSkeleton() {
 }
 
 interface ConnectedPlatformsProps {
+  platforms: DashboardConnectedPlatform[];
   loading?: boolean;
+  onRetry: (id: string) => Promise<void>;
+  onRefreshAll: () => void;
 }
 
-export default function ConnectedPlatforms({ loading = false }: ConnectedPlatformsProps) {
+export default function ConnectedPlatforms({ platforms, loading = false, onRetry, onRefreshAll }: ConnectedPlatformsProps) {
   if (loading) {
     return (
       <Card>
@@ -89,17 +95,12 @@ export default function ConnectedPlatforms({ loading = false }: ConnectedPlatfor
     );
   }
 
-  if (connectedPlatforms.length === 0) {
+  if (platforms.length === 0) {
     return (
       <Card>
         <CardHeader title="Connected Platforms" description="Integration status" />
         <CardContent>
-          <EmptyState
-            icon={<Globe size={32} />}
-            title="No platforms connected"
-            description="Connect your marketing platforms to see their status here."
-            action={{ label: "Connect Platform", onClick: () => {} }}
-          />
+          <EmptyState icon={<Globe size={32} />} title="No platforms connected" description="Connect your marketing platforms to see their status here." />
         </CardContent>
       </Card>
     );
@@ -111,15 +112,15 @@ export default function ConnectedPlatforms({ loading = false }: ConnectedPlatfor
         title="Connected Platforms"
         description="Integration status"
         action={
-          <Button variant="outline" size="sm" icon={<RefreshCw size={14} />}>
+          <Button variant="outline" size="sm" icon={<RefreshCw size={14} />} onClick={onRefreshAll}>
             Refresh All
           </Button>
         }
       />
       <CardContent>
         <div className="space-y-2">
-          {connectedPlatforms.map((platform) => (
-            <PlatformRow key={platform.id} platform={platform} />
+          {platforms.map((platform) => (
+            <PlatformRow key={platform.id} platform={platform} onRetry={onRetry} />
           ))}
         </div>
       </CardContent>

@@ -1,0 +1,1 @@
+export { seedDefaultAccessPolicies } from "./seedDefaultAccessPolicies";

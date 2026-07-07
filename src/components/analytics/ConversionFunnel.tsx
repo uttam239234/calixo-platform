@@ -1,9 +1,13 @@
 "use client";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
-import { conversionFunnel } from "./mock-data";
+import type { AnalyticsFunnelStage } from "@/core/analytics";
 
-export function ConversionFunnel() {
+interface ConversionFunnelProps {
+  stages: AnalyticsFunnelStage[];
+}
+
+export function ConversionFunnel({ stages: conversionFunnel }: ConversionFunnelProps) {
   return (
     <Card>
       <CardHeader title="Conversion Funnel" description="How qualified demand moves through the lifecycle" />

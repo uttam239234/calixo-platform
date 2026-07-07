@@ -9,7 +9,7 @@ import { appLogger } from '@/logging';
 import { NotFoundError, ValidationError } from '@/errors';
 import type { Policy, CreatePolicyRequest, UpdatePolicyRequest, PolicyAssignment, PaginatedPolicies } from '@/access/types';
 import type { PolicyRepository, PolicyAssignmentRepository } from '@/access/repositories/interfaces';
-import { InMemoryPolicyRepository, InMemoryPolicyAssignmentRepository } from '@/access/repositories/implementations';
+import { sharedPolicyAssignmentRepository, sharedPolicyRepository } from '@/access/repositories/sharedInstances';
 
 export class PolicyService {
   private policyRepo: PolicyRepository;
@@ -19,8 +19,9 @@ export class PolicyService {
     policyRepo?: PolicyRepository,
     assignmentRepo?: PolicyAssignmentRepository
   ) {
-    this.policyRepo = policyRepo || new InMemoryPolicyRepository();
-    this.assignmentRepo = assignmentRepo || new InMemoryPolicyAssignmentRepository();
+    // Shared with `AuthorizationEngine`'s default instance — see `sharedInstances.ts`.
+    this.policyRepo = policyRepo || sharedPolicyRepository;
+    this.assignmentRepo = assignmentRepo || sharedPolicyAssignmentRepository;
   }
 
   async getPolicy(id: string): Promise<Policy> {

@@ -1,17 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { SkeletonText } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CalendarDays, Target, AlertCircle, FileText, Clock, CheckCircle2, Circle, User } from "lucide-react";
-import { upcomingTasks } from "./mock-data";
-import type { UpcomingTask } from "./types";
+import type { DashboardTask } from "@/core/dashboard";
 
 const typeConfig = {
   campaign: { icon: Target, className: "bg-primary/10 text-primary" },
   deadline: { icon: AlertCircle, className: "bg-destructive/10 text-destructive" },
-  meeting: { icon: CalendarDays, className: "bg-warning/10 text-warning" },
   report: { icon: FileText, className: "bg-success/10 text-success" },
 };
 
@@ -21,41 +20,35 @@ const priorityColors: Record<string, string> = {
   low: "border-l-muted-foreground/30",
 };
 
-function TaskRow({ task }: { task: UpcomingTask }) {
+function TaskRow({ task }: { task: DashboardTask }) {
   const config = typeConfig[task.type];
   const TypeIcon = config.icon;
   const [checked, setChecked] = useState(false);
 
   return (
-    <div
-      className={`flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-card/50 px-4 py-3.5 transition-all duration-150 hover:bg-accent/50 hover:border-border/80 hover:shadow-sm border-l-[3px] ${priorityColors[task.priority]} ${
-        checked ? "opacity-50" : ""
-      }`}
+    <Link
+      href="/dashboard/workflows"
+      className={`flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-card/50 px-4 py-3.5 transition-all duration-150 hover:bg-accent/50 hover:border-border/80 hover:shadow-sm border-l-[3px] ${priorityColors[task.priority]} ${checked ? "opacity-50" : ""}`}
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <button
-          onClick={() => setChecked(!checked)}
+          onClick={(e) => {
+            e.preventDefault();
+            setChecked(!checked);
+          }}
           className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors duration-150"
           aria-label={checked ? "Mark as incomplete" : "Mark as complete"}
         >
-          {checked ? (
-            <CheckCircle2 size={18} className="text-success" />
-          ) : (
-            <Circle size={18} />
-          )}
+          {checked ? <CheckCircle2 size={18} className="text-success" /> : <Circle size={18} />}
         </button>
         <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${config.className}`}>
           <TypeIcon size={16} />
         </div>
         <div className="min-w-0">
-          <p className={`text-sm font-semibold text-foreground truncate ${checked ? "line-through" : ""}`}>
-            {task.title}
-          </p>
+          <p className={`text-sm font-semibold text-foreground truncate ${checked ? "line-through" : ""}`}>{task.title}</p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
             <Clock size={11} />
-            <span>{task.date}</span>
-            <span>•</span>
-            <span>{task.time}</span>
+            <span>{task.dueDate ? new Date(task.dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "No due date"}</span>
           </div>
         </div>
       </div>
@@ -64,15 +57,15 @@ function TaskRow({ task }: { task: UpcomingTask }) {
           <User size={10} />
           {task.assignee}
         </span>
-        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium capitalize ${
-          task.priority === "high" ? "border-destructive/20 bg-destructive/10 text-destructive" :
-          task.priority === "medium" ? "border-warning/20 bg-warning/10 text-warning" :
-          "border-border/60 bg-muted/10 text-muted-foreground"
-        }`}>
+        <span
+          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium capitalize ${
+            task.priority === "high" ? "border-destructive/20 bg-destructive/10 text-destructive" : task.priority === "medium" ? "border-warning/20 bg-warning/10 text-warning" : "border-border/60 bg-muted/10 text-muted-foreground"
+          }`}
+        >
           {task.priority}
         </span>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -93,10 +86,11 @@ function TaskSkeleton() {
 }
 
 interface UpcomingTasksProps {
+  tasks: DashboardTask[];
   loading?: boolean;
 }
 
-export default function UpcomingTasks({ loading = false }: UpcomingTasksProps) {
+export default function UpcomingTasks({ tasks, loading = false }: UpcomingTasksProps) {
   if (loading) {
     return (
       <Card>
@@ -112,16 +106,12 @@ export default function UpcomingTasks({ loading = false }: UpcomingTasksProps) {
     );
   }
 
-  if (upcomingTasks.length === 0) {
+  if (tasks.length === 0) {
     return (
       <Card>
         <CardHeader title="Upcoming Tasks" description="Schedule & deadlines" />
         <CardContent>
-          <EmptyState
-            icon={<CalendarDays size={32} />}
-            title="No upcoming tasks"
-            description="Your schedule is clear. Add campaigns or deadlines to stay on track."
-          />
+          <EmptyState icon={<CalendarDays size={32} />} title="No upcoming tasks" description="Workflow items with due dates will appear here." />
         </CardContent>
       </Card>
     );
@@ -129,13 +119,10 @@ export default function UpcomingTasks({ loading = false }: UpcomingTasksProps) {
 
   return (
     <Card>
-      <CardHeader
-        title="Upcoming Tasks"
-        description="Schedule & deadlines"
-      />
+      <CardHeader title="Upcoming Tasks" description="Live from Workflow due dates" />
       <CardContent>
         <div className="space-y-2">
-          {upcomingTasks.map((task) => (
+          {tasks.map((task) => (
             <TaskRow key={task.id} task={task} />
           ))}
         </div>

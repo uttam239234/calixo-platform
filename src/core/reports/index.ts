@@ -26,6 +26,7 @@ export { VisualizationEngine, visualizationEngine } from "./visualization/Visual
 export { ExportEngine, exportEngine } from "./export/ExportEngine";
 export { ReportScheduler, reportScheduler } from "./scheduler/ReportScheduler";
 export { registerReportSkills } from "./skills/registerReportSkills";
+export { ReportsPlatformAPI, reportsPlatformAPI } from "./platform/ReportsPlatformAPI";
 
 export { seedReportsPlatformMockData } from "./mock/seed";
 export type { ReportsMockSeedResult } from "./mock/seed";

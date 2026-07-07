@@ -17,11 +17,7 @@ import type {
   PolicyCondition,
 } from '@/access/types';
 import type { UserRoleAssignmentRepository, PolicyRepository, PolicyAssignmentRepository } from '@/access/repositories/interfaces';
-import {
-  InMemoryUserRoleAssignmentRepository,
-  InMemoryPolicyRepository,
-  InMemoryPolicyAssignmentRepository,
-} from '@/access/repositories/implementations';
+import { sharedPolicyAssignmentRepository, sharedPolicyRepository, sharedUserRoleAssignmentRepository } from '@/access/repositories/sharedInstances';
 import { roleService } from '@/access/services/RoleService';
 
 export class AuthorizationEngine {
@@ -34,9 +30,15 @@ export class AuthorizationEngine {
     policyRepo?: PolicyRepository,
     policyAssignmentRepo?: PolicyAssignmentRepository
   ) {
-    this.userAssignmentRepo = userAssignmentRepo || new InMemoryUserRoleAssignmentRepository();
-    this.policyRepo = policyRepo || new InMemoryPolicyRepository();
-    this.policyAssignmentRepo = policyAssignmentRepo || new InMemoryPolicyAssignmentRepository();
+    // Shared with `RoleService`/`PolicyService`'s default instances — see
+    // `sharedInstances.ts`. Previously each independently default-constructed
+    // its own repository, so a role assigned via `roleService` (or a policy
+    // created via `policyService`) was invisible here — discovered via live
+    // integration testing while building the Enterprise Access Control
+    // Platform (Track 1 Phase 3).
+    this.userAssignmentRepo = userAssignmentRepo || sharedUserRoleAssignmentRepository;
+    this.policyRepo = policyRepo || sharedPolicyRepository;
+    this.policyAssignmentRepo = policyAssignmentRepo || sharedPolicyAssignmentRepository;
   }
 
   /**

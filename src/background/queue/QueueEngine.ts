@@ -56,6 +56,11 @@ export class QueueEngine {
     return this.jobRepo.getNextDue(limit);
   }
 
+  /** Additive read-only accessor — lets platform-layer wrappers (e.g. the Execution Platform's history/monitoring) look up a job's current state without duplicating `JobRepository` storage. */
+  async getJob(id: string): Promise<Job | null> {
+    return this.jobRepo.getById(id);
+  }
+
   async acknowledge(id: string): Promise<Job> {
     return this.jobRepo.markCompleted(id);
   }

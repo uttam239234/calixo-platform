@@ -84,7 +84,7 @@ export interface Connection {
   updatedAt: string;
 }
 
-export type ConnectionStatus = 'pending' | 'connecting' | 'connected' | 'disconnected' | 'error' | 'expired';
+export type ConnectionStatus = 'pending' | 'connecting' | 'connected' | 'disconnected' | 'error' | 'expired' | 'paused';
 
 export interface ConnectionHealth {
   status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
@@ -318,6 +318,10 @@ export interface IntegrationService {
   deleteConnection(id: ConnectionId): Promise<void>;
   connect(id: ConnectionId): Promise<Connection>;
   disconnect(id: ConnectionId): Promise<void>;
+  /** Additive — Enterprise Integration & Connector Platform (Track 1 Phase 5), Connection Management (section 6). */
+  pause(id: ConnectionId): Promise<Connection>;
+  resume(id: ConnectionId): Promise<Connection>;
+  duplicateConnection(id: ConnectionId): Promise<Connection>;
   testConnection(id: ConnectionId): Promise<ConnectionHealth>;
   syncConnection(id: ConnectionId, dataType: SyncDataType): Promise<SyncJob>;
   getSyncHistory(id: ConnectionId): Promise<SyncJob[]>;
@@ -335,7 +339,8 @@ export interface IntegrationService {
 
 export interface OAuthService {
   initiateFlow(organizationId: string, providerId: ProviderId, redirectUri: string): Promise<{ url: string; state: string; codeVerifier?: string }>;
-  completeFlow(providerId: ProviderId, code: string, state: string): Promise<TokenResponse>;
+  /** Returns the `organizationId` the flow was initiated for (carried on the stored `OAuthState`) alongside the token, so `IntegrationService.completeOAuth()` can actually create the connection — see the Integration Architecture Audit finding. */
+  completeFlow(providerId: ProviderId, code: string, state: string): Promise<TokenResponse & { organizationId: string }>;
   refreshToken(connectionId: ConnectionId): Promise<OAuth2Credentials>;
   revokeToken(connectionId: ConnectionId): Promise<void>;
   getAuthorizationUrl(providerId: ProviderId, state: string, redirectUri: string, scopes: string[]): string;
@@ -347,6 +352,8 @@ export interface OAuthService {
 
 export interface SyncService {
   startSync(connectionId: ConnectionId, dataType: SyncDataType): Promise<SyncJob>;
+  /** Additive — Enterprise Integration & Connector Platform (Track 1 Phase 5). Records a job that was executed elsewhere (a manifest-driven connector's REAL `sync()` call via `SynchronizationPlatformAPI`) into this service's own job history, so `getConnectionJobs()`/`getSyncHistory()` stay the single source of truth instead of a second, competing job map. */
+  recordExternalJob(job: SyncJob): void;
   cancelSync(jobId: string): Promise<void>;
   getJob(jobId: string): Promise<SyncJob | null>;
   getConnectionJobs(connectionId: ConnectionId): Promise<SyncJob[]>;

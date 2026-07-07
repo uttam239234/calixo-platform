@@ -23,6 +23,7 @@ export * from './services';
 export * from './delivery';
 export * from './inbox';
 export * from './audit';
+export { NotificationsPlatformAPI, notificationsPlatformAPI } from './platform/NotificationsPlatformAPI';
 
 import { appLogger } from '@/logging';
 import { notificationService } from '@/communication/services';

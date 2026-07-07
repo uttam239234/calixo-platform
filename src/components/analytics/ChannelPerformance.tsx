@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
-import { channelPerformance } from "./mock-data";
+import type { AnalyticsChannelRow } from "@/core/analytics";
 
 const statusColors: Record<string, string> = {
   Healthy: "bg-success/10 text-success border-success/20",
@@ -9,10 +9,16 @@ const statusColors: Record<string, string> = {
   Monitoring: "bg-warning/10 text-warning border-warning/20",
 };
 
-export function ChannelPerformance() {
+interface ChannelPerformanceProps {
+  rows: AnalyticsChannelRow[];
+  activeChannel?: string;
+  onSelectChannel?: (channel: string) => void;
+}
+
+export function ChannelPerformance({ rows: channelPerformance, activeChannel, onSelectChannel }: ChannelPerformanceProps) {
   return (
     <Card>
-      <CardHeader title="Channel Performance" description="Spend efficiency and pipeline contribution" />
+      <CardHeader title="Channel Performance" description={onSelectChannel ? "Spend efficiency and pipeline contribution — click a row to cross-filter" : "Spend efficiency and pipeline contribution"} />
       <CardContent>
         <div className="table-container">
           <table className="table">
@@ -29,7 +35,11 @@ export function ChannelPerformance() {
             </thead>
             <tbody>
               {channelPerformance.map((row) => (
-                <tr key={row.channel} className="table-row">
+                <tr
+                  key={row.channel}
+                  className={`table-row ${onSelectChannel ? "cursor-pointer" : ""} ${activeChannel === row.channel ? "bg-primary/5" : ""}`}
+                  onClick={() => onSelectChannel?.(row.channel)}
+                >
                   <td className="table-cell font-semibold text-foreground">{row.channel}</td>
                   <td className="table-cell tabular-nums">{row.spend}</td>
                   <td className="table-cell tabular-nums">{row.revenue}</td>

@@ -12,7 +12,9 @@ import {
   LayoutGrid,
   LineChart,
   PieChart,
+  ScatterChart,
   Table2,
+  Waves,
 } from "lucide-react";
 import type { ReportDefinition, WidgetType } from "@/core/reports";
 
@@ -33,6 +35,8 @@ const WIDGET_ICONS: Record<WidgetType, typeof LineChart> = {
   scorecard: ClipboardList,
   funnel: Funnel,
   treemap: LayoutGrid,
+  waterfall: Waves,
+  scatter: ScatterChart,
 };
 
 export function WidgetCanvas({ report }: WidgetCanvasProps) {

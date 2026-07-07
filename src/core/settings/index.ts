@@ -24,6 +24,7 @@ export { SettingsSearchEngine, settingsSearchEngine } from "./search/SettingsSea
 export { MemoryStorageProvider, memoryStorageProvider } from "./storage/SettingsStorageProvider";
 export { registerDefaultSettings } from "./defaults/DefaultSettingsProvider";
 export { registerSettingsSkills } from "./skills/registerSettingsSkills";
+export { SettingsPlatformAPI, settingsPlatformAPI } from "./platform/SettingsPlatformAPI";
 
 export { seedSettingsPlatformMockData } from "./mock/seed";
 export type { SettingsMockSeedResult } from "./mock/seed";
