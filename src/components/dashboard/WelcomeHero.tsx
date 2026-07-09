@@ -9,16 +9,18 @@ import type { DashboardMorningBriefing } from "@/core/dashboard";
 
 interface WelcomeHeroProps {
   workspace: string;
+  userName?: string | null;
   briefing: DashboardMorningBriefing | null;
   loading?: boolean;
   onOpenSearch: () => void;
   onViewRecommendations: () => void;
 }
 
-export default function WelcomeHero({ workspace, briefing, loading = false, onOpenSearch, onViewRecommendations }: WelcomeHeroProps) {
+export default function WelcomeHero({ workspace, userName, briefing, loading = false, onOpenSearch, onViewRecommendations }: WelcomeHeroProps) {
   const now = new Date();
   const greeting = now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening";
   const dateLabel = now.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const greetedName = userName?.split(" ")[0] || workspace;
 
   return (
     <div className="flex flex-col gap-5">
@@ -29,9 +31,9 @@ export default function WelcomeHero({ workspace, briefing, loading = false, onOp
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              {greeting}, <span className="text-gradient">{workspace}</span>
+              {greeting}, <span className="text-gradient">{greetedName}</span>
             </h1>
-            <p className="text-sm text-muted-foreground">{dateLabel}</p>
+            <p className="text-sm text-muted-foreground">{userName ? `${workspace} · ${dateLabel}` : dateLabel}</p>
           </div>
         </div>
         <button

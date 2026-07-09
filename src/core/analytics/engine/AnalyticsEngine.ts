@@ -91,16 +91,23 @@ export class AnalyticsEngine {
     this.facts = facts;
   }
 
-  private windowFor(range: AnalyticsRange): { start: Date; end: Date; days: number } {
+  private windowFor(range: AnalyticsRange, filters?: AnalyticsFilterState): { start: Date; end: Date; days: number } {
     const today = startOfDay(new Date());
     switch (range) {
       case "7d":
         return { start: addDays(today, -6), end: today, days: 7 };
       case "90d":
         return { start: addDays(today, -89), end: today, days: 90 };
-      case "custom":
-        // A fixed historical slice distinct from the rolling windows, since there's no date-picker UI yet.
+      case "custom": {
+        if (filters?.customRange) {
+          const start = startOfDay(new Date(filters.customRange.start));
+          const end = startOfDay(new Date(filters.customRange.end));
+          const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1);
+          return { start, end, days };
+        }
+        // No date range chosen yet — a fixed historical slice distinct from the rolling windows.
         return { start: addDays(today, -74), end: addDays(today, -40), days: 35 };
+      }
       case "30d":
       default:
         return { start: addDays(today, -29), end: today, days: 30 };
@@ -108,7 +115,7 @@ export class AnalyticsEngine {
   }
 
   private filterFacts(range: AnalyticsRange, filters: AnalyticsFilterState, offsetDays = 0): AnalyticsFact[] {
-    const { start, end } = this.windowFor(range);
+    const { start, end } = this.windowFor(range, filters);
     const shiftedStart = addDays(start, -offsetDays).getTime();
     const shiftedEnd = addDays(end, -offsetDays).getTime();
 
@@ -129,7 +136,7 @@ export class AnalyticsEngine {
   }
 
   getSummaryMetrics(range: AnalyticsRange, filters: AnalyticsFilterState = {}): AnalyticsSummaryMetric[] {
-    const { days } = this.windowFor(range);
+    const { days } = this.windowFor(range, filters);
     const current = this.filterFacts(range, filters);
     const previous = this.filterFacts(range, filters, days);
 
@@ -195,7 +202,7 @@ export class AnalyticsEngine {
    * to compute their own derived values instead of parsing display text.
    */
   getRawSummary(range: AnalyticsRange, filters: AnalyticsFilterState = {}): { revenue: number; prevRevenue: number; spend: number; prevSpend: number; leads: number; prevLeads: number; conversions: number; prevConversions: number; conversionRate: number; prevConversionRate: number } {
-    const { days } = this.windowFor(range);
+    const { days } = this.windowFor(range, filters);
     const current = this.filterFacts(range, filters);
     const previous = this.filterFacts(range, filters, days);
 
@@ -233,7 +240,7 @@ export class AnalyticsEngine {
   }
 
   getTrafficMetrics(range: AnalyticsRange, filters: AnalyticsFilterState = {}): AnalyticsTrafficMetric[] {
-    const { days } = this.windowFor(range);
+    const { days } = this.windowFor(range, filters);
     const current = this.filterFacts(range, filters);
     const previous = this.filterFacts(range, filters, days);
 

@@ -7,11 +7,11 @@ interface IconBadgeProps {
 }
 
 const toneStyles = {
-  cyan: "bg-cyan-500/10 text-cyan-300",
-  emerald: "bg-emerald-500/10 text-emerald-300",
-  amber: "bg-amber-500/10 text-amber-300",
-  rose: "bg-rose-500/10 text-rose-300",
-  slate: "bg-slate-800 text-slate-300",
+  cyan: "bg-primary/10 text-primary",
+  emerald: "bg-success/10 text-success",
+  amber: "bg-warning/10 text-warning",
+  rose: "bg-destructive/10 text-destructive",
+  slate: "bg-surface text-muted-foreground",
 };
 
 export default function IconBadge({ icon: Icon, tone = "slate", className }: IconBadgeProps) {

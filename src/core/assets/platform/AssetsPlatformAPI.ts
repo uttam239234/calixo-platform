@@ -9,8 +9,25 @@
  */
 import { AssetEngine } from "../AssetEngine";
 import type { AssetSummary } from "@/core/platform/contracts";
+import type { AssetType } from "../types";
+
+export interface MediaAssetSummary {
+  id: string;
+  name: string;
+  type: "image" | "video";
+  url: string;
+}
 
 export class AssetsPlatformAPI {
+  /** A renderable-media-specific view (real `preview`/`thumbnail`/`fileUrl`, not part of the shared `AssetSummary` contract) — for pickers that need an actual URL, like Social Media's composer attaching from the real Asset Library instead of only local file upload. */
+  listMediaAssets(type?: Extract<AssetType, "image" | "video">, query?: string): MediaAssetSummary[] {
+    const assets = query ? AssetEngine.search(query) : AssetEngine.getAll();
+    return assets
+      .filter((asset): asset is typeof asset & { type: "image" | "video" } => (asset.type === "image" || asset.type === "video") && (!type || asset.type === type))
+      .map(asset => ({ id: asset.id, name: asset.name, type: asset.type, url: asset.preview ?? asset.thumbnail ?? asset.fileUrl ?? "" }))
+      .filter(asset => asset.url);
+  }
+
   getAssetSummary(id: string): AssetSummary | undefined {
     const asset = AssetEngine.get(id);
     if (!asset) return undefined;

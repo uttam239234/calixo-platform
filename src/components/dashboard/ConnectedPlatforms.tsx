@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 import { SkeletonText } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Globe, RefreshCw, AlertCircle, Wifi, WifiOff, Loader2 } from "lucide-react";
+import { Globe, RefreshCw, AlertCircle, Wifi, WifiOff, Loader2, ShieldAlert } from "lucide-react";
 import type { DashboardConnectedPlatform } from "@/core/dashboard";
 
 const statusConfig: Record<DashboardConnectedPlatform["status"], { label: string; icon: typeof Wifi; className: string }> = {
@@ -16,10 +17,18 @@ const statusConfig: Record<DashboardConnectedPlatform["status"], { label: string
   disconnected: { label: "Disconnected", icon: WifiOff, className: "text-muted-foreground bg-muted/10 border-border/60" },
 };
 
+const TOKEN_WARNING_DAYS = 7;
+
+function daysUntil(iso: string): number {
+  return Math.ceil((new Date(iso).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+}
+
 function PlatformRow({ platform, onRetry }: { platform: DashboardConnectedPlatform; onRetry: (id: string) => void }) {
   const status = statusConfig[platform.status];
   const StatusIcon = status.icon;
   const [retrying, setRetrying] = useState(false);
+  const expiresInDays = platform.tokenExpiresAt ? daysUntil(platform.tokenExpiresAt) : null;
+  const tokenExpiringSoon = expiresInDays !== null && expiresInDays <= TOKEN_WARNING_DAYS;
 
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-border/50 bg-background/60 px-4 py-3.5 transition-all duration-150 hover:bg-accent/50 hover:border-border/80">
@@ -29,10 +38,19 @@ function PlatformRow({ platform, onRetry }: { platform: DashboardConnectedPlatfo
         </div>
         <div>
           <p className="text-sm font-semibold text-foreground">{platform.name}</p>
-          <p className="text-xs text-muted-foreground">{platform.lastSyncAt ? new Date(platform.lastSyncAt).toLocaleString() : platform.errorMessage ?? "Not yet synced"}</p>
+          <p className="text-xs text-muted-foreground">
+            {platform.lastSyncAt ? new Date(platform.lastSyncAt).toLocaleString() : platform.errorMessage ?? "Not yet synced"}
+            {platform.successRate !== undefined && ` · ${Math.round(platform.successRate)}% success`}
+          </p>
         </div>
       </div>
       <div className="flex items-center gap-2">
+        {tokenExpiringSoon && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-warning/20 bg-warning/10 px-3 py-0.5 text-xs font-medium text-warning" title={`Token expires ${expiresInDays <= 0 ? "today" : `in ${expiresInDays}d`}`}>
+            <ShieldAlert size={12} />
+            {expiresInDays <= 0 ? "Token expired" : `Token expires in ${expiresInDays}d`}
+          </span>
+        )}
         <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-0.5 text-xs font-medium ${status.className}`}>
           <StatusIcon size={12} className={platform.status === "connecting" || platform.status === "pending" ? "animate-spin" : ""} />
           {status.label}
@@ -80,6 +98,8 @@ interface ConnectedPlatformsProps {
 }
 
 export default function ConnectedPlatforms({ platforms, loading = false, onRetry, onRefreshAll }: ConnectedPlatformsProps) {
+  const router = useRouter();
+
   if (loading) {
     return (
       <Card>
@@ -100,7 +120,12 @@ export default function ConnectedPlatforms({ platforms, loading = false, onRetry
       <Card>
         <CardHeader title="Connected Platforms" description="Integration status" />
         <CardContent>
-          <EmptyState icon={<Globe size={32} />} title="No platforms connected" description="Connect your marketing platforms to see their status here." />
+          <EmptyState
+            icon={<Globe size={32} />}
+            title="Connect your marketing platforms"
+            description="Google Ads, Meta Ads, and Google Analytics take about 5 minutes each to connect — once linked, their status, sync health, and spend show up here automatically."
+            action={{ label: "Connect a platform", onClick: () => router.push("/dashboard/settings") }}
+          />
         </CardContent>
       </Card>
     );

@@ -88,6 +88,15 @@ export interface ConnectorSummary {
   name: string;
   status: string;
   lastSyncAt?: string;
+  /** Additive — omitted when the underlying connection has no health snapshot yet. */
+  health?: {
+    status: "healthy" | "degraded" | "unhealthy" | "unknown";
+    failureCount: number;
+    successRate: number;
+    lastErrorMessage?: string;
+  };
+  /** OAuth2 access-token expiry, when the connection's auth type is OAuth2. */
+  tokenExpiresAt?: string;
 }
 
 export interface SettingsSummary {

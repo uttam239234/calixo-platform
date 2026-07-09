@@ -21,13 +21,16 @@ const KEYS = {
 
 export function useDashboardPreferences() {
   const [landingLayoutId, setLandingLayoutIdState] = useState<string>("layout-personal");
+  const [hasExplicitLandingLayout, setHasExplicitLandingLayout] = useState(false);
   const [refreshIntervalSec, setRefreshIntervalSecState] = useState<number>(0);
   const [favouriteWidgets, setFavouriteWidgets] = useState<string[]>([]);
   const [favouriteLayouts, setFavouriteLayouts] = useState<string[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
 
   const refresh = useCallback(() => {
-    setLandingLayoutIdState((settingsEngine.load(KEYS.landing) as string) ?? "layout-personal");
+    const savedLanding = settingsEngine.load(KEYS.landing) as string | undefined;
+    setLandingLayoutIdState(savedLanding ?? "layout-personal");
+    setHasExplicitLandingLayout(savedLanding !== undefined);
     setRefreshIntervalSecState((settingsEngine.load(KEYS.refresh) as number) ?? 0);
     setFavouriteWidgets((settingsEngine.load(KEYS.favouriteWidgets) as string[]) ?? []);
     setFavouriteLayouts((settingsEngine.load(KEYS.favouriteLayouts) as string[]) ?? []);
@@ -88,6 +91,7 @@ export function useDashboardPreferences() {
 
   return {
     landingLayoutId,
+    hasExplicitLandingLayout,
     setLandingLayoutId,
     refreshIntervalSec,
     setRefreshIntervalSec,

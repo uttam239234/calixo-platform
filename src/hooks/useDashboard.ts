@@ -8,23 +8,28 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { dashboardEngine } from "@/core/dashboard";
+import { dashboardEngine, logDashboardError, trackDashboardLoadTime } from "@/core/dashboard";
+import { useOrganizationId } from "@/organizations/hooks/useOrganization";
 import type {
+  DashboardActionCenterItem,
   DashboardActivityEntry,
   DashboardApprovalItem,
   DashboardChannelRow,
   DashboardConnectedPlatform,
   DashboardForecastPoint,
+  DashboardHealthScore,
   DashboardKpiSnapshot,
   DashboardMarketingKpi,
   DashboardMorningBriefing,
   DashboardPerformancePoint,
   DashboardRecommendation,
   DashboardRisk,
+  DashboardSubscriptionSummary,
   DashboardTask,
 } from "@/core/dashboard";
 
 export function useDashboard() {
+  const organizationId = useOrganizationId();
   const [kpis, setKpis] = useState<DashboardKpiSnapshot[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<DashboardApprovalItem[]>([]);
   const [activity, setActivity] = useState<DashboardActivityEntry[]>([]);
@@ -37,23 +42,36 @@ export function useDashboard() {
   const [briefing, setBriefing] = useState<DashboardMorningBriefing | null>(null);
   const [forecast, setForecast] = useState<DashboardForecastPoint[]>([]);
   const [risks, setRisks] = useState<DashboardRisk[]>([]);
+  const [healthScore, setHealthScore] = useState<DashboardHealthScore | null>(null);
+  const [actionCenterItems, setActionCenterItems] = useState<DashboardActionCenterItem[]>([]);
+  const [subscription, setSubscription] = useState<DashboardSubscriptionSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    setKpis(dashboardEngine.getOperationalKpis());
-    setPendingApprovals(dashboardEngine.getPendingApprovals(5));
-    setActivity(dashboardEngine.getActivityFeed(8));
-    setMarketingKpis(dashboardEngine.getMarketingKpis());
-    setPerformanceSeries(dashboardEngine.getPerformanceSeries());
-    setChannelOverview(dashboardEngine.getChannelOverview());
-    setConnectedPlatforms(await dashboardEngine.getConnectedPlatforms());
-    setUpcomingTasks(dashboardEngine.getUpcomingTasks());
-    setRecommendations(dashboardEngine.getRecommendations());
-    setBriefing(dashboardEngine.getMorningBriefing());
-    setForecast(dashboardEngine.getForecast());
-    setRisks(dashboardEngine.detectRisks());
-    setLoading(false);
-  }, []);
+    const startedAt = Date.now();
+    try {
+      setKpis(dashboardEngine.getOperationalKpis());
+      setPendingApprovals(dashboardEngine.getPendingApprovals(5));
+      setActivity(dashboardEngine.getActivityFeed(8));
+      setMarketingKpis(dashboardEngine.getMarketingKpis());
+      setPerformanceSeries(dashboardEngine.getPerformanceSeries());
+      setChannelOverview(dashboardEngine.getChannelOverview());
+      setConnectedPlatforms(await dashboardEngine.getConnectedPlatforms(organizationId ?? undefined));
+      setUpcomingTasks(dashboardEngine.getUpcomingTasks());
+      setRecommendations(dashboardEngine.getRecommendations());
+      setBriefing(await dashboardEngine.getMorningBriefing(organizationId ?? undefined));
+      setForecast(dashboardEngine.getForecast());
+      setRisks(dashboardEngine.detectRisks());
+      setHealthScore(await dashboardEngine.getHealthScore(organizationId ?? undefined));
+      setActionCenterItems(await dashboardEngine.getActionCenterItems(organizationId ?? undefined));
+      setSubscription(dashboardEngine.getSubscriptionSummary(organizationId ?? undefined));
+      trackDashboardLoadTime(Date.now() - startedAt);
+    } catch (error) {
+      logDashboardError("Dashboard refresh failed", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [organizationId]);
 
   useEffect(() => {
     (async () => {
@@ -85,6 +103,14 @@ export function useDashboard() {
     [refresh]
   );
 
+  const snoozeActionCenterItem = useCallback(
+    (id: string) => {
+      dashboardEngine.snoozeActionCenterItem(id);
+      setActionCenterItems(items => items.filter(i => i.id !== id));
+    },
+    []
+  );
+
   return {
     kpis,
     pendingApprovals,
@@ -98,11 +124,15 @@ export function useDashboard() {
     briefing,
     forecast,
     risks,
+    healthScore,
+    actionCenterItems,
+    subscription,
     loading,
     refresh,
     applyRecommendation,
     dismissRecommendation,
     retryConnection,
+    snoozeActionCenterItem,
   };
 }
 

@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 interface AnalyticsHeaderProps {
   selectedRange: "7d" | "30d" | "90d" | "custom";
   onRangeChange: (range: "7d" | "30d" | "90d" | "custom") => void;
+  customRange?: { start: string; end: string };
+  onCustomRangeChange: (range: { start: string; end: string }) => void;
   onExport: (format: "pdf" | "excel") => void;
   onRefresh: () => void;
 }
 
-export function AnalyticsHeader({ selectedRange, onRangeChange, onExport, onRefresh }: AnalyticsHeaderProps) {
+export function AnalyticsHeader({ selectedRange, onRangeChange, customRange, onCustomRangeChange, onExport, onRefresh }: AnalyticsHeaderProps) {
   const [refreshed, setRefreshed] = useState(false);
 
   const handleRefresh = () => {
@@ -60,6 +62,28 @@ export function AnalyticsHeader({ selectedRange, onRangeChange, onExport, onRefr
               <option value="custom">Custom</option>
             </select>
           </div>
+
+          {selectedRange === "custom" && (
+            <div className="flex items-center gap-1.5 rounded-2xl border border-border bg-surface/50 px-3 py-2 text-sm text-muted-foreground">
+              <input
+                aria-label="Custom range start"
+                type="date"
+                value={customRange?.start ?? ""}
+                max={customRange?.end}
+                onChange={event => onCustomRangeChange({ start: event.target.value, end: customRange?.end ?? event.target.value })}
+                className="bg-transparent text-sm outline-none text-foreground"
+              />
+              <span className="text-muted-foreground/60">to</span>
+              <input
+                aria-label="Custom range end"
+                type="date"
+                value={customRange?.end ?? ""}
+                min={customRange?.start}
+                onChange={event => onCustomRangeChange({ start: customRange?.start ?? event.target.value, end: event.target.value })}
+                className="bg-transparent text-sm outline-none text-foreground"
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

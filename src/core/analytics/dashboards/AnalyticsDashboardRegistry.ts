@@ -14,6 +14,7 @@ function DEFAULT_WIDGET_SET(): AnalyticsWidgetConfig[] {
   const keys: AnalyticsWidgetKey[] = [
     "executive-summary",
     "goals-scorecard",
+    "health-score",
     "revenue-chart",
     "traffic-analytics",
     "channel-performance",
@@ -22,6 +23,7 @@ function DEFAULT_WIDGET_SET(): AnalyticsWidgetConfig[] {
     "audience-insights",
     "geo-performance",
     "ai-insights",
+    "insight-action-center",
     "reports-panel",
   ];
   return keys.map((key, index) => ({ key, visible: true, pinned: false, order: index }));

@@ -1,18 +1,25 @@
 "use client";
 
+import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
-import { Download, Maximize2 } from "lucide-react";
-import type { AnalyticsRevenuePoint } from "@/core/analytics";
+import { Download, Maximize2, MessageSquarePlus, Trash2 } from "lucide-react";
+import type { AnalyticsAnnotation, AnalyticsRevenuePoint } from "@/core/analytics";
 
 interface RevenueChartProps {
   data: AnalyticsRevenuePoint[];
   range: "7d" | "30d" | "90d" | "custom";
   onExport: () => void;
+  annotations?: AnalyticsAnnotation[];
+  onAddAnnotation?: (date: string, note: string) => void;
+  onRemoveAnnotation?: (id: string) => void;
 }
 
-export function RevenueChart({ data, range, onExport }: RevenueChartProps) {
+export function RevenueChart({ data, range, onExport, annotations = [], onAddAnnotation, onRemoveAnnotation }: RevenueChartProps) {
+  const [adding, setAdding] = useState(false);
+  const [date, setDate] = useState("");
+  const [note, setNote] = useState("");
   return (
     <Card>
       <CardHeader
@@ -20,6 +27,12 @@ export function RevenueChart({ data, range, onExport }: RevenueChartProps) {
         description={`Performance across ${range === "7d" ? "the last 7 days" : range === "30d" ? "the last 30 days" : range === "90d" ? "the last 90 days" : "your custom date range"}`}
         action={
           <div className="flex items-center gap-2">
+            {onAddAnnotation && (
+              <Button variant="outline" size="sm" onClick={() => setAdding(v => !v)}>
+                <MessageSquarePlus size={14} />
+                Annotate
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={onExport}>
               <Download size={14} />
               Export
@@ -64,6 +77,44 @@ export function RevenueChart({ data, range, onExport }: RevenueChartProps) {
             </AreaChart>
           </ResponsiveContainer>
         </div>
+
+        {onAddAnnotation && adding && (
+          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/50 p-3">
+            <input aria-label="Annotation date" type="date" value={date} onChange={e => setDate(e.target.value)} className="input text-sm" />
+            <input aria-label="Annotation note" value={note} onChange={e => setNote(e.target.value)} placeholder="What happened on this date?" className="input flex-1 text-sm" />
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={!date || !note.trim()}
+              onClick={() => {
+                onAddAnnotation(date, note.trim());
+                setDate("");
+                setNote("");
+                setAdding(false);
+              }}
+            >
+              Save
+            </Button>
+          </div>
+        )}
+
+        {annotations.length > 0 && (
+          <div className="mt-4 space-y-1.5">
+            {annotations.map(annotation => (
+              <div key={annotation.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-xs">
+                <span className="text-muted-foreground">
+                  <span className="font-medium text-foreground">{new Date(annotation.date).toLocaleDateString()}</span> — {annotation.note}{" "}
+                  <span className="text-muted-foreground/70">by {annotation.author}</span>
+                </span>
+                {onRemoveAnnotation && (
+                  <button aria-label="Remove annotation" onClick={() => onRemoveAnnotation(annotation.id)} className="flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-accent">
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

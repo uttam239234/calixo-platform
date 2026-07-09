@@ -1,10 +1,26 @@
 /** Calixo Platform — Workflow Engine (Central orchestrator) */
-import type { WorkflowEntry, WorkflowStatus, WorkflowAction, WorkflowComment } from "./types";
+import type { WorkflowEntry, WorkflowStatus, WorkflowAction, WorkflowComment, WorkflowPriority } from "./types";
 import { MOCK_WORKFLOWS } from "./mock-data";
 
 const workflows = [...MOCK_WORKFLOWS];
 
 export const WorkflowEngine = {
+  /** Submits a new item for review — the one CRUD method this engine was missing (only `approve`/`reject`/`addComment` existed, all operating on the fixed seed array). Any module wanting to route new content through approval needs this rather than reimplementing its own workflow engine. */
+  create(input: { title: string; description: string; assetId: string; assetName: string; priority: WorkflowPriority; submittedBy: string; reviewer?: string; approver?: string; dueDate?: string; brand?: string; campaign?: string }): WorkflowEntry {
+    const now = new Date().toISOString();
+    const id = `wf-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const entry: WorkflowEntry = {
+      ...input,
+      id,
+      status: "in-review",
+      comments: [],
+      actions: [{ id: `act-${Date.now()}`, workflowId: id, type: "submitted", performedBy: input.submittedBy, timestamp: now, details: "Submitted for review" }],
+      createdAt: now,
+      updatedAt: now,
+    };
+    workflows.push(entry);
+    return { ...entry };
+  },
   getAll(): WorkflowEntry[] { return [...workflows]; },
   get(id: string): WorkflowEntry | undefined { return workflows.find(w => w.id === id); },
   getByStatus(status: WorkflowStatus): WorkflowEntry[] { return workflows.filter(w => w.status === status); },

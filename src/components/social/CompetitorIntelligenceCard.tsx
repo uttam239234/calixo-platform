@@ -22,10 +22,10 @@ export function CompetitorIntelligenceCard() {
         <div className="flex items-start gap-4">
           <IconBadge icon={Radar} tone="cyan" />
           <div>
-            <h3 className="text-lg font-semibold text-white">
+            <h3 className="text-lg font-semibold text-foreground">
               Competitor Intelligence
             </h3>
-            <p className="mt-1 text-sm text-slate-400">
+            <p className="mt-1 text-sm text-muted-foreground">
               Monitor competitors, compare performance, and discover AI-powered
               growth opportunities.
             </p>
@@ -33,7 +33,7 @@ export function CompetitorIntelligenceCard() {
         </div>
         <Link
           href="/dashboard/social/competitors"
-          className="group flex shrink-0 items-center gap-2 rounded-xl bg-cyan-500/10 px-4 py-2.5 text-sm font-medium text-cyan-300 transition hover:bg-cyan-500/20"
+          className="group flex shrink-0 items-center gap-2 rounded-xl bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary transition hover:bg-primary/20"
         >
           View Competitor Dashboard
           <ArrowRight
@@ -44,29 +44,29 @@ export function CompetitorIntelligenceCard() {
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
-        <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-          <Users size={18} className="shrink-0 text-cyan-400" />
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-surface/40 p-3">
+          <Users size={18} className="shrink-0 text-primary" />
           <div>
-            <p className="text-xs text-slate-500">Total Competitors</p>
-            <p className="text-sm font-semibold text-white">
+            <p className="text-xs text-muted-foreground">Total Competitors</p>
+            <p className="text-sm font-semibold text-foreground">
               {totalCompetitors}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-          <TrendingUp size={18} className="shrink-0 text-emerald-400" />
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-surface/40 p-3">
+          <TrendingUp size={18} className="shrink-0 text-success" />
           <div>
-            <p className="text-xs text-slate-500">Fastest Growing</p>
-            <p className="text-sm font-semibold text-white">
+            <p className="text-xs text-muted-foreground">Fastest Growing</p>
+            <p className="text-sm font-semibold text-foreground">
               {fastestGrowing.name}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-          <Activity size={18} className="shrink-0 text-amber-400" />
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-surface/40 p-3">
+          <Activity size={18} className="shrink-0 text-warning" />
           <div>
-            <p className="text-xs text-slate-500">Avg Engagement</p>
-            <p className="text-sm font-semibold text-white">{avgEngagement}%</p>
+            <p className="text-xs text-muted-foreground">Avg Engagement</p>
+            <p className="text-sm font-semibold text-foreground">{avgEngagement}%</p>
           </div>
         </div>
       </div>

@@ -10,10 +10,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { analyticsDashboardRegistry, seedAnalyticsDashboards } from "@/core/analytics";
 import type { AnalyticsDashboardLayout, AnalyticsWidgetConfig } from "@/core/analytics";
+import { useUser } from "@/identity/hooks/useAuth";
 
-const CURRENT_USER = "You";
+const FALLBACK_USER = "You";
 
 export function useAnalyticsDashboards() {
+  const sessionUser = useUser();
+  const CURRENT_USER = sessionUser?.name ?? FALLBACK_USER;
   const [layouts, setLayouts] = useState<AnalyticsDashboardLayout[]>([]);
   const [activeId, setActiveId] = useState<string>("analytics-layout-executive");
 
@@ -39,7 +42,7 @@ export function useAnalyticsDashboards() {
       switchTo(layout.id);
       return layout;
     },
-    [refresh, switchTo]
+    [refresh, switchTo, CURRENT_USER]
   );
 
   const clone = useCallback(
@@ -48,7 +51,7 @@ export function useAnalyticsDashboards() {
       if (layout) refresh();
       return layout;
     },
-    [refresh]
+    [refresh, CURRENT_USER]
   );
 
   const rename = useCallback(
@@ -83,7 +86,7 @@ export function useAnalyticsDashboards() {
       analyticsDashboardRegistry.setDefault(id, CURRENT_USER);
       refresh();
     },
-    [refresh]
+    [refresh, CURRENT_USER]
   );
 
   const resetToTemplate = useCallback(

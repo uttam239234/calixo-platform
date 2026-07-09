@@ -87,6 +87,9 @@ export interface DashboardConnectedPlatform {
   status: "connected" | "connecting" | "disconnected" | "error" | "pending";
   lastSyncAt?: string;
   errorMessage?: string;
+  /** Additive — real Connector Platform health/token data, omitted when unavailable. */
+  successRate?: number;
+  tokenExpiresAt?: string;
 }
 
 export interface DashboardTask {
@@ -128,4 +131,51 @@ export interface DashboardRisk {
   description: string;
   severity: "high" | "medium" | "low";
   detectionMethod: "threshold";
+}
+
+/** One weighted input into `DashboardHealthScore` — every `score` is 0-100 and every source is a real, already-composed Dashboard signal (no new computation invented for this). */
+export interface DashboardHealthSignal {
+  key: string;
+  label: string;
+  weight: number;
+  score: number;
+  status: "strength" | "risk" | "neutral";
+  detail: string;
+}
+
+export interface DashboardHealthScore {
+  score: number;
+  label: string;
+  breakdown: DashboardHealthSignal[];
+  strengths: string[];
+  risks: string[];
+  generatedAt: string;
+}
+
+/** One row in the unified Action Center — "actions you can take" (approvals, entitlement warnings) and "incidents happening to you" (connector failures, alerts) share this shape since their affordances are identical (investigate / snooze / fix at the owning route). */
+export interface DashboardActionCenterItem {
+  id: string;
+  title: string;
+  description: string;
+  severity: "high" | "medium" | "low";
+  category: "approval" | "connector" | "entitlement" | "alert" | "task";
+  kind: "action" | "incident";
+  actionLabel: string;
+  actionHref: string;
+  status: "open" | "snoozed" | "dismissed";
+}
+
+export interface DashboardSubscriptionLimit {
+  used: number;
+  limit: number;
+}
+
+export interface DashboardSubscriptionSummary {
+  tier: string;
+  status: string;
+  renewsAt?: string;
+  seats: DashboardSubscriptionLimit;
+  aiCredits: DashboardSubscriptionLimit;
+  storageGB: DashboardSubscriptionLimit;
+  connectors: DashboardSubscriptionLimit;
 }

@@ -5,17 +5,16 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, ChevronLeft, Rocket, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/Card";
-import { platforms } from "@/features/ads/mock-data";
 import { useCampaigns } from "@/features/ads/CampaignProvider";
 import { createCampaignId } from "@/features/ads/campaign-utils";
-import type { Campaign } from "@/features/ads/types";
+import type { Campaign } from "@/core/ads";
 
 const steps = ["Platform", "Objective", "Name", "Budget", "Audience", "Keywords", "Creatives", "Review", "Publish"];
 const objectives = ["Conversions", "Lead generation", "Revenue", "Awareness", "Traffic", "Engagement"];
 
 export function CampaignWizard() {
   const router = useRouter();
-  const { addCampaign, showToast } = useCampaigns();
+  const { platforms, currentUserName, tenantContext, addCampaign, showToast } = useCampaigns();
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState("");
   const [uploadedCreative, setUploadedCreative] = useState("");
@@ -59,13 +58,14 @@ export function CampaignWizard() {
       impressions: 0,
       cpa: 0,
       qualityScore: 7,
-      owner: "Aarav Mehta",
+      owner: currentUserName,
       createdAt: now,
       startDate: now,
       endDate: new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10),
       audience: form.audience.trim(),
       keywords: form.keywords.split(",").map(x => x.trim()).filter(Boolean),
       creatives: form.creatives.split(",").filter(x => x.trim()).length,
+      organizationId: tenantContext.organizationId,
     };
     addCampaign(campaign);
     showToast(`"${campaign.name}" created successfully.`);

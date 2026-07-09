@@ -54,8 +54,8 @@ export function TopContent() {
             onClick={() => setActiveTab(tab)}
             className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
               activeTab === tab
-                ? "bg-cyan-500/15 text-cyan-300"
-                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:bg-surface hover:text-foreground"
             }`}
           >
             {tab}
@@ -66,30 +66,30 @@ export function TopContent() {
         {sorted.map((content) => (
           <div
             key={content.id}
-            className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 transition-all duration-200 hover:border-cyan-500/30"
+            className="group relative overflow-hidden rounded-2xl border border-border bg-surface/60 transition-all duration-200 hover:border-primary/30"
           >
             {/* Thumbnail */}
-            <div className="relative flex h-28 items-center justify-center bg-slate-800/50">
-              <span className="text-3xl font-bold text-slate-600">
+            <div className="relative flex h-28 items-center justify-center bg-surface/50">
+              <span className="text-3xl font-bold text-muted-foreground">
                 {content.thumbnail}
               </span>
               {(content.type === "Video" ||
                 content.type === "Reel" ||
                 content.type === "Short") && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-                    <Play size={16} className="ml-0.5 text-white" />
+                <div className="absolute inset-0 flex items-center justify-center bg-background/30">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-card/20 backdrop-blur-sm">
+                    <Play size={16} className="ml-0.5 text-foreground" />
                   </div>
                 </div>
               )}
-              <span className="absolute right-2 top-2 rounded-md bg-slate-900/80 px-1.5 py-0.5 text-xs">
+              <span className="absolute right-2 top-2 rounded-md bg-card/80 px-1.5 py-0.5 text-xs">
                 {platformEmojis[content.platform] || "🌐"}
               </span>
             </div>
 
             {/* Caption */}
             <div className="p-3">
-              <p className="line-clamp-2 text-xs text-slate-300">
+              <p className="line-clamp-2 text-xs text-foreground">
                 {content.caption}
               </p>
               <p
@@ -100,7 +100,7 @@ export function TopContent() {
               </p>
 
               {/* Stats */}
-              <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-slate-500">
+              <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-muted-foreground">
                 <span className="flex items-center gap-0.5">
                   <Eye size={10} />
                   {(content.views / 1000).toFixed(0)}K
@@ -133,7 +133,7 @@ export function TopContent() {
                 )}
               </div>
               {content.date && (
-                <p className="mt-1 text-[10px] text-slate-600">
+                <p className="mt-1 text-[10px] text-muted-foreground">
                   {new Date(content.date).toLocaleDateString()}
                 </p>
               )}

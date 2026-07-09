@@ -6,14 +6,17 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { dashboardLayoutRegistry, dashboardActivityLog, initializeDashboardFoundation } from "@/core/dashboard";
+import { dashboardLayoutRegistry, dashboardActivityLog, initializeDashboardFoundation, personaForRole } from "@/core/dashboard";
 import type { DashboardLayout, DashboardWidgetConfig } from "@/core/dashboard";
+import { useUser } from "@/identity/hooks/useAuth";
 import { useDashboardPreferences } from "./useDashboardPreferences";
 
-const CURRENT_USER = "You";
+const FALLBACK_USER = "You";
 
 export function useDashboardLayouts() {
   const prefs = useDashboardPreferences();
+  const sessionUser = useUser();
+  const CURRENT_USER = sessionUser?.name ?? FALLBACK_USER;
   const [layouts, setLayouts] = useState<DashboardLayout[]>([]);
   const [activeId, setActiveId] = useState<string>("layout-personal");
 
@@ -34,13 +37,23 @@ export function useDashboardLayouts() {
     })();
   }, [refresh]);
 
+  /**
+   * On a genuine first visit (no explicit `landingLayoutId` ever saved),
+   * prefer the system template whose persona matches the session user's
+   * role over the hook's own "layout-personal" fallback default — once
+   * the user has switched/saved a preference themselves, that always wins.
+   */
   useEffect(() => {
     (async () => {
-      if (prefs.landingLayoutId && dashboardLayoutRegistry.lookup(prefs.landingLayoutId)) {
-        setActiveId(prefs.landingLayoutId);
+      if (prefs.hasExplicitLandingLayout) {
+        if (dashboardLayoutRegistry.lookup(prefs.landingLayoutId)) setActiveId(prefs.landingLayoutId);
+        return;
       }
+      const persona = personaForRole(sessionUser?.role);
+      const match = persona ? layouts.find(l => l.isTemplate && l.persona === persona) : null;
+      if (match) setActiveId(match.id);
     })();
-  }, [prefs.landingLayoutId]);
+  }, [prefs.landingLayoutId, prefs.hasExplicitLandingLayout, sessionUser?.role, layouts]);
 
   const active = layouts.find(l => l.id === activeId) ?? layouts[0];
 
@@ -51,7 +64,7 @@ export function useDashboardLayouts() {
       const layout = dashboardLayoutRegistry.lookup(id);
       dashboardActivityLog.record(CURRENT_USER, "switched to", layout?.name ?? id);
     },
-    [prefs]
+    [prefs, CURRENT_USER]
   );
 
   const create = useCallback(
@@ -62,7 +75,7 @@ export function useDashboardLayouts() {
       switchTo(layout.id);
       return layout;
     },
-    [refresh, switchTo]
+    [refresh, switchTo, CURRENT_USER]
   );
 
   const clone = useCallback(
@@ -74,7 +87,7 @@ export function useDashboardLayouts() {
       }
       return layout;
     },
-    [refresh]
+    [refresh, CURRENT_USER]
   );
 
   const rename = useCallback(
@@ -93,7 +106,7 @@ export function useDashboardLayouts() {
       if (activeId === id) setActiveId("layout-personal");
       refresh();
     },
-    [refresh, activeId]
+    [refresh, activeId, CURRENT_USER]
   );
 
   const toggleFavorite = useCallback(
@@ -112,7 +125,7 @@ export function useDashboardLayouts() {
       prefs.setLandingLayoutId(id);
       refresh();
     },
-    [refresh, prefs]
+    [refresh, prefs, CURRENT_USER]
   );
 
   const resetToTemplate = useCallback(

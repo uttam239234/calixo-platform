@@ -10,6 +10,7 @@ import type { DashboardLayout as GenericDashboardLayout, DashboardWidgetCatalogE
 export type AnalyticsWidgetKey =
   | "executive-summary"
   | "goals-scorecard"
+  | "health-score"
   | "revenue-chart"
   | "traffic-analytics"
   | "channel-performance"
@@ -18,6 +19,7 @@ export type AnalyticsWidgetKey =
   | "audience-insights"
   | "geo-performance"
   | "ai-insights"
+  | "insight-action-center"
   | "reports-panel";
 
 export type AnalyticsWidgetConfig = GenericWidgetConfig<AnalyticsWidgetKey>;
@@ -33,6 +35,7 @@ export const ANALYTICS_WIDGET_GROUPS = ["Summary", "Performance", "Conversion", 
 export const ANALYTICS_WIDGET_CATALOG: AnalyticsWidgetCatalogEntry[] = [
   { key: "executive-summary", label: "Executive Summary", description: "Top-line KPI cards with period-over-period comparison", group: "Summary" },
   { key: "goals-scorecard", label: "Goals & Scorecard", description: "Targets, progress, and benchmark comparison", group: "Summary" },
+  { key: "health-score", label: "Health Score", description: "Weighted analytics health across revenue, channels, funnel, forecast, and connectors", group: "Summary" },
   { key: "revenue-chart", label: "Revenue Chart", description: "Revenue and spend trend over time", group: "Performance" },
   { key: "traffic-analytics", label: "Traffic Analytics", description: "Sessions, users, bounce rate, and engagement", group: "Performance" },
   { key: "channel-performance", label: "Channel Performance", description: "Per-channel spend, ROAS, and CPA", group: "Performance" },
@@ -41,5 +44,6 @@ export const ANALYTICS_WIDGET_CATALOG: AnalyticsWidgetCatalogEntry[] = [
   { key: "audience-insights", label: "Audience Insights", description: "Segment composition and behavior", group: "Audience" },
   { key: "geo-performance", label: "Geo Performance", description: "Revenue and conversions by region", group: "Audience" },
   { key: "ai-insights", label: "AI Insights", description: "Prioritized recommendations", group: "AI" },
+  { key: "insight-action-center", label: "Insight & Action Center", description: "Risks, anomalies, opportunities, data quality, and attribution in one place", group: "AI" },
   { key: "reports-panel", label: "Reports & Exports", description: "Saved reports, schedules, and recent exports", group: "AI" },
 ];

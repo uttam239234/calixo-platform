@@ -17,26 +17,26 @@ const categories: { key: ComparisonMetric; label: string }[] = [
 function BenchmarkRow({ result }: { result: BenchmarkResult }) {
   const diffIcon =
     result.difference > 0 ? (
-      <TrendingUp size={14} className="text-emerald-400" />
+      <TrendingUp size={14} className="text-success" />
     ) : result.difference < 0 ? (
-      <TrendingDown size={14} className="text-red-400" />
+      <TrendingDown size={14} className="text-destructive" />
     ) : (
-      <Minus size={14} className="text-slate-500" />
+      <Minus size={14} className="text-muted-foreground" />
     );
 
   const diffColor =
     result.difference > 0
-      ? "text-emerald-400"
+      ? "text-success"
       : result.difference < 0
-      ? "text-red-400"
-      : "text-slate-500";
+      ? "text-destructive"
+      : "text-muted-foreground";
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+    <div className="rounded-xl border border-border bg-surface p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h4 className="text-sm font-medium text-white">{result.category}</h4>
-          <span className="flex items-center gap-1 text-xs text-slate-500">
+          <h4 className="text-sm font-medium text-foreground">{result.category}</h4>
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
             #{result.rank} of {result.total}
           </span>
         </div>
@@ -51,13 +51,13 @@ function BenchmarkRow({ result }: { result: BenchmarkResult }) {
           .sort((a, b) => b.value - a.value)
           .map((comp, i) => (
             <div key={comp.id} className="flex items-center gap-3">
-              <span className="w-4 text-xs font-bold text-slate-500">
+              <span className="w-4 text-xs font-bold text-muted-foreground">
                 {i + 1}
               </span>
               <div className="flex-1">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-300">{comp.name}</span>
-                  <span className="text-slate-400">
+                  <span className="text-foreground">{comp.name}</span>
+                  <span className="text-muted-foreground">
                     {comp.name === "Your Brand"
                       ? comp.value.toLocaleString()
                       : comp.name === "Your Brand" &&
@@ -68,7 +68,7 @@ function BenchmarkRow({ result }: { result: BenchmarkResult }) {
                       : comp.value.toLocaleString()}
                   </span>
                 </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-800">
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-surface">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{
@@ -79,7 +79,7 @@ function BenchmarkRow({ result }: { result: BenchmarkResult }) {
                 </div>
               </div>
               {i === 0 && (
-                <Trophy size={14} className="shrink-0 text-amber-400" />
+                <Trophy size={14} className="shrink-0 text-warning" />
               )}
             </div>
           ))}

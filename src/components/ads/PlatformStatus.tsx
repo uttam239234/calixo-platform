@@ -2,15 +2,17 @@
 
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { CheckCircle2, Clock3, RefreshCw, TriangleAlert } from "lucide-react";
-import { platforms } from "@/features/ads/mock-data";
+import { useCampaigns } from "@/features/ads/CampaignProvider";
 
 export function PlatformStatus() {
+  const { platforms } = useCampaigns();
+  const healthyCount = platforms.filter(p => p.status === "Connected").length;
   return (
     <Card>
       <CardHeader
         title="Platform Status"
         description="Connection health"
-        action={<span className="text-xs font-medium text-success">4 of 5 healthy</span>}
+        action={<span className="text-xs font-medium text-success">{healthyCount} of {platforms.length} healthy</span>}
       />
       <CardContent>
         <div className="space-y-2">

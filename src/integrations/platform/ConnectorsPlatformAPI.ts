@@ -21,6 +21,10 @@ export class ConnectorsPlatformAPI {
         name: definition?.name ?? c.name,
         status: c.status,
         lastSyncAt: c.lastSyncAt,
+        health: c.health
+          ? { status: c.health.status, failureCount: c.health.failureCount, successRate: c.health.successRate, lastErrorMessage: c.health.lastErrorMessage }
+          : undefined,
+        tokenExpiresAt: c.auth.oauth2?.expiresAt,
       };
     });
   }

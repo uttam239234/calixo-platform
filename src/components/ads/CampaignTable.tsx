@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Archive, Copy, Download, Grid2X2, List, MoreHorizontal, Pause, Play, Search, SlidersHorizontal, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
-import { platforms } from "@/features/ads/mock-data";
 import { defaultCampaignFilters, exportCampaignsCsv, filterCampaigns, sortCampaigns, type CampaignAction, type CampaignFilterState } from "@/features/ads/campaign-utils";
 import { useCampaigns } from "@/features/ads/CampaignProvider";
 import { CampaignFilters } from "./campaigns/CampaignFilters";
@@ -12,11 +11,11 @@ import { CampaignCard } from "./campaigns/CampaignCard";
 import { campaignStatusStyle } from "./campaigns/CampaignRow";
 
 const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-const platformNames = Object.fromEntries(platforms.map((platform) => [platform.id, platform.name]));
 const VIEW_KEY = "calixo-campaign-view";
 
 export function CampaignTable() {
-  const { campaigns, actOnCampaigns, showToast } = useCampaigns();
+  const { campaigns, platforms, recordExport, actOnCampaigns, showToast } = useCampaigns();
+  const platformNames = useMemo(() => Object.fromEntries(platforms.map(platform => [platform.id, platform.name])), [platforms]);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<CampaignFilterState>(defaultCampaignFilters);
   const [showFilters, setShowFilters] = useState(false);
@@ -40,12 +39,14 @@ export function CampaignTable() {
 
   const objectives = useMemo(() => [...new Set(campaigns.map(c => c.objective))].sort(), [campaigns]);
   const owners = useMemo(() => [...new Set(campaigns.map(c => c.owner))].sort(), [campaigns]);
-  const rows = useMemo(() => sortCampaigns(filterCampaigns(campaigns, query, filters, platformNames), filters.sort, filters.direction), [campaigns, query, filters]);
+  const rows = useMemo(() => sortCampaigns(filterCampaigns(campaigns, query, filters, platformNames), filters.sort, filters.direction), [campaigns, query, filters, platformNames]);
   const visibleView = mounted ? view : "table";
 
   const runAction = (action: CampaignAction | "Export", ids = selected) => {
-    if (action === "Export") exportCampaignsCsv(campaigns.filter(c => ids.includes(c.id)));
-    else {
+    if (action === "Export") {
+      if (!recordExport(ids.length)) return;
+      exportCampaignsCsv(campaigns.filter(c => ids.includes(c.id)));
+    } else {
       if (action === "Delete" && !window.confirm(`Delete ${ids.length} selected campaign${ids.length === 1 ? "" : "s"}?`)) return;
       actOnCampaigns(ids, action);
     }

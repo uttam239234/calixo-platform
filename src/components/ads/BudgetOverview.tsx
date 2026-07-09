@@ -2,11 +2,12 @@
 
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { WalletCards, TrendingUp } from "lucide-react";
-import { budget } from "@/features/ads/mock-data";
+import { useCampaigns } from "@/features/ads/CampaignProvider";
 
 const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 });
 
 export function BudgetOverview() {
+  const { budget } = useCampaigns();
   const used = Math.round((budget.spent / budget.total) * 100);
 
   return (

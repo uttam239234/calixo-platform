@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Copy, Download, Pause, Play, Trash2 } from "lucide-react";
-import { platforms } from "@/features/ads/mock-data";
 import { defaultCampaignFilters, exportCampaignsCsv, filterCampaigns, sortCampaigns, type CampaignAction, type CampaignFilterState } from "@/features/ads/campaign-utils";
 import { useCampaigns } from "@/features/ads/CampaignProvider";
 import { CampaignCard } from "./CampaignCard";
@@ -12,15 +11,14 @@ import { CampaignStats } from "./CampaignStats";
 import { CampaignToolbar } from "./CampaignToolbar";
 
 const VIEW_KEY = "calixo-campaign-view";
-const platformNames = Object.fromEntries(platforms.map((platform) => [platform.id, platform.name]));
 export function CampaignList() {
-  const router = useRouter(); const { campaigns, actOnCampaigns, showToast } = useCampaigns(); const [query, setQuery] = useState(""); const [view, setView] = useState<"table" | "card">("table"); const [mounted, setMounted] = useState(false); const [filters, setFilters] = useState<CampaignFilterState>(defaultCampaignFilters); const [selected, setSelected] = useState<string[]>([]);
+  const router = useRouter(); const { campaigns, platforms, recordExport, actOnCampaigns, showToast } = useCampaigns(); const platformNames = useMemo(() => Object.fromEntries(platforms.map(platform => [platform.id, platform.name])), [platforms]); const [query, setQuery] = useState(""); const [view, setView] = useState<"table" | "card">("table"); const [mounted, setMounted] = useState(false); const [filters, setFilters] = useState<CampaignFilterState>(defaultCampaignFilters); const [selected, setSelected] = useState<string[]>([]);
   useEffect(() => { let active = true; queueMicrotask(() => { if (!active) return; const stored = localStorage.getItem(VIEW_KEY); if (stored === "card") setView("card"); setMounted(true); }); return () => { active = false; }; }, []);
   useEffect(() => { if (mounted) localStorage.setItem(VIEW_KEY, view); }, [view, mounted]);
   const objectives = useMemo(() => [...new Set(campaigns.map(x => x.objective))].sort(), [campaigns]); const owners = useMemo(() => [...new Set(campaigns.map(x => x.owner))].sort(), [campaigns]);
-  const filtered = useMemo(() => sortCampaigns(filterCampaigns(campaigns, query, filters, platformNames), filters.sort, filters.direction), [campaigns, query, filters]);
-  const runAction = (action: string, ids = selected) => { if (action === "View") { router.push(`/dashboard/ads/campaigns/${ids[0]}`); return; } if (action === "Edit") { router.push(`/dashboard/ads/campaigns/${ids[0]}?edit=true`); return; } if (action === "Export") { exportCampaignsCsv(campaigns.filter(c => ids.includes(c.id))); showToast(`Exported ${ids.length} campaign${ids.length === 1 ? "" : "s"}.`); return; } if (action === "Delete" && !window.confirm(`Delete ${ids.length} selected campaign${ids.length === 1 ? "" : "s"}? This cannot be undone.`)) return; actOnCampaigns(ids, action as CampaignAction); showToast(`${action} applied to ${ids.length} campaign${ids.length === 1 ? "" : "s"}.`); setSelected([]); };
-  const exportVisible = () => { exportCampaignsCsv(filtered); showToast(`Exported ${filtered.length} visible campaigns.`); };
+  const filtered = useMemo(() => sortCampaigns(filterCampaigns(campaigns, query, filters, platformNames), filters.sort, filters.direction), [campaigns, query, filters, platformNames]);
+  const runAction = (action: string, ids = selected) => { if (action === "View") { router.push(`/dashboard/ads/campaigns/${ids[0]}`); return; } if (action === "Edit") { router.push(`/dashboard/ads/campaigns/${ids[0]}?edit=true`); return; } if (action === "Export") { if (!recordExport(ids.length)) return; exportCampaignsCsv(campaigns.filter(c => ids.includes(c.id))); showToast(`Exported ${ids.length} campaign${ids.length === 1 ? "" : "s"}.`); return; } if (action === "Delete" && !window.confirm(`Delete ${ids.length} selected campaign${ids.length === 1 ? "" : "s"}? This cannot be undone.`)) return; actOnCampaigns(ids, action as CampaignAction); showToast(`${action} applied to ${ids.length} campaign${ids.length === 1 ? "" : "s"}.`); setSelected([]); };
+  const exportVisible = () => { if (!recordExport(filtered.length)) return; exportCampaignsCsv(filtered); showToast(`Exported ${filtered.length} visible campaigns.`); };
   const visibleView = mounted ? view : "table";
   return <div className="space-y-4"><CampaignToolbar query={query} onQueryChange={setQuery} view={visibleView} onViewChange={setView} onExport={exportVisible} /><CampaignStats campaigns={campaigns} /><CampaignFilters filters={filters} onChange={setFilters} objectives={objectives} owners={owners} />
     {selected.length > 0 && <div className="sticky top-[76px] z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-cyan-500/30 bg-slate-900 p-3 shadow-2xl"><span className="mr-2 text-sm font-medium text-white">{selected.length} selected</span>{[["Pause", Pause], ["Resume", Play], ["Duplicate", Copy], ["Archive", Archive], ["Delete", Trash2], ["Export", Download]].map(([label, Icon]) => <button key={label as string} onClick={() => runAction(label as string)} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 hover:bg-slate-800 hover:text-white"><Icon size={14} />{label as string}</button>)}</div>}

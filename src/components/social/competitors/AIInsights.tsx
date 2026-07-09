@@ -18,17 +18,17 @@ import { Button } from "@/components/ui/button";
 import type { AIRecommendation } from "@/features/social/competitors/types";
 
 const priorityColors: Record<string, string> = {
-  Critical: "border-red-500/30 bg-red-500/5",
-  High: "border-amber-500/30 bg-amber-500/5",
-  Medium: "border-cyan-500/30 bg-cyan-500/5",
-  Low: "border-slate-600/30 bg-slate-800/30",
+  Critical: "border-destructive/30 bg-destructive/5",
+  High: "border-warning/30 bg-warning/5",
+  Medium: "border-primary/30 bg-primary/5",
+  Low: "border-border/30 bg-surface/30",
 };
 
 const priorityBadge: Record<string, string> = {
-  Critical: "bg-red-500/20 text-red-300",
-  High: "bg-amber-500/20 text-amber-300",
-  Medium: "bg-cyan-500/20 text-cyan-300",
-  Low: "bg-slate-700 text-slate-400",
+  Critical: "bg-destructive/20 text-destructive",
+  High: "bg-warning/20 text-warning",
+  Medium: "bg-primary/20 text-primary",
+  Low: "bg-surface text-muted-foreground",
 };
 
 const priorityIcon: Record<string, typeof AlertTriangle> = {
@@ -59,51 +59,51 @@ function RecommendationCard({
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3">
           <div className="mt-0.5">
-            <Icon size={16} className="text-cyan-300" />
+            <Icon size={16} className="text-primary" />
           </div>
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h4 className="text-sm font-medium text-white">{rec.title}</h4>
+              <h4 className="text-sm font-medium text-foreground">{rec.title}</h4>
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${priorityBadge[rec.priority]}`}
               >
                 {rec.priority}
               </span>
               {rec.applied && (
-                <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-400">
+                <span className="flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] text-success">
                   <CheckCircle2 size={10} />
                   Applied
                 </span>
               )}
             </div>
-            <p className="mt-1 text-xs text-slate-400">{rec.description}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{rec.description}</p>
 
             {expanded && (
-              <div className="mt-3 space-y-2 border-t border-slate-700/50 pt-3">
+              <div className="mt-3 space-y-2 border-t border-border/50 pt-3">
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
-                    <p className="text-slate-500">Category</p>
-                    <p className="text-slate-300">{rec.category}</p>
+                    <p className="text-muted-foreground">Category</p>
+                    <p className="text-foreground">{rec.category}</p>
                   </div>
                   <div>
-                    <p className="text-slate-500">Confidence</p>
+                    <p className="text-muted-foreground">Confidence</p>
                     <div className="flex items-center gap-2">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-800">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface">
                         <div
-                          className="h-full rounded-full bg-cyan-500"
+                          className="h-full rounded-full bg-primary"
                           style={{ width: `${rec.confidence}%` }}
                         />
                       </div>
-                      <span className="text-slate-300">{rec.confidence}%</span>
+                      <span className="text-foreground">{rec.confidence}%</span>
                     </div>
                   </div>
                   <div className="col-span-2">
-                    <p className="text-slate-500">Business Impact</p>
-                    <p className="text-slate-300">{rec.businessImpact}</p>
+                    <p className="text-muted-foreground">Business Impact</p>
+                    <p className="text-foreground">{rec.businessImpact}</p>
                   </div>
                   <div className="col-span-2">
-                    <p className="text-slate-500">Suggested Action</p>
-                    <p className="text-slate-300">{rec.suggestedAction}</p>
+                    <p className="text-muted-foreground">Suggested Action</p>
+                    <p className="text-foreground">{rec.suggestedAction}</p>
                   </div>
                 </div>
               </div>
@@ -115,7 +115,7 @@ function RecommendationCard({
       <div className="mt-3 flex items-center justify-between">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
         >
           {expanded ? (
             <>
@@ -132,7 +132,7 @@ function RecommendationCard({
             <Button
               variant="ghost"
               size="xs"
-              className="text-slate-500 hover:text-red-400"
+              className="text-muted-foreground hover:text-destructive"
               onClick={() => onDismiss(rec.id)}
             >
               <X size={12} />
@@ -140,7 +140,7 @@ function RecommendationCard({
             </Button>
             <Button
               size="xs"
-              className="bg-cyan-400 text-slate-950 hover:bg-cyan-300"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => onApply(rec.id)}
             >
               <CheckCircle2 size={12} />
@@ -176,7 +176,7 @@ export function AIInsights() {
           <Button
             variant="outline"
             size="sm"
-            className="border-slate-700 text-slate-300"
+            className="border-border text-foreground"
             onClick={refreshAi}
           >
             <RefreshCw size={12} />
@@ -191,8 +191,8 @@ export function AIInsights() {
             onClick={() => setFilter(f)}
             className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
               filter === f
-                ? "bg-cyan-500/15 text-cyan-300"
-                : "text-slate-500 hover:text-slate-300"
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {f}

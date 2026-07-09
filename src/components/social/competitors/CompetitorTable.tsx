@@ -37,7 +37,7 @@ function CompetitorRow({
   onToggleCompare: (id: string) => void;
 }) {
   return (
-    <div className="group flex items-center gap-4 rounded-2xl border border-slate-800/60 bg-slate-900/60 p-4 transition-all duration-200 hover:border-cyan-500/20 hover:bg-slate-900">
+    <div className="group flex items-center gap-4 rounded-2xl border border-border/60 bg-surface/60 p-4 transition-all duration-200 hover:border-primary/20 hover:bg-surface">
       {/* Favorite */}
       <button
         onClick={() => onToggleFavorite(competitor.id)}
@@ -47,8 +47,8 @@ function CompetitorRow({
           size={16}
           className={
             competitor.favorite
-              ? "fill-amber-400 text-amber-400"
-              : "text-slate-600 hover:text-slate-400"
+              ? "fill-warning text-warning"
+              : "text-muted-foreground hover:text-foreground"
           }
         />
       </button>
@@ -63,15 +63,15 @@ function CompetitorRow({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-white">{competitor.name}</span>
-            <span className="text-xs text-slate-500">{competitor.handle}</span>
+            <span className="font-medium text-foreground">{competitor.name}</span>
+            <span className="text-xs text-muted-foreground">{competitor.handle}</span>
             {competitor.favorite && (
-              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-400">
+              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] text-warning">
                 Favorite
               </span>
             )}
           </div>
-          <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
+          <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
             <span>{competitor.platform}</span>
             <span>{competitor.industry}</span>
             <span>{competitor.country}</span>
@@ -82,20 +82,20 @@ function CompetitorRow({
       {/* Metrics */}
       <div className="hidden items-center gap-6 md:flex">
         <div className="text-right">
-          <p className="text-xs text-slate-500">Followers</p>
-          <p className="text-sm font-medium text-white">
+          <p className="text-xs text-muted-foreground">Followers</p>
+          <p className="text-sm font-medium text-foreground">
             {(competitor.metrics.followers / 1000).toFixed(1)}K
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-slate-500">Growth</p>
-          <p className="text-sm font-medium text-emerald-400">
+          <p className="text-xs text-muted-foreground">Growth</p>
+          <p className="text-sm font-medium text-success">
             +{competitor.metrics.growth}%
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-slate-500">Engagement</p>
-          <p className="text-sm font-medium text-white">
+          <p className="text-xs text-muted-foreground">Engagement</p>
+          <p className="text-sm font-medium text-foreground">
             {competitor.metrics.engagement}%
           </p>
         </div>
@@ -106,19 +106,19 @@ function CompetitorRow({
         <Button
           variant="ghost"
           size="icon-sm"
-          className="text-slate-500 hover:text-cyan-300"
+          className="text-muted-foreground hover:text-primary"
           onClick={() => onToggleCompare(competitor.id)}
           title={isCompared ? "Remove from comparison" : "Add to comparison"}
         >
           <BarChart3
             size={15}
-            className={isCompared ? "text-cyan-400" : ""}
+            className={isCompared ? "text-primary" : ""}
           />
         </Button>
         <Button
           variant="ghost"
           size="icon-sm"
-          className="text-slate-500 hover:text-white"
+          className="text-muted-foreground hover:text-foreground"
           onClick={() => onEdit(competitor.id)}
           title="Edit"
         >
@@ -127,7 +127,7 @@ function CompetitorRow({
         <Button
           variant="ghost"
           size="icon-sm"
-          className="text-slate-500 hover:text-red-400"
+          className="text-muted-foreground hover:text-destructive"
           onClick={() => onRemove(competitor.id)}
           title="Remove"
         >
@@ -135,7 +135,7 @@ function CompetitorRow({
         </Button>
         <a
           href={`/dashboard/social/competitors/${competitor.id}`}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-800 hover:text-white"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-surface hover:text-foreground"
           title="View profile"
         >
           <ChevronRight size={14} />
@@ -157,11 +157,11 @@ export function CompetitorTable() {
 
   if (visibleCompetitors.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-3xl border border-slate-800 bg-slate-900/50 p-12 text-center">
-        <p className="text-lg font-medium text-slate-400">
+      <div className="flex flex-col items-center justify-center rounded-3xl border border-border bg-surface/50 p-12 text-center">
+        <p className="text-lg font-medium text-muted-foreground">
           No competitors found
         </p>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Try adjusting your search or filters, or add a new competitor.
         </p>
       </div>
@@ -171,11 +171,11 @@ export function CompetitorTable() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted-foreground">
           Showing {visibleCompetitors.length} of{" "}
           {visibleCompetitors.length} competitors
         </p>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted-foreground">
           {compareIds.length}/4 selected for comparison
         </p>
       </div>

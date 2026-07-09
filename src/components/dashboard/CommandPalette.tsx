@@ -2,22 +2,37 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ArrowRight, LayoutDashboard, Compass } from "lucide-react";
-import type { DashboardLayout } from "@/core/dashboard";
+import { Search, ArrowRight, LayoutDashboard, Compass, LayoutGrid, Target, Bell } from "lucide-react";
+import type { DashboardLayout, DashboardWidgetCatalogEntry, DashboardWidgetKey, DashboardNotificationEntry } from "@/core/dashboard";
+import type { GoalScorecardEntry } from "@/core/platform/goals";
 
 interface CommandItem {
   id: string;
   label: string;
   hint: string;
-  group: "Navigate" | "Dashboards";
+  group: "Navigate" | "Dashboards" | "Widgets" | "Goals" | "Notifications";
   action: () => void;
 }
+
+const GROUP_ICON: Record<CommandItem["group"], typeof Compass> = {
+  Navigate: Compass,
+  Dashboards: LayoutDashboard,
+  Widgets: LayoutGrid,
+  Goals: Target,
+  Notifications: Bell,
+};
 
 interface CommandPaletteProps {
   open: boolean;
   onClose: () => void;
   layouts: DashboardLayout[];
   onSwitchLayout: (id: string) => void;
+  widgets?: DashboardWidgetCatalogEntry[];
+  onSelectWidget?: (key: DashboardWidgetKey) => void;
+  goals?: GoalScorecardEntry[];
+  onSelectGoal?: () => void;
+  notifications?: DashboardNotificationEntry[];
+  onSelectNotification?: (notification: DashboardNotificationEntry) => void;
 }
 
 const ROUTES: { label: string; hint: string; href: string }[] = [
@@ -32,7 +47,18 @@ const ROUTES: { label: string; hint: string; href: string }[] = [
   { label: "Settings", hint: "Platform settings", href: "/dashboard/settings" },
 ];
 
-export default function CommandPalette({ open, onClose, layouts, onSwitchLayout }: CommandPaletteProps) {
+export default function CommandPalette({
+  open,
+  onClose,
+  layouts,
+  onSwitchLayout,
+  widgets = [],
+  onSelectWidget,
+  goals = [],
+  onSelectGoal,
+  notifications = [],
+  onSelectNotification,
+}: CommandPaletteProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -46,10 +72,19 @@ export default function CommandPalette({ open, onClose, layouts, onSwitchLayout 
   const items = useMemo<CommandItem[]>(() => {
     const navItems: CommandItem[] = ROUTES.map(r => ({ id: `route-${r.href}`, label: r.label, hint: r.hint, group: "Navigate", action: () => router.push(r.href) }));
     const layoutItems: CommandItem[] = layouts.map(l => ({ id: `layout-${l.id}`, label: l.name, hint: l.description, group: "Dashboards", action: () => onSwitchLayout(l.id) }));
-    const all = [...layoutItems, ...navItems];
+    const widgetItems: CommandItem[] = onSelectWidget
+      ? widgets.map(w => ({ id: `widget-${w.key}`, label: w.label, hint: w.description, group: "Widgets", action: () => onSelectWidget(w.key) }))
+      : [];
+    const goalItems: CommandItem[] = onSelectGoal
+      ? goals.map(g => ({ id: `goal-${g.id}`, label: g.title, hint: `${Math.round(g.progress * 100)}% of target`, group: "Goals", action: onSelectGoal }))
+      : [];
+    const notificationItems: CommandItem[] = onSelectNotification
+      ? notifications.map(n => ({ id: `notification-${n.id}`, label: n.title, hint: n.description, group: "Notifications", action: () => onSelectNotification(n) }))
+      : [];
+    const all = [...layoutItems, ...widgetItems, ...goalItems, ...notificationItems, ...navItems];
     const q = query.trim().toLowerCase();
     return q ? all.filter(i => i.label.toLowerCase().includes(q) || i.hint.toLowerCase().includes(q)) : all;
-  }, [query, layouts, router, onSwitchLayout]);
+  }, [query, layouts, router, onSwitchLayout, widgets, onSelectWidget, goals, onSelectGoal, notifications, onSelectNotification]);
 
   useEffect(() => {
     (async () => {
@@ -99,24 +134,27 @@ export default function CommandPalette({ open, onClose, layouts, onSwitchLayout 
         </div>
         <div className="max-h-80 overflow-y-auto p-2">
           {items.length === 0 && <p className="px-3 py-6 text-center text-sm text-muted-foreground">No matches</p>}
-          {items.map((item, index) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                item.action();
-                onClose();
-              }}
-              onMouseEnter={() => setActiveIndex(index)}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${index === activeIndex ? "bg-primary/10 text-foreground" : "text-foreground hover:bg-accent/60"}`}
-            >
-              {item.group === "Dashboards" ? <LayoutDashboard size={15} className="text-primary" /> : <Compass size={15} className="text-muted-foreground" />}
-              <span className="min-w-0 flex-1">
-                <span className="block font-medium">{item.label}</span>
-                <span className="block truncate text-xs text-muted-foreground">{item.hint}</span>
-              </span>
-              <ArrowRight size={13} className="text-muted-foreground" />
-            </button>
-          ))}
+          {items.map((item, index) => {
+            const GroupIcon = GROUP_ICON[item.group];
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  item.action();
+                  onClose();
+                }}
+                onMouseEnter={() => setActiveIndex(index)}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${index === activeIndex ? "bg-primary/10 text-foreground" : "text-foreground hover:bg-accent/60"}`}
+              >
+                <GroupIcon size={15} className={item.group === "Navigate" ? "text-muted-foreground" : "text-primary"} />
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium">{item.label}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{item.hint}</span>
+                </span>
+                <ArrowRight size={13} className="text-muted-foreground" />
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -26,6 +26,7 @@ export type ResourceType =
   | "workflow"
   | "report"
   | "analytics"
+  | "social"
   | "ai"
   | "connector"
   | "settings"
@@ -71,6 +72,7 @@ export const FULL_RESOURCE_ORDER: ResourceType[] = [
   "workflow",
   "report",
   "analytics",
+  "social",
   "ai",
   "connector",
   "settings",

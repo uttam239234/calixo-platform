@@ -8,9 +8,29 @@
  */
 import { WorkflowEngine } from "../WorkflowEngine";
 import type { WorkflowSummary } from "@/core/platform/contracts";
-import type { WorkflowEntry } from "../types";
+import type { WorkflowEntry, WorkflowPriority } from "../types";
 
 export class WorkflowPlatformAPI {
+  createWorkflow(input: { title: string; description: string; assetId: string; assetName: string; priority: WorkflowPriority; submittedBy: string; reviewer?: string; approver?: string; dueDate?: string; brand?: string; campaign?: string }): WorkflowEntry {
+    return WorkflowEngine.create(input);
+  }
+
+  approve(id: string, userId: string): WorkflowEntry | undefined {
+    return WorkflowEngine.approve(id, userId);
+  }
+
+  reject(id: string, userId: string, reason: string): WorkflowEntry | undefined {
+    return WorkflowEngine.reject(id, userId, reason);
+  }
+
+  addComment(workflowId: string, author: string, text: string) {
+    return WorkflowEngine.addComment(workflowId, author, text);
+  }
+
+  get(id: string): WorkflowEntry | undefined {
+    return WorkflowEngine.get(id);
+  }
+
   getWorkflowSummary(): WorkflowSummary {
     const kpis = WorkflowEngine.getKPIs();
     return { pending: kpis.pending, overdue: kpis.overdue, approved: kpis.approved, avgApprovalDays: kpis.avgApprovalDays };

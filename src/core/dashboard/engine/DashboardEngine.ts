@@ -27,14 +27,20 @@ import { assetsPlatformAPI } from "@/core/assets/platform/AssetsPlatformAPI";
 import { connectorsPlatformAPI } from "@/integrations/platform/ConnectorsPlatformAPI";
 import { goalEngine, GoalEngine } from "@/core/platform/goals";
 import { linearForecast } from "@/core/platform/forecast/linearForecast";
+import { alertPlatformAPI } from "@/core/platform/observability/AlertPlatformAPI";
+import { entitlementPlatformAPI } from "@/core/platform/commercial/EntitlementPlatformAPI";
+import { subscriptionPlatformAPI } from "@/core/platform/commercial/SubscriptionPlatformAPI";
 import { dashboardActivityLog } from "../activity/DashboardActivityLog";
 import { DASHBOARD_ORGANIZATION_ID } from "../integrations/seedDashboardConnections";
 import type {
+  DashboardActionCenterItem,
   DashboardActivityEntry,
   DashboardApprovalItem,
   DashboardChannelRow,
   DashboardConnectedPlatform,
   DashboardForecastPoint,
+  DashboardHealthScore,
+  DashboardHealthSignal,
   DashboardKpiSnapshot,
   DashboardMarketingKpi,
   DashboardMorningBriefing,
@@ -43,6 +49,7 @@ import type {
   DashboardRecommendation,
   DashboardRisk,
   DashboardSnapshot,
+  DashboardSubscriptionSummary,
   DashboardTask,
 } from "../types";
 
@@ -67,6 +74,13 @@ const CATEGORY_ROUTE_OVERRIDE: Record<string, string> = {
 
 /** Recommendations synthesized locally (not owned by AnalyticsEngine's insight store) keep their own apply/dismiss state here. */
 const workflowRecommendationStatus = new Map<string, "new" | "applied" | "dismissed">();
+
+/** Action Center items are synthesized locally (composed from several platforms, owned by none of them) and keep their own open/snoozed/dismissed state here, same pattern as `workflowRecommendationStatus`. */
+const actionCenterStatus = new Map<string, "open" | "snoozed" | "dismissed">();
+
+function scoreStatus(score: number): "strength" | "risk" | "neutral" {
+  return score >= 75 ? "strength" : score < 50 ? "risk" : "neutral";
+}
 
 export class DashboardEngine {
   constructor(private goals: GoalEngine = goalEngine) {}
@@ -166,16 +180,24 @@ export class DashboardEngine {
     }));
   }
 
-  /** Reads real connection state from the Connector Platform's facade — seeded once via `seedDashboardConnections()`. */
-  async getConnectedPlatforms(): Promise<DashboardConnectedPlatform[]> {
-    const connections = await connectorsPlatformAPI.getConnectorSummaries(DASHBOARD_ORGANIZATION_ID);
+  /**
+   * Reads real connection state from the Connector Platform's facade —
+   * seeded once via `seedDashboardConnections()`. Accepts the caller's
+   * real `organizationId` (from `useOrganizationId()`) so connector data
+   * is tenant-scoped; falls back to the demo org when no real session
+   * exists yet.
+   */
+  async getConnectedPlatforms(organizationId: string = DASHBOARD_ORGANIZATION_ID): Promise<DashboardConnectedPlatform[]> {
+    const connections = await connectorsPlatformAPI.getConnectorSummaries(organizationId);
     return connections.map(c => ({
       id: c.id,
       name: c.name,
       providerId: c.providerId,
       status: c.status === "expired" ? "error" : (c.status as DashboardConnectedPlatform["status"]),
       lastSyncAt: c.lastSyncAt,
-      errorMessage: c.status === "error" ? "Connection error" : undefined,
+      errorMessage: c.status === "error" ? (c.health?.lastErrorMessage ?? "Connection error") : undefined,
+      successRate: c.health?.successRate,
+      tokenExpiresAt: c.tokenExpiresAt,
     }));
   }
 
@@ -242,8 +264,14 @@ export class DashboardEngine {
     dashboardActivityLog.record("You", "dismissed recommendation", id);
   }
 
-  /** A real generated summary from this session's own composed KPI/approval/goal data — not a static string. */
-  getMorningBriefing(): DashboardMorningBriefing {
+  /**
+   * A real generated summary from this session's own composed KPI/
+   * approval/goal data — not a static string. Also folds in connector
+   * token expiry (Workstream E), a real entitlement warning (never a
+   * hardcoded limit), and the top-priority recommendation, so the
+   * briefing reads as a genuine daily digest rather than just KPIs.
+   */
+  async getMorningBriefing(organizationId: string = DASHBOARD_ORGANIZATION_ID): Promise<DashboardMorningBriefing> {
     const kpis = workflowPlatformAPI.getWorkflowSummary();
     const marketing = this.getMarketingKpis();
     const revenue = marketing.find(m => m.id === "revenue");
@@ -259,10 +287,22 @@ export class DashboardEngine {
     const healthScore = Math.max(40, Math.min(99, 78 + healthInputs.reduce((a, b) => a + b, 0) * 7));
     const healthLabel = healthScore >= 85 ? "Excellent" : healthScore >= 70 ? "Good" : "Needs Attention";
 
+    const connections = await this.getConnectedPlatforms(organizationId);
+    const expiringSoon = connections.filter(c => c.tokenExpiresAt && Math.ceil((new Date(c.tokenExpiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000)) <= 7).length;
+
+    const aiCreditsRemaining = entitlementPlatformAPI.remaining(organizationId, "aiCreditsUsed");
+    const aiCreditsLimit = entitlementPlatformAPI.limit(organizationId, "aiCreditsUsed");
+    const creditsLow = Boolean(aiCreditsLimit) && aiCreditsLimit! > 0 && aiCreditsRemaining / aiCreditsLimit! <= 0.15;
+
+    const topRecommendation = this.getRecommendations()[0];
+
     const parts: string[] = [];
     if (revenue) parts.push(`Revenue is ${revenue.value}, ${revenue.trend === "up" ? "up" : revenue.trend === "down" ? "down" : "flat"} ${revenue.change} vs the prior period.`);
     parts.push(kpis.pending > 0 ? `${kpis.pending} item${kpis.pending === 1 ? "" : "s"} awaiting approval${kpis.overdue > 0 ? `, ${kpis.overdue} overdue` : ""}.` : "No items awaiting approval.");
     parts.push(achieved > 0 ? `${achieved} goal${achieved === 1 ? "" : "s"} achieved this period.` : atRisk > 0 ? `${atRisk} goal${atRisk === 1 ? " is" : "s are"} at risk.` : "Goals are tracking on pace.");
+    if (expiringSoon > 0) parts.push(`${expiringSoon} connector token${expiringSoon === 1 ? "" : "s"} expiring this week.`);
+    if (creditsLow) parts.push(`AI credits are running low (${aiCreditsRemaining} remaining).`);
+    if (topRecommendation) parts.push(`Recommended action: ${topRecommendation.title}.`);
 
     return {
       headline: healthInputs.reduce((a, b) => a + b, 0) >= 2 ? "Strong momentum across the board" : atRisk > 0 || kpis.overdue > 0 ? "A few things need your attention" : "Steady performance this period",
@@ -310,6 +350,237 @@ export class DashboardEngine {
     return [...workflowEntries, ...assetEntries, ...dashboardEntries]
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, limit);
+  }
+
+  /**
+   * A weighted composite of six already-real signals — never a new
+   * computation invented for this method, just this method's own
+   * combining formula. Connector Health/Platform Adoption need the same
+   * connection data `getConnectedPlatforms()` already fetches, so this
+   * takes the same optional `organizationId` param.
+   */
+  async getHealthScore(organizationId: string = DASHBOARD_ORGANIZATION_ID): Promise<DashboardHealthScore> {
+    const marketing = this.getMarketingKpis();
+    const revenue = marketing.find(m => m.id === "revenue");
+    const revenueScore = revenue ? (revenue.tone === "positive" ? 90 : revenue.tone === "negative" ? 35 : 65) : 65;
+
+    const connections = await this.getConnectedPlatforms(organizationId);
+    const withHealth = connections.filter(c => c.successRate !== undefined);
+    const connectorScore = withHealth.length > 0 ? withHealth.reduce((sum, c) => sum + (c.successRate ?? 0), 0) / withHealth.length : 80;
+
+    const scorecard = this.goals.getScorecard();
+    const achieved = scorecard.filter(g => g.status === "achieved").length;
+    const goalScore = scorecard.length > 0 ? (achieved / scorecard.length) * 100 : 70;
+
+    const channels = this.getChannelOverview();
+    const healthyChannels = channels.filter(c => c.status === "Healthy").length;
+    const campaignScore = channels.length > 0 ? (healthyChannels / channels.length) * 100 : 70;
+
+    const workflowSummary = workflowPlatformAPI.getWorkflowSummary();
+    const workflowScore = Math.max(0, 100 - workflowSummary.overdue * 20);
+
+    const connectedCount = connections.filter(c => c.status === "connected").length;
+    const adoptionScore = connections.length > 0 ? (connectedCount / connections.length) * 100 : 50;
+
+    const breakdown: DashboardHealthSignal[] = [
+      {
+        key: "revenue",
+        label: "Revenue Growth",
+        weight: 0.25,
+        score: revenueScore,
+        status: scoreStatus(revenueScore),
+        detail: revenue ? `Revenue is ${revenue.trend === "up" ? "up" : revenue.trend === "down" ? "down" : "flat"} ${revenue.change} vs the prior period.` : "No revenue data yet.",
+      },
+      {
+        key: "connectors",
+        label: "Connector Health",
+        weight: 0.2,
+        score: connectorScore,
+        status: scoreStatus(connectorScore),
+        detail: withHealth.length > 0 ? `${Math.round(connectorScore)}% average connector success rate.` : "No connector health data yet.",
+      },
+      {
+        key: "goals",
+        label: "Goal Achievement",
+        weight: 0.2,
+        score: goalScore,
+        status: scoreStatus(goalScore),
+        detail: `${achieved} of ${scorecard.length} goal${scorecard.length === 1 ? "" : "s"} achieved this period.`,
+      },
+      {
+        key: "campaigns",
+        label: "Campaign Performance",
+        weight: 0.15,
+        score: campaignScore,
+        status: scoreStatus(campaignScore),
+        detail: `${healthyChannels} of ${channels.length} channel${channels.length === 1 ? "" : "s"} healthy.`,
+      },
+      {
+        key: "workflow",
+        label: "Workflow Delays",
+        weight: 0.1,
+        score: workflowScore,
+        status: scoreStatus(workflowScore),
+        detail: workflowSummary.overdue > 0 ? `${workflowSummary.overdue} overdue workflow item${workflowSummary.overdue === 1 ? "" : "s"}.` : "No overdue workflow items.",
+      },
+      {
+        key: "adoption",
+        label: "Platform Adoption",
+        weight: 0.1,
+        score: adoptionScore,
+        status: scoreStatus(adoptionScore),
+        detail: `${connectedCount} of ${connections.length} platform${connections.length === 1 ? "" : "s"} connected.`,
+      },
+    ];
+
+    const score = Math.round(breakdown.reduce((sum, s) => sum + s.score * s.weight, 0));
+    const label = score >= 85 ? "Excellent" : score >= 70 ? "Good" : score >= 50 ? "Fair" : "Needs Attention";
+
+    return {
+      score,
+      label,
+      breakdown,
+      strengths: breakdown.filter(s => s.status === "strength").map(s => s.label),
+      risks: breakdown.filter(s => s.status === "risk").map(s => s.label),
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  /** Reads the real Subscription Platform record — display only, never a gate decision (that's `EntitlementPlatformAPI`'s job). */
+  getSubscriptionSummary(organizationId: string = DASHBOARD_ORGANIZATION_ID): DashboardSubscriptionSummary {
+    const subscription = subscriptionPlatformAPI.getOrDefault(organizationId);
+    return {
+      tier: subscription.tier,
+      status: subscription.status,
+      renewsAt: subscription.renewsAt,
+      seats: { used: subscription.usage.seatsUsed, limit: subscription.limits.seats },
+      aiCredits: { used: subscription.usage.aiCreditsUsed, limit: subscription.limits.aiCredits },
+      storageGB: { used: subscription.usage.storageGBUsed, limit: subscription.limits.storageGB },
+      connectors: { used: subscription.usage.connectorsUsed, limit: subscription.limits.connectors },
+    };
+  }
+
+  /**
+   * The unified Action Center — deliberately does NOT re-list every
+   * pending approval (that's `getPendingApprovals()`'s own widget); it
+   * surfaces only what has no other dedicated widget yet: a rolled-up
+   * overdue-approvals action, connector failures/expiring tokens, real
+   * entitlement warnings (via `EntitlementPlatformAPI`, never a hardcoded
+   * limit), and real active alerts.
+   */
+  async getActionCenterItems(organizationId: string = DASHBOARD_ORGANIZATION_ID): Promise<DashboardActionCenterItem[]> {
+    const items: DashboardActionCenterItem[] = [];
+
+    const overdue = workflowPlatformAPI.getOverdue();
+    if (overdue.length > 0) {
+      const id = "action-overdue-approvals";
+      items.push({
+        id,
+        title: "Overdue approvals need review",
+        description: `${overdue.length} item${overdue.length === 1 ? " is" : "s are"} past due: ${overdue.slice(0, 2).map(w => w.title).join(", ")}${overdue.length > 2 ? "…" : ""}.`,
+        severity: "high",
+        category: "approval",
+        kind: "action",
+        actionLabel: "Review approvals",
+        actionHref: "/dashboard/workflows",
+        status: actionCenterStatus.get(id) ?? "open",
+      });
+    }
+
+    const connections = await this.getConnectedPlatforms(organizationId);
+    for (const connection of connections) {
+      if (connection.status === "error") {
+        const id = `incident-connector-${connection.id}`;
+        items.push({
+          id,
+          title: `${connection.name} connection error`,
+          description: connection.errorMessage ?? "This connector needs attention.",
+          severity: "high",
+          category: "connector",
+          kind: "incident",
+          actionLabel: "Fix connection",
+          actionHref: "/dashboard/settings",
+          status: actionCenterStatus.get(id) ?? "open",
+        });
+      } else if (connection.tokenExpiresAt) {
+        const days = Math.ceil((new Date(connection.tokenExpiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+        if (days <= 7) {
+          const id = `incident-token-${connection.id}`;
+          items.push({
+            id,
+            title: `${connection.name} token ${days <= 0 ? "expired" : `expires in ${days}d`}`,
+            description: "Reconnect this platform to avoid a sync interruption.",
+            severity: days <= 0 ? "high" : "medium",
+            category: "connector",
+            kind: "incident",
+            actionLabel: "Reconnect",
+            actionHref: "/dashboard/settings",
+            status: actionCenterStatus.get(id) ?? "open",
+          });
+        }
+      }
+    }
+
+    const aiCreditsRemaining = entitlementPlatformAPI.remaining(organizationId, "aiCreditsUsed");
+    const aiCreditsLimit = entitlementPlatformAPI.limit(organizationId, "aiCreditsUsed");
+    if (aiCreditsLimit && aiCreditsLimit > 0 && aiCreditsRemaining / aiCreditsLimit <= 0.15) {
+      const id = "action-ai-credits-low";
+      items.push({
+        id,
+        title: "AI credits running low",
+        description: `${aiCreditsRemaining} of ${aiCreditsLimit} AI credits remaining this period.`,
+        severity: "medium",
+        category: "entitlement",
+        kind: "action",
+        actionLabel: "Review plan",
+        actionHref: "/dashboard/settings",
+        status: actionCenterStatus.get(id) ?? "open",
+      });
+    }
+
+    const connectorsRemaining = entitlementPlatformAPI.remaining(organizationId, "connectorsUsed");
+    const connectorsLimit = entitlementPlatformAPI.limit(organizationId, "connectorsUsed");
+    if (connectorsLimit && connectorsLimit > 0 && connectorsRemaining / connectorsLimit <= 0.15) {
+      const id = "action-connectors-limit";
+      items.push({
+        id,
+        title: "Connector limit nearly reached",
+        description: `${connectorsRemaining} of ${connectorsLimit} connector slots remaining on the current plan.`,
+        severity: "medium",
+        category: "entitlement",
+        kind: "action",
+        actionLabel: "Review plan",
+        actionHref: "/dashboard/settings",
+        status: actionCenterStatus.get(id) ?? "open",
+      });
+    }
+
+    for (const alert of alertPlatformAPI.listActive()) {
+      const id = `incident-alert-${alert.id}`;
+      items.push({
+        id,
+        title: alert.ruleName,
+        description: alert.message,
+        severity: alert.severity === "critical" ? "high" : alert.severity === "warning" ? "medium" : "low",
+        category: "alert",
+        kind: "incident",
+        actionLabel: "Investigate",
+        actionHref: "/dashboard/settings",
+        status: actionCenterStatus.get(id) ?? "open",
+      });
+    }
+
+    return items.filter(i => i.status === "open");
+  }
+
+  snoozeActionCenterItem(id: string): void {
+    actionCenterStatus.set(id, "snoozed");
+    dashboardActivityLog.record("You", "snoozed", id);
+  }
+
+  dismissActionCenterItem(id: string): void {
+    actionCenterStatus.set(id, "dismissed");
+    dashboardActivityLog.record("You", "dismissed", id);
   }
 
   async getSnapshot(userId: string): Promise<DashboardSnapshot> {

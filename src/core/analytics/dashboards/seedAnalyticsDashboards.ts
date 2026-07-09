@@ -20,6 +20,7 @@ function widgets(order: AnalyticsWidgetKey[], hidden: AnalyticsWidgetKey[] = [],
 const ALL_KEYS: AnalyticsWidgetKey[] = [
   "executive-summary",
   "goals-scorecard",
+  "health-score",
   "revenue-chart",
   "traffic-analytics",
   "channel-performance",
@@ -28,6 +29,7 @@ const ALL_KEYS: AnalyticsWidgetKey[] = [
   "audience-insights",
   "geo-performance",
   "ai-insights",
+  "insight-action-center",
   "reports-panel",
 ];
 
@@ -42,7 +44,11 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: true,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["executive-summary", "goals-scorecard", "revenue-chart", "ai-insights", "reports-panel", "traffic-analytics", "channel-performance", "campaign-performance", "conversion-funnel", "audience-insights", "geo-performance"], ["traffic-analytics", "channel-performance", "campaign-performance", "conversion-funnel", "audience-insights", "geo-performance"], ["executive-summary", "goals-scorecard"]),
+    widgets: widgets(
+      ["executive-summary", "goals-scorecard", "health-score", "revenue-chart", "ai-insights", "insight-action-center", "reports-panel", "traffic-analytics", "channel-performance", "campaign-performance", "conversion-funnel", "audience-insights", "geo-performance"],
+      ["traffic-analytics", "channel-performance", "campaign-performance", "conversion-funnel", "audience-insights", "geo-performance"],
+      ["executive-summary", "goals-scorecard", "health-score"]
+    ),
   },
   {
     id: "analytics-layout-marketing",
@@ -54,7 +60,11 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: false,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["executive-summary", "revenue-chart", "channel-performance", "campaign-performance", "ai-insights", "goals-scorecard", "traffic-analytics", "conversion-funnel", "audience-insights", "geo-performance", "reports-panel"], ["goals-scorecard", "traffic-analytics", "conversion-funnel", "audience-insights", "geo-performance"], ["revenue-chart"]),
+    widgets: widgets(
+      ["executive-summary", "health-score", "revenue-chart", "channel-performance", "campaign-performance", "ai-insights", "insight-action-center", "goals-scorecard", "traffic-analytics", "conversion-funnel", "audience-insights", "geo-performance", "reports-panel"],
+      ["goals-scorecard", "traffic-analytics", "conversion-funnel", "audience-insights", "geo-performance"],
+      ["revenue-chart"]
+    ),
   },
   {
     id: "analytics-layout-campaign",
@@ -66,7 +76,11 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: false,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["campaign-performance", "channel-performance", "conversion-funnel", "ai-insights", "executive-summary", "goals-scorecard", "revenue-chart", "traffic-analytics", "audience-insights", "geo-performance", "reports-panel"], ["goals-scorecard", "revenue-chart", "traffic-analytics", "audience-insights", "geo-performance", "reports-panel"], ["campaign-performance"]),
+    widgets: widgets(
+      ["campaign-performance", "channel-performance", "conversion-funnel", "ai-insights", "insight-action-center", "executive-summary", "health-score", "goals-scorecard", "revenue-chart", "traffic-analytics", "audience-insights", "geo-performance", "reports-panel"],
+      ["goals-scorecard", "revenue-chart", "traffic-analytics", "audience-insights", "geo-performance", "reports-panel", "health-score"],
+      ["campaign-performance"]
+    ),
   },
   {
     id: "analytics-layout-traffic",
@@ -78,7 +92,11 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: false,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["traffic-analytics", "geo-performance", "audience-insights", "revenue-chart", "ai-insights", "executive-summary", "goals-scorecard", "channel-performance", "campaign-performance", "conversion-funnel", "reports-panel"], ["executive-summary", "goals-scorecard", "channel-performance", "campaign-performance", "conversion-funnel", "reports-panel"], ["traffic-analytics"]),
+    widgets: widgets(
+      ["traffic-analytics", "geo-performance", "audience-insights", "revenue-chart", "ai-insights", "executive-summary", "goals-scorecard", "health-score", "channel-performance", "campaign-performance", "conversion-funnel", "insight-action-center", "reports-panel"],
+      ["executive-summary", "goals-scorecard", "channel-performance", "campaign-performance", "conversion-funnel", "reports-panel", "health-score", "insight-action-center"],
+      ["traffic-analytics"]
+    ),
   },
   {
     id: "analytics-layout-revenue",
@@ -90,7 +108,11 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: false,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["revenue-chart", "executive-summary", "channel-performance", "goals-scorecard", "ai-insights", "traffic-analytics", "campaign-performance", "conversion-funnel", "audience-insights", "geo-performance", "reports-panel"], ["traffic-analytics", "campaign-performance", "conversion-funnel", "audience-insights", "geo-performance", "reports-panel"], ["revenue-chart"]),
+    widgets: widgets(
+      ["revenue-chart", "executive-summary", "health-score", "channel-performance", "goals-scorecard", "ai-insights", "insight-action-center", "traffic-analytics", "campaign-performance", "conversion-funnel", "audience-insights", "geo-performance", "reports-panel"],
+      ["traffic-analytics", "campaign-performance", "conversion-funnel", "audience-insights", "geo-performance", "reports-panel"],
+      ["revenue-chart"]
+    ),
   },
   {
     id: "analytics-layout-conversion",
@@ -102,7 +124,11 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: false,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["conversion-funnel", "campaign-performance", "traffic-analytics", "ai-insights", "executive-summary", "goals-scorecard", "revenue-chart", "channel-performance", "audience-insights", "geo-performance", "reports-panel"], ["executive-summary", "goals-scorecard", "revenue-chart", "channel-performance", "audience-insights", "geo-performance", "reports-panel"], ["conversion-funnel"]),
+    widgets: widgets(
+      ["conversion-funnel", "campaign-performance", "traffic-analytics", "ai-insights", "insight-action-center", "executive-summary", "goals-scorecard", "health-score", "revenue-chart", "channel-performance", "audience-insights", "geo-performance", "reports-panel"],
+      ["executive-summary", "goals-scorecard", "revenue-chart", "channel-performance", "audience-insights", "geo-performance", "reports-panel", "health-score"],
+      ["conversion-funnel"]
+    ),
   },
   {
     id: "analytics-layout-audience",
@@ -114,7 +140,11 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: false,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["audience-insights", "geo-performance", "traffic-analytics", "ai-insights", "executive-summary", "goals-scorecard", "revenue-chart", "channel-performance", "campaign-performance", "conversion-funnel", "reports-panel"], ["executive-summary", "goals-scorecard", "revenue-chart", "channel-performance", "campaign-performance", "conversion-funnel", "reports-panel"], ["audience-insights"]),
+    widgets: widgets(
+      ["audience-insights", "geo-performance", "traffic-analytics", "ai-insights", "executive-summary", "goals-scorecard", "health-score", "revenue-chart", "channel-performance", "campaign-performance", "conversion-funnel", "insight-action-center", "reports-panel"],
+      ["executive-summary", "goals-scorecard", "revenue-chart", "channel-performance", "campaign-performance", "conversion-funnel", "reports-panel", "health-score", "insight-action-center"],
+      ["audience-insights"]
+    ),
   },
 ];
 

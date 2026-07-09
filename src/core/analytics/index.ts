@@ -16,6 +16,7 @@ import { registerDefaultAnalyticsMetrics } from "./registry/AnalyticsMetricRegis
 import { registerAnalyticsReports } from "./reports/registerAnalyticsReports";
 import { seedAnalyticsDashboards } from "./dashboards/seedAnalyticsDashboards";
 import { seedAnalyticsSegments } from "./segments/seedAnalyticsSegments";
+import { registerAnalyticsUsageTypes } from "./commercial/AnalyticsUsageAdapter";
 
 export * from "./types";
 export type { AnalyticsDataSource } from "./engine/AnalyticsEngine";
@@ -42,14 +43,29 @@ export { seedAnalyticsSegments } from "./segments/seedAnalyticsSegments";
 export * from "./platform/contracts";
 export { AnalyticsPlatformAPI, analyticsPlatformAPI } from "./platform/AnalyticsPlatformAPI";
 
+export { ANALYTICS_ORGANIZATION_ID, ANALYTICS_CURRENT_USER_ID } from "./tenant/AnalyticsTenantDefaults";
+
+export { registerAnalyticsUsageTypes, canUseAnalyticsFeature, recordAnalyticsUsage, getAnalyticsUsageTotal, ANALYTICS_USAGE_TYPES } from "./commercial/AnalyticsUsageAdapter";
+export type { AnalyticsTenantContext } from "./commercial/AnalyticsUsageAdapter";
+
+export { logAnalyticsEvent, logAnalyticsError, trackAnalyticsAction, trackAnalyticsTiming } from "./observability/AnalyticsTelemetry";
+
+export { syncAnalyticsFactsFromConnectors, getLastConnectorSyncResult } from "./connectors/AnalyticsConnectorFactsAdapter";
+export type { AnalyticsConnectorSyncResult } from "./connectors/AnalyticsConnectorFactsAdapter";
+
+export type { AnalyticsAnnotation } from "./annotations/types";
+export { AnalyticsAnnotationRegistry, analyticsAnnotationRegistry } from "./annotations/AnalyticsAnnotationRegistry";
+
 /**
  * Registers the default custom-metric catalog, Analytics' report
- * definitions, its 7 default dashboards, and its starter segments. Safe
- * to call more than once — always returns the same report ids.
+ * definitions, its 7 default dashboards, its starter segments, and its
+ * Commercial Platform usage types. Safe to call more than once — always
+ * returns the same report ids.
  */
 export function initializeAnalyticsFoundation(): { channelReportId: string; trafficReportId: string; executiveReportId: string; revenueReportId: string; audienceReportId: string } {
   registerDefaultAnalyticsMetrics();
   seedAnalyticsDashboards();
   seedAnalyticsSegments();
+  registerAnalyticsUsageTypes();
   return registerAnalyticsReports();
 }

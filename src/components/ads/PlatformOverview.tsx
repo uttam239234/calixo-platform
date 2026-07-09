@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { CheckCircle2, AlertCircle, Loader2, ArrowUpRight } from "lucide-react";
-import { platforms } from "@/features/ads/mock-data";
+import { useCampaigns } from "@/features/ads/CampaignProvider";
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 });
 
@@ -13,6 +13,7 @@ const statusConfig: Record<string, { icon: React.ComponentType<{ size?: number; 
 };
 
 export function PlatformOverview() {
+  const { platforms } = useCampaigns();
   return (
     <Card>
       <CardHeader

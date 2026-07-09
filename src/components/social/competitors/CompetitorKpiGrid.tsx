@@ -73,14 +73,14 @@ export function CompetitorKpiGrid() {
       <Card>
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm text-slate-400">Total Competitors</p>
-            <p className="mt-2 text-3xl font-semibold text-white">
+            <p className="text-sm text-muted-foreground">Total Competitors</p>
+            <p className="mt-2 text-3xl font-semibold text-foreground">
               {totalCompetitors}
             </p>
           </div>
           <IconBadge icon={Users} tone="cyan" />
         </div>
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-muted-foreground">
           Tracked across {platforms.length} platforms
         </p>
       </Card>
@@ -88,14 +88,14 @@ export function CompetitorKpiGrid() {
       <Card>
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm text-slate-400">Average Engagement</p>
-            <p className="mt-2 text-3xl font-semibold text-white">
+            <p className="text-sm text-muted-foreground">Average Engagement</p>
+            <p className="mt-2 text-3xl font-semibold text-foreground">
               {avgEngagement}%
             </p>
           </div>
           <IconBadge icon={Activity} tone="emerald" />
         </div>
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-muted-foreground">
           {brandMetrics.engagement > Number(avgEngagement)
             ? "Your brand outperforms competitors"
             : "Room to improve vs. competitors"}
@@ -105,14 +105,14 @@ export function CompetitorKpiGrid() {
       <Card>
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm text-slate-400">Fastest Growing</p>
-            <p className="mt-2 text-3xl font-semibold text-white">
+            <p className="text-sm text-muted-foreground">Fastest Growing</p>
+            <p className="mt-2 text-3xl font-semibold text-foreground">
               {fastestGrowing ? fastestGrowing.name : "—"}
             </p>
           </div>
           <IconBadge icon={TrendingUp} tone="amber" />
         </div>
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-muted-foreground">
           {fastestGrowing
             ? `${fastestGrowing.metrics.growth}% growth rate`
             : "No competitors tracked"}
@@ -122,14 +122,14 @@ export function CompetitorKpiGrid() {
       <Card>
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm text-slate-400">Best Platform</p>
-            <p className="mt-2 text-3xl font-semibold text-white">
+            <p className="text-sm text-muted-foreground">Best Platform</p>
+            <p className="mt-2 text-3xl font-semibold text-foreground">
               {bestPlatform || "—"}
             </p>
           </div>
           <IconBadge icon={Globe} tone="cyan" />
         </div>
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-muted-foreground">
           Highest average engagement across competitors
         </p>
       </Card>
@@ -137,14 +137,14 @@ export function CompetitorKpiGrid() {
       <Card>
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm text-slate-400">AI Competitor Score</p>
-            <p className="mt-2 text-3xl font-semibold text-white">
+            <p className="text-sm text-muted-foreground">AI Competitor Score</p>
+            <p className="mt-2 text-3xl font-semibold text-foreground">
               {aiScore}/100
             </p>
           </div>
           <IconBadge icon={Award} tone={scoreColor as "emerald" | "cyan" | "amber" | "rose"} />
         </div>
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-muted-foreground">
           {aiScore >= 80
             ? "Strong competitive position — maintain momentum"
             : aiScore >= 60
@@ -156,14 +156,14 @@ export function CompetitorKpiGrid() {
       <Card>
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm text-slate-400">Your Brand Growth</p>
-            <p className="mt-2 text-3xl font-semibold text-white">
+            <p className="text-sm text-muted-foreground">Your Brand Growth</p>
+            <p className="mt-2 text-3xl font-semibold text-foreground">
               {brandMetrics.growth}%
             </p>
           </div>
           <IconBadge icon={Zap} tone="emerald" />
         </div>
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-muted-foreground">
           {brandMetrics.growth >
           (competitors.reduce((s, c) => s + c.metrics.growth, 0) /
             (competitors.length || 1))

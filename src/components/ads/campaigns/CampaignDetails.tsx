@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle, Save, X } from "lucide-react";
-import { platforms } from "@/features/ads/mock-data";
 import { useCampaigns } from "@/features/ads/CampaignProvider";
 import type { Campaign, CampaignStatus } from "@/features/ads/types";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,7 @@ import { CampaignActivity } from "./CampaignActivity"; import { CampaignAudience
 type EditableCampaign = Pick<Campaign, "name" | "budget" | "status" | "audience" | "keywords" | "creatives">;
 const inputClass = "h-11 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 text-sm text-white outline-none focus:border-cyan-500/60";
 export function CampaignDetails({ id, initialEdit = false }: { id: string; initialEdit?: boolean }) {
-  const router = useRouter(); const { campaigns, hydrated, updateCampaign, actOnCampaigns, showToast } = useCampaigns(); const campaign = campaigns.find(x => x.id === id); const [editing, setEditing] = useState(initialEdit); const [draft, setDraft] = useState<EditableCampaign | null>(() => campaign ? pickEditable(campaign) : null);
+  const router = useRouter(); const { campaigns, platforms, hydrated, updateCampaign, actOnCampaigns, showToast } = useCampaigns(); const campaign = campaigns.find(x => x.id === id); const [editing, setEditing] = useState(initialEdit); const [draft, setDraft] = useState<EditableCampaign | null>(() => campaign ? pickEditable(campaign) : null);
   if (!hydrated) return <CampaignDetailsSkeleton />;
   if (!campaign) return <div className="mx-auto max-w-xl rounded-3xl border border-rose-500/20 bg-rose-500/5 p-10 text-center"><AlertTriangle className="mx-auto text-rose-300" /><h1 className="mt-4 text-2xl font-semibold text-white">Campaign not found</h1><p className="mt-2 text-sm text-slate-400">This campaign does not exist or has been deleted.</p><Link href="/dashboard/ads/campaigns" className="mt-5 inline-block text-sm text-cyan-300">Return to campaigns</Link></div>;
   const editValues = draft ?? pickEditable(campaign);

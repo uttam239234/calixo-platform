@@ -204,6 +204,10 @@ export interface CompetitorContextValue {
   brandMetrics: BrandMetrics;
   trendData: TrendAnalysisData;
   recommendations: AIRecommendation[];
+  canCreate: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
+  canExport: boolean;
   setQuery: (value: string) => void;
   setFilters: (value: CompetitorFiltersState) => void;
   resetFilters: () => void;

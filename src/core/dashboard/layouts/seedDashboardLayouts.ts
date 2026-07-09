@@ -27,7 +27,10 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: true,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["kpi-grid", "upcoming-tasks", "ai-recommendations", "recent-activity", "quick-actions", "pending-approvals", "goals-scorecard", "marketing-performance", "channel-overview", "connected-platforms", "reports-panel"], ["marketing-performance", "channel-overview", "connected-platforms"]),
+    widgets: widgets(
+      ["kpi-grid", "upcoming-tasks", "ai-recommendations", "recent-activity", "quick-actions", "pending-approvals", "action-center", "goals-scorecard", "health-score", "marketing-performance", "channel-overview", "connected-platforms", "subscription-summary", "reports-panel"],
+      ["marketing-performance", "channel-overview", "connected-platforms", "subscription-summary"]
+    ),
   },
   {
     id: "layout-executive",
@@ -39,7 +42,11 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: false,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["goals-scorecard", "kpi-grid", "pending-approvals", "ai-recommendations", "recent-activity", "marketing-performance", "channel-overview", "upcoming-tasks", "quick-actions", "connected-platforms", "reports-panel"], ["quick-actions", "connected-platforms"], ["goals-scorecard", "kpi-grid"]),
+    widgets: widgets(
+      ["goals-scorecard", "health-score", "kpi-grid", "pending-approvals", "action-center", "ai-recommendations", "recent-activity", "marketing-performance", "channel-overview", "upcoming-tasks", "quick-actions", "connected-platforms", "subscription-summary", "reports-panel"],
+      ["quick-actions", "connected-platforms"],
+      ["goals-scorecard", "kpi-grid", "health-score"]
+    ),
   },
   {
     id: "layout-marketing",
@@ -51,7 +58,11 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: false,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["kpi-grid", "marketing-performance", "channel-overview", "ai-recommendations", "goals-scorecard", "pending-approvals", "recent-activity", "upcoming-tasks", "quick-actions", "connected-platforms", "reports-panel"], ["connected-platforms"], ["marketing-performance"]),
+    widgets: widgets(
+      ["kpi-grid", "marketing-performance", "channel-overview", "ai-recommendations", "goals-scorecard", "health-score", "pending-approvals", "action-center", "recent-activity", "upcoming-tasks", "quick-actions", "connected-platforms", "subscription-summary", "reports-panel"],
+      ["connected-platforms", "subscription-summary"],
+      ["marketing-performance"]
+    ),
   },
   {
     id: "layout-performance",
@@ -63,7 +74,11 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: false,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["channel-overview", "marketing-performance", "kpi-grid", "goals-scorecard", "ai-recommendations", "pending-approvals", "recent-activity", "upcoming-tasks", "quick-actions", "connected-platforms", "reports-panel"], ["pending-approvals", "upcoming-tasks", "quick-actions"], ["channel-overview"]),
+    widgets: widgets(
+      ["channel-overview", "marketing-performance", "kpi-grid", "goals-scorecard", "health-score", "ai-recommendations", "pending-approvals", "action-center", "recent-activity", "upcoming-tasks", "quick-actions", "connected-platforms", "subscription-summary", "reports-panel"],
+      ["pending-approvals", "upcoming-tasks", "quick-actions", "action-center", "subscription-summary"],
+      ["channel-overview"]
+    ),
   },
   {
     id: "layout-social",
@@ -75,7 +90,10 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: false,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["channel-overview", "ai-recommendations", "kpi-grid", "recent-activity", "upcoming-tasks", "quick-actions", "goals-scorecard", "marketing-performance", "pending-approvals", "connected-platforms", "reports-panel"], ["goals-scorecard", "marketing-performance", "connected-platforms"]),
+    widgets: widgets(
+      ["channel-overview", "ai-recommendations", "kpi-grid", "recent-activity", "upcoming-tasks", "quick-actions", "goals-scorecard", "health-score", "marketing-performance", "pending-approvals", "action-center", "connected-platforms", "subscription-summary", "reports-panel"],
+      ["goals-scorecard", "marketing-performance", "connected-platforms", "health-score", "subscription-summary"]
+    ),
   },
   {
     id: "layout-content",
@@ -87,7 +105,11 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: false,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["pending-approvals", "upcoming-tasks", "recent-activity", "quick-actions", "ai-recommendations", "kpi-grid", "goals-scorecard", "marketing-performance", "channel-overview", "connected-platforms", "reports-panel"], ["goals-scorecard", "marketing-performance", "channel-overview", "connected-platforms"], ["pending-approvals"]),
+    widgets: widgets(
+      ["pending-approvals", "action-center", "upcoming-tasks", "recent-activity", "quick-actions", "ai-recommendations", "kpi-grid", "goals-scorecard", "health-score", "marketing-performance", "channel-overview", "connected-platforms", "subscription-summary", "reports-panel"],
+      ["goals-scorecard", "marketing-performance", "channel-overview", "connected-platforms", "health-score", "subscription-summary"],
+      ["pending-approvals"]
+    ),
   },
   {
     id: "layout-brand",
@@ -99,7 +121,10 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: false,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["pending-approvals", "recent-activity", "ai-recommendations", "kpi-grid", "quick-actions", "goals-scorecard", "marketing-performance", "channel-overview", "upcoming-tasks", "connected-platforms", "reports-panel"], ["goals-scorecard", "marketing-performance", "channel-overview", "connected-platforms"]),
+    widgets: widgets(
+      ["pending-approvals", "action-center", "recent-activity", "ai-recommendations", "kpi-grid", "quick-actions", "goals-scorecard", "health-score", "marketing-performance", "channel-overview", "upcoming-tasks", "connected-platforms", "subscription-summary", "reports-panel"],
+      ["goals-scorecard", "marketing-performance", "channel-overview", "connected-platforms", "health-score", "subscription-summary"]
+    ),
   },
   {
     id: "layout-team",
@@ -111,7 +136,10 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: false,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["pending-approvals", "upcoming-tasks", "recent-activity", "quick-actions", "kpi-grid", "ai-recommendations", "goals-scorecard", "marketing-performance", "channel-overview", "connected-platforms", "reports-panel"], ["goals-scorecard", "marketing-performance", "channel-overview"]),
+    widgets: widgets(
+      ["pending-approvals", "action-center", "upcoming-tasks", "recent-activity", "quick-actions", "kpi-grid", "ai-recommendations", "goals-scorecard", "health-score", "marketing-performance", "channel-overview", "connected-platforms", "subscription-summary", "reports-panel"],
+      ["goals-scorecard", "marketing-performance", "channel-overview", "health-score", "subscription-summary"]
+    ),
   },
   {
     id: "layout-workspace",
@@ -123,7 +151,22 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     isFavorite: false,
     isTemplate: true,
     sharedWith: [],
-    widgets: widgets(["kpi-grid", "goals-scorecard", "marketing-performance", "channel-overview", "quick-actions", "pending-approvals", "recent-activity", "upcoming-tasks", "ai-recommendations", "connected-platforms", "reports-panel"]),
+    widgets: widgets([
+      "kpi-grid",
+      "goals-scorecard",
+      "health-score",
+      "marketing-performance",
+      "channel-overview",
+      "quick-actions",
+      "pending-approvals",
+      "action-center",
+      "recent-activity",
+      "upcoming-tasks",
+      "ai-recommendations",
+      "connected-platforms",
+      "subscription-summary",
+      "reports-panel",
+    ]),
   },
 ];
 

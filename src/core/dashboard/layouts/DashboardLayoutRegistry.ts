@@ -15,14 +15,17 @@ function DEFAULT_WIDGET_SET(): DashboardWidgetConfig[] {
   const keys: DashboardWidgetConfig["key"][] = [
     "kpi-grid",
     "goals-scorecard",
+    "health-score",
     "marketing-performance",
     "channel-overview",
     "quick-actions",
     "pending-approvals",
+    "action-center",
     "recent-activity",
     "upcoming-tasks",
     "ai-recommendations",
     "connected-platforms",
+    "subscription-summary",
     "reports-panel",
   ];
   return keys.map((key, index) => ({ key, visible: true, pinned: false, order: index }));

@@ -16,11 +16,14 @@ export function AdsHeader() {
         <p className="mt-2 text-sm text-muted-foreground">Manage every advertising platform from one workspace.</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <div className="flex items-center gap-2 rounded-2xl border border-border bg-card/50 px-3.5 py-2 text-sm text-muted-foreground">
+        <button
+          onClick={() => window.dispatchEvent(new Event("ads-command-palette:toggle"))}
+          className="flex items-center gap-2 rounded-2xl border border-border bg-card/50 px-3.5 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+        >
           <Search size={15} className="text-muted-foreground/70" />
           <span className="text-muted-foreground/60">Search campaigns...</span>
-          <kbd className="rounded-md border border-border bg-background/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/60">⌘F</kbd>
-        </div>
+          <kbd className="rounded-md border border-border bg-background/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/60">⌘K</kbd>
+        </button>
         <Button variant="outline" size="sm">
           <CalendarDays size={14} />
           Jul 1–31

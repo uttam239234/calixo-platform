@@ -8,10 +8,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { CheckCircle2, X } from "lucide-react";
+import { CheckCircle2, Lock, X } from "lucide-react";
+import { socialPlatformAPI } from "@/core/social";
+import { useSocialTenant } from "@/hooks/useSocialTenant";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   initialCompetitors,
-  brandMetrics,
+  brandMetrics as brandMetricsSeed,
   trendData,
   aiRecommendations,
 } from "./mock-data";
@@ -52,6 +55,7 @@ export function CompetitorProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [toast, setToast] = useState("");
   const [aiVersion, setAiVersion] = useState(1);
+  const { canRead, canCreate, canUpdate, canDelete, canExport } = useSocialTenant();
 
   // Hydrate from localStorage
   useEffect(() => {
@@ -144,6 +148,7 @@ export function CompetitorProvider({ children }: { children: ReactNode }) {
 
   const saveCompetitor = useCallback(
     (input: CompetitorInput, id?: string) => {
+      if (id ? !canUpdate : !canCreate) return;
       if (id) {
         setCompetitors((current) =>
           current.map((item) =>
@@ -192,16 +197,17 @@ export function CompetitorProvider({ children }: { children: ReactNode }) {
       setDialogOpen(false);
       showToast(id ? "Competitor updated." : "Competitor added.");
     },
-    [showToast]
+    [showToast, canCreate, canUpdate]
   );
 
   const removeCompetitor = useCallback(
     (id: string) => {
+      if (!canDelete) return;
       setCompetitors((current) => current.filter((item) => item.id !== id));
       setCompareIds((current) => current.filter((item) => item !== id));
       showToast("Competitor removed.");
     },
-    [showToast]
+    [showToast, canDelete]
   );
 
   const toggleFavorite = useCallback((id: string) =>
@@ -242,6 +248,7 @@ export function CompetitorProvider({ children }: { children: ReactNode }) {
 
   const exportData = useCallback(
     (format: "csv" | "excel" | "pdf") => {
+      if (!canExport) return;
       const rows = [
         [
           "Name",
@@ -307,11 +314,12 @@ export function CompetitorProvider({ children }: { children: ReactNode }) {
       }
       showToast(`${format.toUpperCase()} report exported.`);
     },
-    [competitors, recommendations, showToast]
+    [competitors, recommendations, showToast, canExport]
   );
 
   const applyRecommendation = useCallback(
     (id: string) => {
+      if (!canUpdate) return;
       setRecommendations((current) =>
         current.map((item) =>
           item.id === id ? { ...item, applied: true } : item
@@ -319,18 +327,31 @@ export function CompetitorProvider({ children }: { children: ReactNode }) {
       );
       showToast("Recommendation applied.");
     },
-    [showToast]
+    [showToast, canUpdate]
   );
 
   const dismissRecommendation = useCallback(
     (id: string) => {
+      if (!canUpdate) return;
       setRecommendations((current) =>
         current.filter((item) => item.id !== id)
       );
       showToast("Recommendation dismissed.");
     },
-    [showToast]
+    [showToast, canUpdate]
   );
+
+  /**
+   * `followers`/`reach`/`engagement` are computed from `socialPlatformAPI`'s real account data
+   * (the same source `SocialProvider`'s dashboard reads) instead of the independently hardcoded
+   * `brandMetrics` fixture — fixes the "Your Brand" benchmark row showing a third, different
+   * follower total from the dashboard and Analytics. Fields with no real account-level
+   * equivalent (growth, views, posting frequency, ...) stay configured fixture values.
+   */
+  const brandMetrics = useMemo<typeof brandMetricsSeed>(() => {
+    const overview = socialPlatformAPI.getOverview();
+    return { ...brandMetricsSeed, followers: overview.totalFollowers, reach: overview.totalReach, engagement: overview.avgEngagementRate };
+  }, []);
 
   const value = useMemo<CompetitorContextValue>(
     () => ({
@@ -346,6 +367,10 @@ export function CompetitorProvider({ children }: { children: ReactNode }) {
       brandMetrics,
       trendData,
       recommendations,
+      canCreate,
+      canUpdate,
+      canDelete,
+      canExport,
       setQuery,
       setFilters,
       resetFilters,
@@ -372,7 +397,12 @@ export function CompetitorProvider({ children }: { children: ReactNode }) {
       dialogOpen,
       editingCompetitor,
       aiVersion,
+      brandMetrics,
       recommendations,
+      canCreate,
+      canUpdate,
+      canDelete,
+      canExport,
       resetFilters,
       openAdd,
       openEdit,
@@ -389,19 +419,27 @@ export function CompetitorProvider({ children }: { children: ReactNode }) {
     ]
   );
 
+  if (hydrated && !canRead) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <EmptyState icon={<Lock size={32} />} title="You don't have access to Competitor Intelligence" description="Ask a workspace admin to grant the social:read permission." />
+      </div>
+    );
+  }
+
   return (
     <CompetitorContext.Provider value={value}>
       {children}
       {toast && (
         <div
           role="status"
-          className="fixed bottom-6 right-6 z-[80] flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-slate-900 px-4 py-3 text-sm text-white shadow-2xl"
+          className="fixed bottom-6 right-6 z-[80] flex items-center gap-3 rounded-2xl border border-success/30 bg-card px-4 py-3 text-sm text-foreground shadow-2xl"
         >
-          <CheckCircle2 size={18} className="text-emerald-400" />
+          <CheckCircle2 size={18} className="text-success" />
           <span>{toast}</span>
           <button
             onClick={() => setToast("")}
-            className="text-slate-500 hover:text-white"
+            className="text-muted-foreground hover:text-foreground"
           >
             <X size={15} />
           </button>

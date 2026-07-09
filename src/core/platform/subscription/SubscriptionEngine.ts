@@ -1,5 +1,5 @@
 import { platformEventBus } from "../events/PlatformEventBus";
-import { subscriptionRegistry } from "./SubscriptionRegistry";
+import { subscriptionRegistry, registerDefaultTiers } from "./SubscriptionRegistry";
 import { USAGE_TO_LIMIT_KEY, type BillingCycle, type LimitCheckResult, type Subscription, type SubscriptionTier, type SubscriptionUsageKey } from "./types";
 
 const GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000;
@@ -21,6 +21,8 @@ export class SubscriptionEngine {
   private subscriptions = new Map<string, Subscription>();
 
   assign(organizationId: string, tier: SubscriptionTier = "trial", billingCycle: BillingCycle = "monthly"): Subscription {
+    // Defensive: several real call chains (Dashboard's and Analytics' entitlement checks among them) reach `getOrAssignDefault()` without any caller having first run the app's master `initializePlatformFoundation()` boot sequence, which is what normally seeds this registry via `initializeSubscriptionFoundation()`. Self-heal rather than throw.
+    if (subscriptionRegistry.count() === 0) registerDefaultTiers();
     const definition = subscriptionRegistry.get(tier);
     if (!definition) throw new Error(`Unknown subscription tier: ${tier}`);
     const subscription: Subscription = {

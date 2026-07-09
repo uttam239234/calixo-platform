@@ -38,7 +38,7 @@ export function ComparisonEngine() {
           subtitle="Select up to 4 competitors to compare performance metrics"
         />
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Click the chart icon on any competitor to add them to the comparison.
           </p>
         </div>
@@ -80,7 +80,7 @@ export function ComparisonEngine() {
     return dataPoint;
   });
 
-  const colors = ["#22d3ee", ...compared.map((c) => c.color)];
+  const colors = ["var(--primary)", ...compared.map((c) => c.color)];
 
   return (
     <Card>
@@ -91,10 +91,10 @@ export function ComparisonEngine() {
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} barCategoryGap="20%">
-            <CartesianGrid stroke="#1e293b" vertical={false} />
+            <CartesianGrid stroke="var(--border)" vertical={false} />
             <XAxis
               dataKey="metric"
-              stroke="#64748b"
+              stroke="var(--muted-foreground)"
               tickLine={false}
               axisLine={false}
               tick={{ fontSize: 11 }}
@@ -103,11 +103,11 @@ export function ComparisonEngine() {
               textAnchor="end"
               height={60}
             />
-            <YAxis stroke="#64748b" tickLine={false} axisLine={false} />
+            <YAxis stroke="var(--muted-foreground)" tickLine={false} axisLine={false} />
             <Tooltip
               contentStyle={{
-                backgroundColor: "#0f172a",
-                borderColor: "#334155",
+                backgroundColor: "var(--card)",
+                borderColor: "var(--border)",
                 borderRadius: 12,
                 fontSize: 12,
               }}
@@ -117,7 +117,7 @@ export function ComparisonEngine() {
             />
             <Bar
               dataKey="Your Brand"
-              fill="#22d3ee"
+              fill="var(--primary)"
               radius={[4, 4, 0, 0]}
               barSize={16}
             />

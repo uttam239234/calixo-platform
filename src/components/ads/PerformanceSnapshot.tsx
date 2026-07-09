@@ -2,9 +2,10 @@
 
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { BarChart3, ArrowUpRight } from "lucide-react";
-import { performance } from "@/features/ads/mock-data";
+import { useCampaigns } from "@/features/ads/CampaignProvider";
 
 export function PerformanceSnapshot() {
+  const { performance, roasInsight } = useCampaigns();
   const bars = [48, 56, 49, 65, 62, 74, 69, 82, 78, 91, 86, 100];
 
   return (
@@ -37,7 +38,7 @@ export function PerformanceSnapshot() {
         <div className="mt-5 grid grid-cols-3 divide-x divide-border rounded-2xl border border-border/50 bg-card/50 py-3 text-center">
           <div>
             <p className="text-xs text-muted-foreground">Revenue</p>
-            <p className="mt-1 text-sm font-semibold text-foreground tabular-nums">$626.6K</p>
+            <p className="mt-1 text-sm font-semibold text-foreground tabular-nums">${(performance.revenue / 1000).toFixed(1)}K</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">CTR</p>
@@ -45,9 +46,11 @@ export function PerformanceSnapshot() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Conv.</p>
-            <p className="mt-1 text-sm font-semibold text-foreground tabular-nums">3,920</p>
+            <p className="mt-1 text-sm font-semibold text-foreground tabular-nums">{performance.conversions.toLocaleString()}</p>
           </div>
         </div>
+
+        <p className="mt-4 text-xs text-muted-foreground">{roasInsight}</p>
       </CardContent>
     </Card>
   );

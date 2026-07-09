@@ -4,16 +4,19 @@ import { useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { SkeletonText } from "@/components/ui/Skeleton";
 import { Banknote, Eye, MousePointerClick, Target, TrendingUp, ArrowUp, ArrowDown } from "lucide-react";
-import { performance } from "@/features/ads/mock-data";
+import { useCampaigns } from "@/features/ads/CampaignProvider";
+import type { AdsPerformanceSummary } from "@/core/ads";
 
-const items = [
-  { label: "Total Spend", value: `$${(performance.spend / 1000).toFixed(1)}K`, change: performance.spendChange, icon: Banknote },
-  { label: "Revenue", value: `$${(performance.revenue / 1000).toFixed(1)}K`, change: performance.roasChange, icon: TrendingUp },
-  { label: "Impressions", value: `${(performance.impressions / 1000000).toFixed(2)}M`, change: 11.6, icon: Eye },
-  { label: "Clicks", value: `${(performance.clicks / 1000).toFixed(1)}K`, change: 9.3, icon: MousePointerClick },
-  { label: "Conversions", value: performance.conversions.toLocaleString(), change: performance.conversionChange, icon: Target },
-  { label: "ROAS", value: `${performance.roas.toFixed(1)}x`, change: performance.roasChange, icon: TrendingUp },
-];
+function buildItems(performance: AdsPerformanceSummary) {
+  return [
+    { label: "Total Spend", value: `$${(performance.spend / 1000).toFixed(1)}K`, change: performance.spendChange, icon: Banknote },
+    { label: "Revenue", value: `$${(performance.revenue / 1000).toFixed(1)}K`, change: performance.roasChange, icon: TrendingUp },
+    { label: "Impressions", value: `${(performance.impressions / 1000000).toFixed(2)}M`, change: 11.6, icon: Eye },
+    { label: "Clicks", value: `${(performance.clicks / 1000).toFixed(1)}K`, change: 9.3, icon: MousePointerClick },
+    { label: "Conversions", value: performance.conversions.toLocaleString(), change: performance.conversionChange, icon: Target },
+    { label: "ROAS", value: `${performance.roas.toFixed(1)}x`, change: performance.roasChange, icon: TrendingUp },
+  ];
+}
 
 function AnimatedValue({ value }: { value: string }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -42,6 +45,8 @@ interface CampaignSummaryProps {
 }
 
 export function CampaignSummary({ loading = false }: CampaignSummaryProps) {
+  const { performance } = useCampaigns();
+
   if (loading) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
@@ -54,7 +59,7 @@ export function CampaignSummary({ loading = false }: CampaignSummaryProps) {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-      {items.map(({ label, value, change, icon: Icon }) => (
+      {buildItems(performance).map(({ label, value, change, icon: Icon }) => (
         <Card key={label} className="hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200">
           <CardContent>
             <div className="flex items-start justify-between">

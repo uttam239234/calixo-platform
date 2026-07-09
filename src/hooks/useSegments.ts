@@ -8,10 +8,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { segmentRegistry, seedAnalyticsSegments } from "@/core/analytics";
 import type { AnalyticsSegment, AnalyticsFilterState, SegmentKind } from "@/core/analytics";
+import { useUser } from "@/identity/hooks/useAuth";
 
-const OWNER = "You";
+const FALLBACK_OWNER = "You";
 
 export function useSegments() {
+  const sessionUser = useUser();
+  const OWNER = sessionUser?.name ?? FALLBACK_OWNER;
   const [segments, setSegments] = useState<AnalyticsSegment[]>([]);
 
   const refresh = useCallback(() => {
@@ -31,7 +34,7 @@ export function useSegments() {
       refresh();
       return segment;
     },
-    [refresh]
+    [refresh, OWNER]
   );
 
   const removeSegment = useCallback(

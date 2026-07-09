@@ -10,9 +10,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { dashboardEngine, initializeDashboardFoundation, DASHBOARD_CURRENT_USER_ID } from "@/core/dashboard";
+import { useUser } from "@/identity/hooks/useAuth";
 import type { DashboardNotificationEntry } from "@/core/dashboard";
 
-export function useNotifications(userId: string = DASHBOARD_CURRENT_USER_ID) {
+/** Prefers the real session user (once `AuthProvider` has one) and falls back to the demo constant when unauthenticated. */
+export function useNotifications(userId?: string) {
+  const sessionUser = useUser();
+  const resolvedUserId = userId ?? sessionUser?.id ?? DASHBOARD_CURRENT_USER_ID;
   const [notifications, setNotifications] = useState<DashboardNotificationEntry[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -28,11 +32,11 @@ export function useNotifications(userId: string = DASHBOARD_CURRENT_USER_ID) {
    */
   const refresh = useCallback(async () => {
     await initializeDashboardFoundation();
-    const [items, count] = await Promise.all([dashboardEngine.getNotifications(userId, 10), dashboardEngine.getUnreadNotificationCount(userId)]);
+    const [items, count] = await Promise.all([dashboardEngine.getNotifications(resolvedUserId, 10), dashboardEngine.getUnreadNotificationCount(resolvedUserId)]);
     setNotifications(items);
     setUnreadCount(count);
     setLoading(false);
-  }, [userId]);
+  }, [resolvedUserId]);
 
   useEffect(() => {
     (async () => {
@@ -42,16 +46,16 @@ export function useNotifications(userId: string = DASHBOARD_CURRENT_USER_ID) {
 
   const markRead = useCallback(
     async (id: string) => {
-      await dashboardEngine.markNotificationRead(userId, id);
+      await dashboardEngine.markNotificationRead(resolvedUserId, id);
       await refresh();
     },
-    [userId, refresh]
+    [resolvedUserId, refresh]
   );
 
   const markAllRead = useCallback(async () => {
-    await dashboardEngine.markAllNotificationsRead(userId);
+    await dashboardEngine.markAllNotificationsRead(resolvedUserId);
     await refresh();
-  }, [userId, refresh]);
+  }, [resolvedUserId, refresh]);
 
   return { notifications, unreadCount, loading, refresh, markRead, markAllRead };
 }

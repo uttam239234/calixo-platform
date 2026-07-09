@@ -68,14 +68,14 @@ function CompetitorForm({ editingCompetitor, onClose, onSave }: {
   };
 
   return (
-    <div className="w-full max-w-lg rounded-3xl border border-slate-700/60 bg-slate-900 p-6 shadow-2xl">
+    <div className="w-full max-w-lg rounded-3xl border border-border/60 bg-card p-6 shadow-2xl">
       <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-white">
+        <h2 className="text-lg font-semibold text-foreground">
           {editingCompetitor ? "Edit Competitor" : "Add Competitor"}
         </h2>
         <button
           onClick={onClose}
-          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-800 hover:text-white"
+          className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface hover:text-foreground"
         >
           <X size={18} />
         </button>
@@ -84,38 +84,38 @@ function CompetitorForm({ editingCompetitor, onClose, onSave }: {
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-xs text-slate-400">
+            <label className="mb-1 block text-xs text-muted-foreground">
               Brand name
             </label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. NovaReach"
-              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-800/50 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-500/50"
+              className="h-10 w-full rounded-xl border border-border bg-surface/50 px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/50"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-400">
+            <label className="mb-1 block text-xs text-muted-foreground">
               Handle
             </label>
             <input
               value={handle}
               onChange={(e) => setHandle(e.target.value)}
               placeholder="e.g. @novareach"
-              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-800/50 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-500/50"
+              className="h-10 w-full rounded-xl border border-border bg-surface/50 px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/50"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-xs text-slate-400">
+            <label className="mb-1 block text-xs text-muted-foreground">
               Platform
             </label>
             <select
               value={platform}
               onChange={(e) => setPlatform(e.target.value as CompetitorPlatform)}
-              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-800/50 px-3 text-sm text-white outline-none focus:border-cyan-500/50"
+              className="h-10 w-full rounded-xl border border-border bg-surface/50 px-3 text-sm text-foreground outline-none focus:border-primary/50"
             >
               {platforms.map((p) => (
                 <option key={p}>{p}</option>
@@ -123,13 +123,13 @@ function CompetitorForm({ editingCompetitor, onClose, onSave }: {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-400">
+            <label className="mb-1 block text-xs text-muted-foreground">
               Industry
             </label>
             <select
               value={industry}
               onChange={(e) => setIndustry(e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-800/50 px-3 text-sm text-white outline-none focus:border-cyan-500/50"
+              className="h-10 w-full rounded-xl border border-border bg-surface/50 px-3 text-sm text-foreground outline-none focus:border-primary/50"
             >
               {industries.map((ind) => (
                 <option key={ind}>{ind}</option>
@@ -140,13 +140,13 @@ function CompetitorForm({ editingCompetitor, onClose, onSave }: {
 
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <label className="mb-1 block text-xs text-slate-400">
+            <label className="mb-1 block text-xs text-muted-foreground">
               Country
             </label>
             <select
               value={country}
               onChange={(e) => setCountry(e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-800/50 px-3 text-sm text-white outline-none focus:border-cyan-500/50"
+              className="h-10 w-full rounded-xl border border-border bg-surface/50 px-3 text-sm text-foreground outline-none focus:border-primary/50"
             >
               {countries.map((c) => (
                 <option key={c}>{c}</option>
@@ -154,18 +154,18 @@ function CompetitorForm({ editingCompetitor, onClose, onSave }: {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-400">
+            <label className="mb-1 block text-xs text-muted-foreground">
               Followers
             </label>
             <input
               type="number"
               value={followers}
               onChange={(e) => setFollowers(Number(e.target.value))}
-              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-800/50 px-3 text-sm text-white outline-none focus:border-cyan-500/50"
+              className="h-10 w-full rounded-xl border border-border bg-surface/50 px-3 text-sm text-foreground outline-none focus:border-primary/50"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-400">
+            <label className="mb-1 block text-xs text-muted-foreground">
               Engagement %
             </label>
             <input
@@ -173,7 +173,7 @@ function CompetitorForm({ editingCompetitor, onClose, onSave }: {
               step="0.1"
               value={engagement}
               onChange={(e) => setEngagement(Number(e.target.value))}
-              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-800/50 px-3 text-sm text-white outline-none focus:border-cyan-500/50"
+              className="h-10 w-full rounded-xl border border-border bg-surface/50 px-3 text-sm text-foreground outline-none focus:border-primary/50"
             />
           </div>
         </div>
@@ -182,13 +182,13 @@ function CompetitorForm({ editingCompetitor, onClose, onSave }: {
       <div className="mt-6 flex justify-end gap-3">
         <Button
           variant="outline"
-          className="border-slate-700 text-slate-300"
+          className="border-border text-foreground"
           onClick={onClose}
         >
           Cancel
         </Button>
         <Button
-          className="bg-cyan-400 text-slate-950 hover:bg-cyan-300"
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
           onClick={handleSubmit}
           disabled={!name.trim() || !handle.trim()}
         >
@@ -210,7 +210,7 @@ export function CompetitorAddDialog() {
   if (!dialogOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
       <CompetitorForm
         key={editingCompetitor?.id ?? "new"}
         editingCompetitor={editingCompetitor}

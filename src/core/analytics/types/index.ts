@@ -43,6 +43,8 @@ export interface AnalyticsFilterState {
   region?: AnalyticsRegion;
   device?: AnalyticsDevice;
   audience?: AnalyticsAudience;
+  /** A real user-chosen date range for `range: "custom"` — falls back to a fixed historical slice when unset. */
+  customRange?: { start: string; end: string };
 }
 
 export type MetricTrend = "up" | "down" | "steady";
@@ -136,4 +138,56 @@ export interface AnalyticsSnapshot {
   audienceInsights: AnalyticsAudienceSegment[];
   geoPerformance: AnalyticsGeoRow[];
   regionCount: number;
+}
+
+/** One weighted input into `AnalyticsHealthScore` — every `score` is 0-100 and every source is a real, already-computed Analytics signal. */
+export interface AnalyticsHealthSignal {
+  key: string;
+  label: string;
+  weight: number;
+  score: number;
+  status: "strength" | "risk" | "neutral";
+  detail: string;
+}
+
+export interface AnalyticsHealthScore {
+  score: number;
+  label: string;
+  breakdown: AnalyticsHealthSignal[];
+  strengths: string[];
+  risks: string[];
+  generatedAt: string;
+}
+
+/** A genuinely new AI capability (not existing before this pass) — a deterministic diff of two periods' real raw summary numbers. */
+export interface AnalyticsPeriodComparisonSide {
+  label: string;
+  revenue: number;
+  spend: number;
+  leads: number;
+  conversions: number;
+  conversionRate: number;
+}
+
+export interface AnalyticsPeriodComparison {
+  periodA: AnalyticsPeriodComparisonSide;
+  periodB: AnalyticsPeriodComparisonSide;
+  deltas: { revenue: number; spend: number; leads: number; conversions: number; conversionRate: number };
+  summary: string;
+}
+
+export type AnalyticsActionCenterCategory = "risk" | "anomaly" | "opportunity" | "data-quality" | "attribution";
+
+/** The unified Insight & Action Center row — consolidates what would otherwise be five near-duplicate "centers" (risk/anomaly/opportunity/data-quality/attribution) into one typed, categorized list. */
+export interface AnalyticsActionCenterItem {
+  id: string;
+  title: string;
+  description: string;
+  severity: "high" | "medium" | "low";
+  category: AnalyticsActionCenterCategory;
+  kind: "action" | "incident";
+  actionLabel: string;
+  /** A widget id to scroll to (see `scrollToWidget`), unless `isExternalRoute` is set, in which case it's a real app route. */
+  target: string;
+  isExternalRoute?: boolean;
 }

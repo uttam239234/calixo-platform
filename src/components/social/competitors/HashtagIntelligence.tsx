@@ -78,8 +78,8 @@ export function HashtagIntelligence() {
                 onClick={() => setSortBy(opt.key)}
                 className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors ${
                   sortBy === opt.key
-                    ? "bg-cyan-500/15 text-cyan-300"
-                    : "text-slate-500 hover:text-slate-300"
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {opt.label}
@@ -92,16 +92,16 @@ export function HashtagIntelligence() {
         {sorted.map((hashtag) => (
           <div
             key={hashtag.tag}
-            className="rounded-xl border border-slate-800 bg-slate-900/40 p-3"
+            className="rounded-xl border border-border bg-surface/40 p-3"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Hash size={14} className="text-cyan-400" />
-                <span className="text-sm font-medium text-white">
+                <Hash size={14} className="text-primary" />
+                <span className="text-sm font-medium text-foreground">
                   {hashtag.tag}
                 </span>
               </div>
-              <div className="flex items-center gap-3 text-xs text-slate-500">
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <BarChart3 size={11} />
                   {(hashtag.frequency / 10).toFixed(1)}×
@@ -114,13 +114,13 @@ export function HashtagIntelligence() {
             </div>
             <div className="mt-2 flex items-center gap-4 text-xs">
               <div className="flex-1">
-                <div className="flex justify-between text-slate-500">
+                <div className="flex justify-between text-muted-foreground">
                   <span>Reach</span>
                   <span>{(hashtag.reach / 1000).toFixed(0)}K</span>
                 </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-800">
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface">
                   <div
-                    className="h-full rounded-full bg-cyan-500/60"
+                    className="h-full rounded-full bg-primary/60"
                     style={{
                       width: `${Math.min(
                         100,
@@ -132,14 +132,14 @@ export function HashtagIntelligence() {
                   />
                 </div>
               </div>
-              <div className="text-slate-400">
+              <div className="text-muted-foreground">
                 Used by {hashtag.competitors.length} competitor
                 {hashtag.competitors.length > 1 ? "s" : ""}
               </div>
             </div>
             {hashtag.recommendations.length > 0 && (
-              <div className="mt-2 flex items-start gap-1.5 text-[11px] text-slate-500">
-                <Lightbulb size={11} className="mt-0.5 shrink-0 text-amber-400" />
+              <div className="mt-2 flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                <Lightbulb size={11} className="mt-0.5 shrink-0 text-warning" />
                 <span>{hashtag.recommendations[0]}</span>
               </div>
             )}

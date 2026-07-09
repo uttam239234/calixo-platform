@@ -36,17 +36,32 @@ export function AnalyticsFilters({ filters, options, activeFilterCount, onApply,
 
   return (
     <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <SlidersHorizontal size={16} className="text-primary" />
-          Filters
-          {activeFilterCount > 0 && <span className="badge badge-primary">{activeFilterCount} active</span>}
+      <div className="flex flex-col gap-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <SlidersHorizontal size={16} className="text-primary" />
+            Filters
+            {activeFilterCount > 0 && <span className="badge badge-primary">{activeFilterCount} active</span>}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {activeFilterCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={onClear}>
+                <X size={14} />
+                Clear
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => onApply(pending)} disabled={!isDirty}>
+              <Filter size={14} />
+              Apply
+            </Button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
           <select
             aria-label="Channel"
-            className="input h-8.5 w-auto text-sm"
+            className="input h-9 text-sm"
             value={pending.channel ?? ""}
             onChange={e => setPending(prev => ({ ...prev, channel: (e.target.value || undefined) as AnalyticsChannel | undefined }))}
           >
@@ -60,7 +75,7 @@ export function AnalyticsFilters({ filters, options, activeFilterCount, onApply,
 
           <select
             aria-label="Campaign"
-            className="input h-8.5 w-auto text-sm"
+            className="input h-9 text-sm"
             value={pending.campaign ?? ""}
             onChange={e => setPending(prev => ({ ...prev, campaign: e.target.value || undefined }))}
           >
@@ -74,7 +89,7 @@ export function AnalyticsFilters({ filters, options, activeFilterCount, onApply,
 
           <select
             aria-label="Region"
-            className="input h-8.5 w-auto text-sm"
+            className="input h-9 text-sm"
             value={pending.region ?? ""}
             onChange={e => setPending(prev => ({ ...prev, region: (e.target.value || undefined) as AnalyticsRegion | undefined }))}
           >
@@ -88,7 +103,7 @@ export function AnalyticsFilters({ filters, options, activeFilterCount, onApply,
 
           <select
             aria-label="Device"
-            className="input h-8.5 w-auto text-sm"
+            className="input h-9 text-sm"
             value={pending.device ?? ""}
             onChange={e => setPending(prev => ({ ...prev, device: (e.target.value || undefined) as AnalyticsDevice | undefined }))}
           >
@@ -102,7 +117,7 @@ export function AnalyticsFilters({ filters, options, activeFilterCount, onApply,
 
           <select
             aria-label="Audience"
-            className="input h-8.5 w-auto text-sm"
+            className="input h-9 text-sm"
             value={pending.audience ?? ""}
             onChange={e => setPending(prev => ({ ...prev, audience: (e.target.value || undefined) as AnalyticsAudience | undefined }))}
           >
@@ -113,19 +128,6 @@ export function AnalyticsFilters({ filters, options, activeFilterCount, onApply,
               </option>
             ))}
           </select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {activeFilterCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={onClear}>
-              <X size={14} />
-              Clear
-            </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={() => onApply(pending)} disabled={!isDirty}>
-            <Filter size={14} />
-            Apply
-          </Button>
         </div>
       </div>
     </section>

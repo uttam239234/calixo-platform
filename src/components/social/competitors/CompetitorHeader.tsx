@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useCompetitors } from "@/features/social/competitors/CompetitorProvider";
 
 const filterCls =
-  "h-9 rounded-xl border border-slate-700 bg-slate-900 px-3 text-xs text-slate-300 outline-none focus:border-cyan-500/50";
+  "h-9 rounded-xl border border-border bg-surface px-3 text-xs text-foreground outline-none focus:border-primary/50";
 
 export function CompetitorHeader() {
   const {
@@ -41,18 +41,18 @@ export function CompetitorHeader() {
         <div>
           <Link
             href="/dashboard/social"
-            className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-cyan-300"
+            className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-primary"
           >
             <ArrowLeft size={14} />
             Social Media Manager
           </Link>
-          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">
+          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
             Competitive intelligence
           </p>
-          <h1 className="mt-2 text-3xl font-semibold text-white">
+          <h1 className="mt-2 text-3xl font-semibold text-foreground">
             Competitor Intelligence
           </h1>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-muted-foreground">
             Monitor competitors, compare performance, benchmark against your
             brand, and discover AI-powered growth opportunities.
           </p>
@@ -60,7 +60,7 @@ export function CompetitorHeader() {
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
-            className="h-10 border-slate-700 bg-slate-900/70 text-slate-300"
+            className="h-10 border-border bg-surface/70 text-foreground"
             onClick={refreshAi}
           >
             <RefreshCw />
@@ -68,7 +68,7 @@ export function CompetitorHeader() {
           </Button>
           <Button
             variant="outline"
-            className="h-10 border-slate-700 bg-slate-900/70 text-slate-300"
+            className="h-10 border-border bg-surface/70 text-foreground"
             onClick={() => exportData("csv")}
           >
             <FileSpreadsheet />
@@ -76,7 +76,7 @@ export function CompetitorHeader() {
           </Button>
           <Button
             variant="outline"
-            className="h-10 border-slate-700 bg-slate-900/70 text-slate-300"
+            className="h-10 border-border bg-surface/70 text-foreground"
             onClick={() => exportData("excel")}
           >
             <Download />
@@ -84,14 +84,14 @@ export function CompetitorHeader() {
           </Button>
           <Button
             variant="outline"
-            className="h-10 border-slate-700 bg-slate-900/70 text-slate-300"
+            className="h-10 border-border bg-surface/70 text-foreground"
             onClick={() => exportData("pdf")}
           >
             <FileText />
             PDF
           </Button>
           <Button
-            className="h-10 bg-cyan-400 px-4 text-slate-950 hover:bg-cyan-300"
+            className="h-10 bg-primary px-4 text-primary-foreground hover:bg-primary/90"
             onClick={openAdd}
           >
             <Plus />
@@ -100,23 +100,23 @@ export function CompetitorHeader() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-800 bg-slate-950/55 p-3">
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-border bg-card/55 p-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search
             size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <input
             type="text"
             placeholder="Search competitors..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="h-9 w-full rounded-xl border border-slate-700 bg-slate-900 pl-9 pr-8 text-xs text-slate-300 outline-none placeholder:text-slate-500 focus:border-cyan-500/50"
+            className="h-9 w-full rounded-xl border border-border bg-surface pl-9 pr-8 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/50"
           />
           {query && (
             <button
               onClick={() => setQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X size={14} />
             </button>
@@ -204,7 +204,7 @@ export function CompetitorHeader() {
         {hasActiveFilters && (
           <button
             onClick={resetFilters}
-            className="shrink-0 px-2 text-xs text-cyan-300 hover:text-cyan-200"
+            className="shrink-0 px-2 text-xs text-primary hover:text-primary/80"
           >
             Reset
           </button>

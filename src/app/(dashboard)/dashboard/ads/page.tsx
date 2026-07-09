@@ -11,6 +11,9 @@ import { PerformanceSnapshot } from "@/components/ads/PerformanceSnapshot";
 import { QuickActions } from "@/components/ads/QuickActions";
 import { RecommendationPanel } from "@/components/ads/RecommendationPanel";
 import { PlatformStatus } from "@/components/ads/PlatformStatus";
+import { AdsHealthScoreCard } from "@/components/ads/AdsHealthScoreCard";
+import { AdsActionCenter } from "@/components/ads/AdsActionCenter";
+import { AdsAutomationPanel } from "@/components/ads/AdsAutomationPanel";
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 12 },
@@ -47,6 +50,11 @@ export default function AdsManagerPage() {
         <CampaignSummary loading={loading} />
       </motion.div>
 
+      <motion.div variants={sectionVariants} className="grid gap-6 xl:grid-cols-2">
+        <AdsHealthScoreCard />
+        <AdsActionCenter />
+      </motion.div>
+
       <motion.div variants={sectionVariants}>
         <PlatformOverview />
       </motion.div>
@@ -63,6 +71,10 @@ export default function AdsManagerPage() {
       <motion.div variants={sectionVariants} className="grid gap-6 xl:grid-cols-2">
         <RecommendationPanel />
         <PlatformStatus />
+      </motion.div>
+
+      <motion.div variants={sectionVariants}>
+        <AdsAutomationPanel />
       </motion.div>
     </motion.div>
   );
