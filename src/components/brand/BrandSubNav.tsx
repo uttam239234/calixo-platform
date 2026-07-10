@@ -3,7 +3,7 @@
 import { ModuleTabs, type ModuleTab } from "@/components/enterprise/module";
 import {
   LayoutDashboard, MessageSquare, TrendingUp, ShieldAlert,
-  BarChart3, Bot, Bell, FileText, Settings, Activity,
+  BarChart3, Bot, Bell, FileText, Settings, Activity, Search,
 } from "lucide-react";
 
 const navItems: ModuleTab[] = [
@@ -20,5 +20,19 @@ const navItems: ModuleTab[] = [
 ];
 
 export function BrandSubNav() {
-  return <ModuleTabs tabs={navItems} baseUrl="/dashboard/brand" className="mb-6" />;
+  return (
+    <div className="mb-6 flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <ModuleTabs tabs={navItems} baseUrl="/dashboard/brand" />
+      </div>
+      <button
+        onClick={() => window.dispatchEvent(new Event("brand-command-palette:toggle"))}
+        className="flex h-10 shrink-0 items-center gap-2 rounded-xl border border-border bg-surface/70 px-3.5 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+      >
+        <Search size={15} />
+        <span className="hidden sm:inline">Search</span>
+        <kbd className="hidden rounded-md border border-border bg-surface/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">⌘K</kbd>
+      </button>
+    </div>
+  );
 }

@@ -217,6 +217,36 @@ const PLATFORM_CONSTRAINTS: Record<Platform, PlatformConstraints> = {
       "Contrast is critical — dark text on light background or vice versa",
     ],
   },
+  whatsapp: {
+    platform: "whatsapp",
+    displayName: "WhatsApp",
+    characterLimit: 1024,
+    imageRatio: "1:1 (square) for attached creative",
+    recommendedTone: "Direct, personal, conversational",
+    ctaRules: "One clear action per message. Use WhatsApp's native quick-reply/CTA buttons where available.",
+    seoRequirements: "N/A — direct messaging channel, not indexed.",
+    bestPractices: [
+      "Front-load the value in the first line — previews truncate early",
+      "Keep messages scannable on a small screen",
+      "Personalise with recipient name where possible",
+      "Respect opt-in/consent requirements before sending",
+    ],
+  },
+  sms: {
+    platform: "sms",
+    displayName: "SMS",
+    characterLimit: 160,
+    imageRatio: "N/A (text-only channel)",
+    recommendedTone: "Ultra-concise, urgent, action-oriented",
+    ctaRules: "One short link or one clear next step. No room for more than a single CTA.",
+    seoRequirements: "N/A.",
+    bestPractices: [
+      "Stay within a single 160-character segment where possible",
+      "Lead with the offer or reason to act",
+      "Always include an opt-out instruction where required by policy",
+      "Use a shortened link for tracking",
+    ],
+  },
 };
 
 export const PlatformContextService = {
@@ -254,6 +284,10 @@ export const PlatformContextService = {
       "video-script": "instagram",
       "cta": "landing-page",
       "headline": "landing-page",
+      "whatsapp-campaign": "whatsapp",
+      "sms": "sms",
+      "brochure-copy": "brochure",
+      "case-study": "blog",
     };
     return mapping[contentType] ?? "blog";
   },

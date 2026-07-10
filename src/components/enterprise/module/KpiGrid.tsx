@@ -30,17 +30,17 @@ interface KpiGridProps {
 function KpiCard({ item }: { item: KpiItem }) {
   const trendColor =
     item.trend === "up"
-      ? "text-emerald-400"
+      ? "text-success"
       : item.trend === "down"
-        ? "text-red-400"
-        : "text-slate-400";
+        ? "text-destructive"
+        : "text-muted-foreground";
 
   const trendBg =
     item.trend === "up"
-      ? "bg-emerald-500/10"
+      ? "bg-success/10"
       : item.trend === "down"
-        ? "bg-red-500/10"
-        : "bg-slate-500/10";
+        ? "bg-destructive/10"
+        : "bg-muted";
 
   const TrendIcon =
     item.trend === "up"
@@ -57,18 +57,16 @@ function KpiCard({ item }: { item: KpiItem }) {
     >
       <div className="flex items-start justify-between">
         {item.icon ? (
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/20">
-            <span className="text-cyan-400">{item.icon}</span>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-info/20 border border-primary/20">
+            <span className="text-primary">{item.icon}</span>
           </div>
         ) : (
-          <div
-            className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-xl border",
-              item.color
-                ? `bg-${item.color}-500/20 border-${item.color}-500/20 text-${item.color}-400`
-                : "bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border-cyan-500/20 text-cyan-400"
-            )}
-          >
+          // `item.color` used to build a dynamically-interpolated Tailwind class name
+          // (`bg-${item.color}-500/20`), which Tailwind can never resolve since it can't see the
+          // literal class name at build time — a real bug (this branch always rendered
+          // unstyled), not just a theme issue. Falls back to the same static, safe treatment as
+          // the icon branch instead of a per-item dynamic color.
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border bg-gradient-to-br from-primary/20 to-info/20 border-primary/20 text-primary">
             <TrendIcon size={18} />
           </div>
         )}
@@ -86,16 +84,16 @@ function KpiCard({ item }: { item: KpiItem }) {
         )}
       </div>
       <div className="mt-3">
-        <p className="text-2xl font-bold text-white tracking-tight">
+        <p className="text-2xl font-bold text-foreground tracking-tight">
           {item.value}
         </p>
-        <p className="mt-0.5 text-xs text-slate-400">{item.title}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{item.title}</p>
       </div>
       {item.comparison && (
-        <p className="mt-2 text-[10px] text-slate-500">{item.comparison}</p>
+        <p className="mt-2 text-[10px] text-muted-foreground">{item.comparison}</p>
       )}
       {item.description && (
-        <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">
+        <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
           {item.description}
         </p>
       )}

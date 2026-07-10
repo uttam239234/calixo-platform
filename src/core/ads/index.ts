@@ -32,6 +32,8 @@ export { registerAdsReports } from "./reports/registerAdsReports";
 export { registerAdsAutomationWiring, adsAutomationRuleRegistry, AdsAutomationRuleRegistry } from "./automation/AdsAutomationAdapter";
 export type { AdsAutomationAction, AdsAutomationRule } from "./automation/AdsAutomationAdapter";
 
+export { registerAdsSkills } from "./skills/registerAdsSkills";
+
 import { registerAdsUsageTypes } from "./commercial/AdsUsageAdapter";
 import { registerAdsReports } from "./reports/registerAdsReports";
 import { registerAdsAutomationWiring } from "./automation/AdsAutomationAdapter";

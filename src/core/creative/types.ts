@@ -43,7 +43,10 @@ export type CreativeType =
   | "presentation"
   | "infographic"
   | "email-header"
-  | "landing-hero";
+  | "landing-hero"
+  | "pmax-asset-set"
+  | "event-banner"
+  | "custom-size";
 
 // ============================================================================
 // Platform Knowledge

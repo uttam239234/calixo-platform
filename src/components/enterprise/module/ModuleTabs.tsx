@@ -38,7 +38,7 @@ export function ModuleTabs({
   if (variant === "underline") {
     return (
       <div className={cn("overflow-x-auto scrollbar-thin", className)}>
-        <nav className="flex gap-0 min-w-max border-b border-slate-800/60">
+        <nav className="flex gap-0 min-w-max border-b border-border">
           {tabs.map((tab) => {
             const active = isActive(tab.href);
             return (
@@ -50,15 +50,15 @@ export function ModuleTabs({
                   "relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-200 whitespace-nowrap",
                   "border-b-[3px] -mb-[2px]",
                   active
-                    ? "border-cyan-400 text-cyan-300"
-                    : "border-transparent text-slate-400 hover:text-slate-200",
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
                   tab.disabled && "opacity-50 cursor-not-allowed"
                 )}
               >
                 {tab.icon && (
                   <tab.icon
                     size={16}
-                    className={active ? "text-cyan-400" : ""}
+                    className={active ? "text-primary" : ""}
                   />
                 )}
                 <span>{tab.label}</span>
@@ -75,7 +75,7 @@ export function ModuleTabs({
 
   return (
     <div className={cn("overflow-x-auto scrollbar-thin", className)}>
-      <nav className="flex gap-1 rounded-2xl border border-slate-800/80 bg-slate-900/60 p-1.5 backdrop-blur-sm min-w-max">
+      <nav className="flex gap-1 rounded-2xl border border-border bg-surface/60 p-1.5 backdrop-blur-sm min-w-max">
         {tabs.map((tab) => {
           const active = isActive(tab.href);
           return (
@@ -86,15 +86,15 @@ export function ModuleTabs({
               className={cn(
                 "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200",
                 active
-                  ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 shadow-sm shadow-cyan-500/10 border border-cyan-500/30"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent",
+                  ? "bg-gradient-to-r from-primary/20 to-info/20 text-primary shadow-sm shadow-primary/10 border border-primary/30"
+                  : "text-muted-foreground hover:text-foreground hover:bg-surface/50 border border-transparent",
                 tab.disabled && "opacity-50 cursor-not-allowed"
               )}
             >
               {tab.icon && (
                 <tab.icon
                   size={16}
-                  className={active ? "text-cyan-400" : ""}
+                  className={active ? "text-primary" : ""}
                 />
               )}
               <span className="whitespace-nowrap">{tab.label}</span>

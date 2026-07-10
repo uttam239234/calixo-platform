@@ -54,7 +54,9 @@ export type Platform =
   | "poster"
   | "flyer"
   | "brochure"
-  | "standee";
+  | "standee"
+  | "whatsapp"
+  | "sms";
 
 export interface PlatformConstraints {
   platform: Platform;
@@ -86,7 +88,11 @@ export type ContentTypeOption =
   | "press-release"
   | "video-script"
   | "cta"
-  | "headline";
+  | "headline"
+  | "whatsapp-campaign"
+  | "sms"
+  | "brochure-copy"
+  | "case-study";
 
 export type ToneOption =
   | "professional" | "conversational" | "persuasive"

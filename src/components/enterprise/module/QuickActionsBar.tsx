@@ -78,10 +78,10 @@ export function QuickActionsBar({ actions, className }: QuickActionsBarProps) {
             className={cn(
               "h-9",
               variant === "outline"
-                ? "border-slate-700 bg-slate-900/70 text-slate-300 hover:bg-slate-800"
+                ? "border-border bg-surface/70 text-foreground hover:bg-surface"
                 : "",
               variant === "ghost"
-                ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                ? "text-muted-foreground hover:text-foreground hover:bg-surface/50"
                 : ""
             )}
           >

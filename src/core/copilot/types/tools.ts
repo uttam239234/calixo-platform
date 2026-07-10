@@ -25,6 +25,8 @@ export interface PlatformTool {
   inputSchema?: Record<string, unknown>;
   isActive: boolean;
   metadata?: Record<string, unknown>;
+  /** Read operations execute immediately; write operations affecting publish/delete/pause/budget/connector state set this true and are held for explicit user approval before running. Defaults to false (read) when omitted. */
+  requiresApproval?: boolean;
 }
 
 export interface ToolExecutionResult {

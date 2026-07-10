@@ -27,3 +27,14 @@ export type RecentListField =
   | "recentReports"
   | "recentWorkflows"
   | "recentChats";
+
+/**
+ * Brand/tone/campaign preferences that persist across every conversation
+ * in an organization, not just one session — the Memory Model's
+ * "organization memory" layer.
+ */
+export interface OrganizationPreferences {
+  preferredBrandId?: string;
+  preferredTone?: string;
+  defaultCampaignId?: string;
+}

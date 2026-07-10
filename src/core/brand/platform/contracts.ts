@@ -8,3 +8,16 @@ export interface BrandSummary {
   assetCount: number;
   validationScore: number;
 }
+
+/** The colors/voice/logo slice of a `BrandKit` that generation modules (Content Studio) need for a "brand style" auto-fill — not exposed by `BrandSummary`. */
+export interface BrandStyleProfile {
+  id: string;
+  brandName: string;
+  colors: string[];
+  voiceTone: string;
+  writingStyle: string;
+  preferredCTA: string;
+  forbiddenWords: string[];
+  preferredWords: string[];
+  logoUrl?: string;
+}

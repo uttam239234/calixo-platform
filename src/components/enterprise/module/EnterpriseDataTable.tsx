@@ -126,7 +126,7 @@ export function EnterpriseDataTable<T extends { id: string }>({
           {/* Selected count & bulk actions */}
           {selectedRows.size > 0 && bulkActions && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-muted-foreground">
                 {selectedRows.size} selected
               </span>
               {bulkActions.map((action, i) => (
@@ -156,7 +156,7 @@ export function EnterpriseDataTable<T extends { id: string }>({
             <select
               value={activeView ?? ""}
               onChange={(e) => onViewChange?.(e.target.value)}
-              className="rounded-xl border border-slate-700/50 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-300 h-8 outline-none focus:border-cyan-500/50"
+              className="rounded-xl border border-border bg-surface/60 px-3 py-1.5 text-xs text-foreground h-8 outline-none focus:border-primary/50"
             >
               <option value="" disabled>
                 Saved Views
@@ -176,19 +176,19 @@ export function EnterpriseDataTable<T extends { id: string }>({
                 variant="ghost"
                 size="xs"
                 onClick={() => setShowColumnMenu(!showColumnMenu)}
-                className="h-8 gap-1 text-slate-400 hover:text-slate-200"
+                className="h-8 gap-1 text-muted-foreground hover:text-foreground"
               >
                 <Settings2 size={12} />
                 Columns
               </Button>
               {showColumnMenu && (
-                <div className="absolute right-0 top-full mt-1 z-20 rounded-xl border border-slate-700/50 bg-slate-900 p-2 shadow-xl min-w-[160px]">
+                <div className="absolute right-0 top-full mt-1 z-20 rounded-xl border border-border bg-card p-2 shadow-xl min-w-[160px]">
                   {columns
                     .filter((c) => c.hideable !== false)
                     .map((col) => (
                       <label
                         key={col.id}
-                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-800/50 cursor-pointer text-xs text-slate-300"
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface/50 cursor-pointer text-xs text-foreground"
                       >
                         <input
                           type="checkbox"
@@ -202,7 +202,7 @@ export function EnterpriseDataTable<T extends { id: string }>({
                             }
                             setHiddenColumns(next);
                           }}
-                          className="accent-cyan-500"
+                          className="accent-primary"
                         />
                         {col.header}
                       </label>
@@ -218,7 +218,7 @@ export function EnterpriseDataTable<T extends { id: string }>({
               variant="outline"
               size="xs"
               onClick={onExport}
-              className="h-8 gap-1.5 border-slate-700 bg-slate-900/70 text-slate-300 hover:bg-slate-800 text-xs"
+              className="h-8 gap-1.5 border-border bg-surface/70 text-foreground hover:bg-surface text-xs"
             >
               <Download size={12} />
               Export
@@ -228,10 +228,10 @@ export function EnterpriseDataTable<T extends { id: string }>({
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-800/60 bg-slate-900/40 overflow-x-auto">
+      <div className="rounded-xl border border-border bg-surface/40 overflow-x-auto">
         <table className="w-full min-w-[640px]">
           <thead>
-            <tr className="border-b border-slate-800/60">
+            <tr className="border-b border-border">
               {/* Checkbox column for bulk actions */}
               {bulkActions && bulkActions.length > 0 && (
                 <th className="w-10 px-4 py-3">
@@ -241,7 +241,7 @@ export function EnterpriseDataTable<T extends { id: string }>({
                       data.length > 0 && selectedRows.size === data.length
                     }
                     onChange={handleSelectAll}
-                    className="accent-cyan-500 rounded"
+                    className="accent-primary rounded"
                   />
                 </th>
               )}
@@ -249,8 +249,8 @@ export function EnterpriseDataTable<T extends { id: string }>({
                 <th
                   key={col.id}
                   className={cn(
-                    "px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500",
-                    col.sortable && "cursor-pointer select-none hover:text-slate-300",
+                    "px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground",
+                    col.sortable && "cursor-pointer select-none hover:text-foreground",
                     col.className
                   )}
                   style={col.width ? { width: col.width } : undefined}
@@ -262,8 +262,8 @@ export function EnterpriseDataTable<T extends { id: string }>({
                       <ArrowUpDown
                         size={11}
                         className={cn(
-                          "text-slate-600",
-                          sortCol === col.id && "text-cyan-400"
+                          "text-muted-foreground",
+                          sortCol === col.id && "text-primary"
                         )}
                       />
                     )}
@@ -287,7 +287,7 @@ export function EnterpriseDataTable<T extends { id: string }>({
                     (bulkActions && bulkActions.length > 0 ? 1 : 0) +
                     (renderExtra ? 1 : 0)
                   }
-                  className="px-4 py-16 text-center text-sm text-slate-500"
+                  className="px-4 py-16 text-center text-sm text-muted-foreground"
                 >
                   {emptyMessage}
                 </td>
@@ -299,11 +299,11 @@ export function EnterpriseDataTable<T extends { id: string }>({
                   <tr
                     key={row.id}
                     className={cn(
-                      "border-b border-slate-800/40 last:border-0 transition-colors",
+                      "border-b border-border/70 last:border-0 transition-colors",
                       onRowClick && "cursor-pointer",
                       isSelected
-                        ? "bg-cyan-500/5"
-                        : "hover:bg-slate-800/30"
+                        ? "bg-primary/5"
+                        : "hover:bg-surface/30"
                     )}
                     onClick={() => onRowClick?.(row)}
                   >
@@ -316,7 +316,7 @@ export function EnterpriseDataTable<T extends { id: string }>({
                             e.stopPropagation();
                             handleSelectRow(row.id);
                           }}
-                          className="accent-cyan-500 rounded"
+                          className="accent-primary rounded"
                         />
                       </td>
                     )}
@@ -324,7 +324,7 @@ export function EnterpriseDataTable<T extends { id: string }>({
                       <td
                         key={col.id}
                         className={cn(
-                          "px-4 py-3 text-sm text-slate-300",
+                          "px-4 py-3 text-sm text-foreground",
                           col.className
                         )}
                       >
@@ -349,14 +349,14 @@ export function EnterpriseDataTable<T extends { id: string }>({
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             Showing {startItem}-{endItem} of {totalItems}
           </p>
           <div className="flex items-center gap-1">
             <button
               onClick={() => onPageChange?.(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="p-1.5 rounded-lg hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed text-slate-400"
+              className="p-1.5 rounded-lg hover:bg-surface disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground"
             >
               <ChevronLeft size={16} />
             </button>
@@ -369,8 +369,8 @@ export function EnterpriseDataTable<T extends { id: string }>({
                   className={cn(
                     "w-8 h-8 rounded-lg text-xs font-medium transition-all",
                     p === currentPage
-                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                      : "text-slate-400 hover:bg-slate-800 border border-transparent"
+                      ? "bg-primary/20 text-primary border border-primary/30"
+                      : "text-muted-foreground hover:bg-surface border border-transparent"
                   )}
                 >
                   {p}
@@ -381,7 +381,7 @@ export function EnterpriseDataTable<T extends { id: string }>({
                 onPageChange?.(Math.min(totalPages, currentPage + 1))
               }
               disabled={currentPage === totalPages}
-              className="p-1.5 rounded-lg hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed text-slate-400"
+              className="p-1.5 rounded-lg hover:bg-surface disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground"
             >
               <ChevronRight size={16} />
             </button>
@@ -402,10 +402,10 @@ function TableSkeleton({
   return (
     <>
       {Array.from({ length: rows }).map((_, i) => (
-        <tr key={i} className="border-b border-slate-800/40 last:border-0">
+        <tr key={i} className="border-b border-border/70 last:border-0">
           {Array.from({ length: columns }).map((_, j) => (
             <td key={j} className="px-4 py-3">
-              <div className="h-4 rounded bg-slate-700/50 animate-pulse w-3/4" />
+              <div className="h-4 rounded bg-surface animate-pulse w-3/4" />
             </td>
           ))}
         </tr>

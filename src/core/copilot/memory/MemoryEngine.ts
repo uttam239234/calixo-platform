@@ -11,10 +11,15 @@
  */
 
 import { memoryEngine as aiosMemoryEngine, MemoryEngine as AiosMemoryEngine } from "@/aios/memory/MemoryEngine";
-import type { RecentListField, WorkspaceContext } from "../types/index";
+import type { OrganizationPreferences, RecentListField, WorkspaceContext } from "../types/index";
 
 const CONTEXT_KEY = "copilot.workspace_context";
+const ORG_PREFERENCES_KEY = "copilot.organization_preferences";
 const MAX_RECENT_ITEMS = 10;
+
+function emptyOrgPreferences(): OrganizationPreferences {
+  return {};
+}
 
 function emptyContext(): WorkspaceContext {
   return { recentAssets: [], recentReports: [], recentWorkflows: [], pinnedResources: [], recentChats: [] };
@@ -75,6 +80,37 @@ export class CopilotMemoryEngine {
       type: "context",
       importance: 5,
     });
+  }
+
+  /**
+   * Brand/tone/campaign preferences that should survive across sessions,
+   * not just within one chat — same underlying AIOS memory substrate as
+   * `getContext()`, just at `organization` scope instead of `conversation`.
+   */
+  async getOrgPreferences(organizationId: string): Promise<OrganizationPreferences> {
+    const entry = await this.base.recall("organization", organizationId, ORG_PREFERENCES_KEY);
+    if (!entry) return emptyOrgPreferences();
+    try {
+      return { ...emptyOrgPreferences(), ...(JSON.parse(entry.value) as Partial<OrganizationPreferences>) };
+    } catch {
+      return emptyOrgPreferences();
+    }
+  }
+
+  async updateOrgPreferences(organizationId: string, patch: Partial<OrganizationPreferences>): Promise<OrganizationPreferences> {
+    const current = await this.getOrgPreferences(organizationId);
+    const next: OrganizationPreferences = { ...current, ...patch };
+    const existing = await this.base.recall("organization", organizationId, ORG_PREFERENCES_KEY);
+    if (existing) await this.base.delete(existing.id);
+    await this.base.store({
+      scope: "organization",
+      scopeId: organizationId,
+      key: ORG_PREFERENCES_KEY,
+      value: JSON.stringify(next),
+      type: "preference",
+      importance: 7,
+    });
+    return next;
   }
 }
 

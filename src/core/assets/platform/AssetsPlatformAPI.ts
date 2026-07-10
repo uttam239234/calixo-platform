@@ -39,6 +39,12 @@ export class AssetsPlatformAPI {
     return assets.map(a => ({ id: a.id, name: a.name, type: a.type, brand: a.brand, approvalStatus: a.approvalStatus }));
   }
 
+  /** The fix for every "Save as Asset" dead button — a real create path, previously nonexistent (Assets was read-only). */
+  saveGeneratedAsset(input: { name: string; type: AssetType; workspace: string; createdBy: string; fileUrl?: string; preview?: string; brand?: string; campaign?: string; tags?: string[] }): AssetSummary {
+    const entry = AssetEngine.saveGeneratedAsset(input);
+    return { id: entry.id, name: entry.name, type: entry.type, brand: entry.brand, approvalStatus: entry.approvalStatus };
+  }
+
   /** The exact shape Dashboard's activity feed needs — replaces direct `AssetEngine.getHistory()`/`.get()` calls in `DashboardEngine`. */
   getRecentActivity(limit = 10): { assetId: string; assetName: string; action: string; timestamp: string }[] {
     return AssetEngine.getHistory()

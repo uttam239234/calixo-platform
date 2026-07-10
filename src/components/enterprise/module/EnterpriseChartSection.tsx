@@ -51,7 +51,7 @@ export function EnterpriseChartSection({
             {viewMoreHref && (
               <a
                 href={viewMoreHref}
-                className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 whitespace-nowrap"
+                className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 whitespace-nowrap"
               >
                 {viewMoreLabel}
                 <ChevronRight size={14} />

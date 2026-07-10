@@ -36,11 +36,11 @@ export function ModuleErrorState({
         className
       )}
     >
-      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400">
+      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive">
         {icon ?? <AlertTriangle size={28} />}
       </div>
-      <h3 className="text-lg font-semibold text-white">{title}</h3>
-      <p className="mt-2 max-w-md text-sm text-slate-400">{errorMessage}</p>
+      <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+      <p className="mt-2 max-w-md text-sm text-muted-foreground">{errorMessage}</p>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         {onRetry && (
           <Button onClick={onRetry} className="gap-2">
@@ -54,7 +54,7 @@ export function ModuleErrorState({
           </Button>
         )}
         {!onRetry && !onReset && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             If the problem persists, please contact support.
           </p>
         )}

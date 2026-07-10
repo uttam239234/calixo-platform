@@ -17,6 +17,8 @@ export type SkillCategory =
   | "brand"
   | "reports"
   | "analytics"
+  | "advertising"
+  | "social"
   | "platform";
 
 export interface Skill {
@@ -28,4 +30,6 @@ export interface Skill {
   toolIds: string[];
   triggers: string[];
   enabled: boolean;
+  /** Which of the brief's 7 specialist agents owns this skill, for response attribution. Optional — skills outside the named agent taxonomy (e.g. Dashboard/Users/Settings) are left unattributed rather than forced into an awkward mapping. */
+  agentId?: string;
 }

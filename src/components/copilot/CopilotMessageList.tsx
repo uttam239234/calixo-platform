@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { Bot } from "lucide-react";
 import { CopilotMessageBubble } from "./CopilotMessageBubble";
+import { STARTER_PROMPTS } from "./constants";
+import type { ClarificationOption, ExecutionStep } from "@/core/copilot";
 import type { CopilotMessageView, MessageReaction } from "./types";
 
 interface CopilotMessageListProps {
@@ -12,9 +14,28 @@ interface CopilotMessageListProps {
   onRegenerate: (id: string) => void;
   onReact: (id: string, reaction: Exclude<MessageReaction, null>) => void;
   onEditPrompt: (content: string) => void;
+  onSuggestedAction: (label: string) => void;
+  onSelectClarificationOption: (option: ClarificationOption) => void;
+  onApproveStep: (messageId: string, step: ExecutionStep) => void;
+  onRejectStep: (messageId: string, step: ExecutionStep) => void;
+  resolvingStepId: string | null;
+  onSelectStarterPrompt: (prompt: string) => void;
 }
 
-export function CopilotMessageList({ messages, isThinking, regeneratingId, onRegenerate, onReact, onEditPrompt }: CopilotMessageListProps) {
+export function CopilotMessageList({
+  messages,
+  isThinking,
+  regeneratingId,
+  onRegenerate,
+  onReact,
+  onEditPrompt,
+  onSuggestedAction,
+  onSelectClarificationOption,
+  onApproveStep,
+  onRejectStep,
+  resolvingStepId,
+  onSelectStarterPrompt,
+}: CopilotMessageListProps) {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -23,13 +44,25 @@ export function CopilotMessageList({ messages, isThinking, regeneratingId, onReg
 
   if (messages.length === 0 && !isThinking) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-ai/20">
           <Bot size={22} className="text-primary" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-foreground">Ask the Copilot anything</p>
-          <p className="mt-1 text-xs text-muted-foreground">Orchestrate campaigns, generate content, and analyze performance.</p>
+          <p className="text-sm font-semibold text-foreground">What would you like to do today?</p>
+          <p className="mt-1 text-xs text-muted-foreground">Tell Copilot what you&apos;re trying to achieve — it figures out how.</p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-1.5">
+          {STARTER_PROMPTS.map(p => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onSelectStarterPrompt(p)}
+              className="rounded-xl border border-border bg-accent/30 px-3 py-1.5 text-left text-xs text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5"
+            >
+              {p}
+            </button>
+          ))}
         </div>
       </div>
     );
@@ -46,6 +79,11 @@ export function CopilotMessageList({ messages, isThinking, regeneratingId, onReg
           onReact={onReact}
           onEditPrompt={onEditPrompt}
           isRegenerating={regeneratingId === m.id}
+          onSuggestedAction={onSuggestedAction}
+          onSelectClarificationOption={onSelectClarificationOption}
+          onApproveStep={onApproveStep}
+          onRejectStep={onRejectStep}
+          resolvingStepId={resolvingStepId}
         />
       ))}
       {isThinking && (

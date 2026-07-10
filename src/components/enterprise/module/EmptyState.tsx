@@ -35,13 +35,13 @@ export function ModuleEmptyState({
       )}
     >
       {icon && (
-        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800/60 border border-slate-700/50 text-slate-500">
+        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface/60 border border-border text-muted-foreground">
           {icon}
         </div>
       )}
-      <h3 className="text-lg font-semibold text-white">{title}</h3>
+      <h3 className="text-lg font-semibold text-foreground">{title}</h3>
       {description && (
-        <p className="mt-2 max-w-sm text-sm text-slate-400">{description}</p>
+        <p className="mt-2 max-w-sm text-sm text-muted-foreground">{description}</p>
       )}
       {(action || secondaryAction) && (
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">

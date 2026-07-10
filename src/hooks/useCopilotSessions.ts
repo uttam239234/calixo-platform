@@ -9,44 +9,38 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { sessionManager } from "@/core/copilot";
 import type { Session } from "@/core/copilot";
-import { DEMO_USER_ID, DEMO_WORKSPACE_ID } from "@/components/copilot/constants";
 
-export function useCopilotSessions() {
+export function useCopilotSessions(workspaceId: string, userId: string) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [deletedSessions, setDeletedSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
-    setSessions(sessionManager.list({ workspaceId: DEMO_WORKSPACE_ID, userId: DEMO_USER_ID, includeArchived: true }));
-    setDeletedSessions(
-      sessionManager
-        .list({ workspaceId: DEMO_WORKSPACE_ID, userId: DEMO_USER_ID, includeArchived: true, includeDeleted: true })
-        .filter(s => s.deleted)
-    );
-  }, []);
+    setSessions(sessionManager.list({ workspaceId, userId, includeArchived: true }));
+    setDeletedSessions(sessionManager.list({ workspaceId, userId, includeArchived: true, includeDeleted: true }).filter(s => s.deleted));
+  }, [workspaceId, userId]);
 
   useEffect(() => {
     (async () => {
-      const existing = sessionManager.list({ workspaceId: DEMO_WORKSPACE_ID, userId: DEMO_USER_ID });
+      const existing = sessionManager.list({ workspaceId, userId });
       if (existing.length === 0) {
-        const created = sessionManager.create({ workspaceId: DEMO_WORKSPACE_ID, userId: DEMO_USER_ID, title: "New Conversation" });
+        const created = sessionManager.create({ workspaceId, userId, title: "New Conversation" });
         setCurrentSessionId(created.id);
       } else {
         setCurrentSessionId(existing[0].id);
       }
       refresh();
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [workspaceId, userId, refresh]);
 
   const createSession = useCallback(
     (title?: string) => {
-      const created = sessionManager.create({ workspaceId: DEMO_WORKSPACE_ID, userId: DEMO_USER_ID, title });
+      const created = sessionManager.create({ workspaceId, userId, title });
       refresh();
       setCurrentSessionId(created.id);
       return created;
     },
-    [refresh]
+    [workspaceId, userId, refresh]
   );
 
   const selectSession = useCallback((id: string) => {
@@ -105,18 +99,18 @@ export function useCopilotSessions() {
   const deleteSession = useCallback(
     (id: string) => {
       sessionManager.delete(id);
-      const remaining = sessionManager.list({ workspaceId: DEMO_WORKSPACE_ID, userId: DEMO_USER_ID });
+      const remaining = sessionManager.list({ workspaceId, userId });
       if (currentSessionId === id) {
         if (remaining.length > 0) {
           setCurrentSessionId(remaining[0].id);
         } else {
-          const created = sessionManager.create({ workspaceId: DEMO_WORKSPACE_ID, userId: DEMO_USER_ID, title: "New Conversation" });
+          const created = sessionManager.create({ workspaceId, userId, title: "New Conversation" });
           setCurrentSessionId(created.id);
         }
       }
       refresh();
     },
-    [currentSessionId, refresh]
+    [workspaceId, userId, currentSessionId, refresh]
   );
 
   const pinned = useMemo(() => sessions.filter(s => s.pinned && !s.archived), [sessions]);

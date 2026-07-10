@@ -37,6 +37,41 @@ export const AssetEngine = {
   // History
   getHistory(): { type: string; assetId: string; timestamp: string; action: string }[] { return versions.slice(0,100).map(v => ({ type: "version", assetId: v.assetId, timestamp: v.createdAt, action: `Created version ${v.version}` })); },
 
+  // Create (generation modules saving an AI-generated output — e.g. Content Studio)
+  saveGeneratedAsset(input: { name: string; type: AssetType; workspace: string; createdBy: string; fileUrl?: string; preview?: string; brand?: string; campaign?: string; tags?: string[]; metadata?: Record<string, unknown> }): AssetEntry {
+    const now = new Date().toISOString();
+    const entry: AssetEntry = {
+      id: `asset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      type: input.type,
+      name: input.name,
+      description: "",
+      workspace: input.workspace,
+      brand: input.brand,
+      campaign: input.campaign,
+      owner: input.createdBy,
+      createdBy: input.createdBy,
+      updatedBy: input.createdBy,
+      createdAt: now,
+      updatedAt: now,
+      tags: input.tags ?? [],
+      categories: [],
+      collectionIds: [],
+      currentVersion: 1,
+      approvalStatus: "draft",
+      permissions: [{ userId: input.createdBy, role: "owner" }],
+      metadata: input.metadata ?? {},
+      preview: input.preview,
+      thumbnail: input.preview,
+      sourceProvider: "content-studio",
+      aiHistory: [],
+      mimeType: input.type === "image" ? "image/png" : "text/plain",
+      fileSize: 0,
+      fileUrl: input.fileUrl,
+    };
+    assets.set(entry.id, entry);
+    return clone(entry);
+  },
+
   // Export
   export(format: string): string {
     switch (format) {

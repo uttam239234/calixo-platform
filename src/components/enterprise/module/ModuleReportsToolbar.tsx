@@ -55,7 +55,7 @@ export function ModuleReportsToolbar({
           size="sm"
           variant="outline"
           onClick={rt.onClick}
-          className="h-9 gap-1.5 border-slate-700 bg-slate-900/70 text-slate-300 hover:bg-slate-800"
+          className="h-9 gap-1.5 border-border bg-surface/70 text-foreground hover:bg-surface"
         >
           {rt.icon ?? <FileText size={14} />}
           {rt.label}
@@ -68,7 +68,7 @@ export function ModuleReportsToolbar({
           size="sm"
           variant="outline"
           onClick={onExport}
-          className="h-9 gap-1.5 border-slate-700 bg-slate-900/70 text-slate-300 hover:bg-slate-800"
+          className="h-9 gap-1.5 border-border bg-surface/70 text-foreground hover:bg-surface"
         >
           <Download size={14} />
           Export
@@ -81,7 +81,7 @@ export function ModuleReportsToolbar({
           size="sm"
           variant="ghost"
           onClick={onRefresh}
-          className="h-9 gap-1.5 text-slate-400 hover:text-slate-200"
+          className="h-9 gap-1.5 text-muted-foreground hover:text-foreground"
         >
           <RefreshCw size={14} />
           Refresh

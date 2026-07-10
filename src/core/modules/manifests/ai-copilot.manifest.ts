@@ -29,9 +29,9 @@ export const aiCopilotManifest: ModuleManifest = defineModule({
     },
   ],
   permissions: [
-    { name: "ai-copilot.view", description: "View AI Copilot", action: "view", resource: "ai-copilot" },
-    { name: "ai-copilot.use", description: "Use AI Copilot features", action: "use", resource: "ai-copilot" },
-    { name: "ai-copilot.manage", description: "Manage AI Copilot settings", action: "manage", resource: "ai-copilot" },
+    { name: "ai-copilot.view", description: "View AI Copilot", action: "view", resource: "ai" },
+    { name: "ai-copilot.use", description: "Use AI Copilot features", action: "use", resource: "ai" },
+    { name: "ai-copilot.manage", description: "Manage AI Copilot settings", action: "manage", resource: "ai" },
   ],
   reports: [
     { id: "ai-usage", name: "AI Usage Report", description: "AI feature usage analytics", format: "PDF", type: "scheduled" },

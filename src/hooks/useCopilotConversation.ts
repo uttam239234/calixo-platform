@@ -2,23 +2,24 @@
 
 /**
  * Calixo AI Copilot Workspace - conversation state.
- * Orchestrates ConversationEngine (message history) and PlannerEngine
- * (understand/clarify/plan/tool-selection/validate/response) — it holds
+ * Orchestrates ConversationEngine (message history) and `copilotPlatformAPI.sendMessage`
+ * (plan -> auto-run reads -> compose a real response -> hold writes for approval) — it holds
  * no business logic of its own, only the glue between the two.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { conversationEngine, plannerEngine } from "@/core/copilot";
-import type { ConversationMessage, ExecutionPlan, PlannerResult } from "@/core/copilot";
-import type { CopilotMessageView, MessageReaction } from "@/components/copilot/types";
+import { conversationEngine, copilotPlatformAPI } from "@/core/copilot";
+import type { ConversationMessage, ExecutionPlan, ExecutionStep, SendMessageOutcome } from "@/core/copilot";
+import type { CopilotAttachment, CopilotMessageView, MessageReaction } from "@/components/copilot/types";
 
 export function useCopilotConversation(sessionId: string | null, conversationId: string | null) {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
-  const [lastResult, setLastResult] = useState<PlannerResult | null>(null);
+  const [lastResult, setLastResult] = useState<SendMessageOutcome | null>(null);
   const [reactions, setReactions] = useState<Record<string, MessageReaction>>({});
   const [plansByMessageId, setPlansByMessageId] = useState<Record<string, ExecutionPlan>>({});
   const [promptByAssistantId, setPromptByAssistantId] = useState<Record<string, string>>({});
+  const [approvalStepsByMessageId, setApprovalStepsByMessageId] = useState<Record<string, ExecutionStep[]>>({});
 
   const refresh = useCallback(() => {
     setMessages(conversationId ? conversationEngine.getMessages(conversationId) : []);
@@ -31,10 +32,10 @@ export function useCopilotConversation(sessionId: string | null, conversationId:
     })();
   }, [refresh]);
 
-  const runPlanner = useCallback(
-    async (request: string): Promise<PlannerResult> => {
+  const runPipeline = useCallback(
+    async (request: string): Promise<SendMessageOutcome> => {
       if (!sessionId) throw new Error("No active session");
-      const result = await plannerEngine.run({ sessionId, request });
+      const result = await copilotPlatformAPI.sendMessage(sessionId, request);
       setLastResult(result);
       return result;
     },
@@ -42,10 +43,17 @@ export function useCopilotConversation(sessionId: string | null, conversationId:
   );
 
   const appendAssistantReply = useCallback(
-    (convId: string, result: PlannerResult, promptMessageId: string) => {
-      const assistantMsg = conversationEngine.addMessage(convId, { role: "assistant", content: result.responseText });
-      if (result.clarificationsNeeded.length === 0) {
+    (convId: string, result: SendMessageOutcome, promptMessageId: string) => {
+      const assistantMsg = conversationEngine.addMessage(convId, {
+        role: "assistant",
+        content: result.responseText,
+        metadata: { agentId: result.agentId, citation: result.citation, clarificationOptions: result.clarificationOptions },
+      });
+      if (!result.awaitingClarification) {
         setPlansByMessageId(prev => ({ ...prev, [assistantMsg.id]: result.plan }));
+      }
+      if (result.pendingApprovalSteps.length > 0) {
+        setApprovalStepsByMessageId(prev => ({ ...prev, [assistantMsg.id]: result.pendingApprovalSteps }));
       }
       setPromptByAssistantId(prev => ({ ...prev, [assistantMsg.id]: promptMessageId }));
       refresh();
@@ -55,25 +63,29 @@ export function useCopilotConversation(sessionId: string | null, conversationId:
   );
 
   const sendMessage = useCallback(
-    async (text: string): Promise<PlannerResult | null> => {
+    async (text: string, attachments: CopilotAttachment[] = []): Promise<SendMessageOutcome | null> => {
       const trimmed = text.trim();
       if (!conversationId || !trimmed) return null;
-      const userMsg = conversationEngine.addMessage(conversationId, { role: "user", content: trimmed });
+      const userMsg = conversationEngine.addMessage(conversationId, {
+        role: "user",
+        content: trimmed,
+        metadata: attachments.length > 0 ? { attachments } : undefined,
+      });
       refresh();
       setIsThinking(true);
       try {
-        const result = await runPlanner(trimmed);
+        const result = await runPipeline(trimmed);
         appendAssistantReply(conversationId, result, userMsg.id);
         return result;
       } finally {
         setIsThinking(false);
       }
     },
-    [conversationId, refresh, runPlanner, appendAssistantReply]
+    [conversationId, refresh, runPipeline, appendAssistantReply]
   );
 
   const regenerate = useCallback(
-    async (assistantMessageId: string): Promise<PlannerResult | null> => {
+    async (assistantMessageId: string): Promise<SendMessageOutcome | null> => {
       if (!conversationId) return null;
       const promptMessageId = promptByAssistantId[assistantMessageId];
       const promptMessage = messages.find(m => m.id === promptMessageId);
@@ -90,17 +102,40 @@ export function useCopilotConversation(sessionId: string | null, conversationId:
         delete next[assistantMessageId];
         return next;
       });
+      setApprovalStepsByMessageId(prev => {
+        const next = { ...prev };
+        delete next[assistantMessageId];
+        return next;
+      });
       refresh();
       setIsThinking(true);
       try {
-        const result = await runPlanner(promptMessage.content);
+        const result = await runPipeline(promptMessage.content);
         appendAssistantReply(conversationId, result, promptMessage.id);
         return result;
       } finally {
         setIsThinking(false);
       }
     },
-    [conversationId, messages, promptByAssistantId, refresh, runPlanner, appendAssistantReply]
+    [conversationId, messages, promptByAssistantId, refresh, runPipeline, appendAssistantReply]
+  );
+
+  /** Removes a resolved step from its pending-approval card and appends the real outcome (from `approveStep`/`rejectStep`) as a follow-up assistant message. */
+  const finalizeApprovalStep = useCallback(
+    (assistantMessageId: string, stepId: string, responseText: string) => {
+      setApprovalStepsByMessageId(prev => {
+        const remaining = (prev[assistantMessageId] ?? []).filter(s => s.id !== stepId);
+        const next = { ...prev };
+        if (remaining.length > 0) next[assistantMessageId] = remaining;
+        else delete next[assistantMessageId];
+        return next;
+      });
+      if (conversationId) {
+        conversationEngine.addMessage(conversationId, { role: "assistant", content: responseText });
+        refresh();
+      }
+    },
+    [conversationId, refresh]
   );
 
   const setReaction = useCallback((messageId: string, reaction: Exclude<MessageReaction, null>) => {
@@ -114,9 +149,11 @@ export function useCopilotConversation(sessionId: string | null, conversationId:
         reaction: reactions[m.id] ?? null,
         plan: plansByMessageId[m.id],
         promptMessageId: promptByAssistantId[m.id],
+        pendingApprovalSteps: approvalStepsByMessageId[m.id],
+        attachments: (m.metadata as { attachments?: CopilotAttachment[] } | undefined)?.attachments,
       })),
-    [messages, reactions, plansByMessageId, promptByAssistantId]
+    [messages, reactions, plansByMessageId, promptByAssistantId, approvalStepsByMessageId]
   );
 
-  return { messages: views, isThinking, lastResult, sendMessage, regenerate, setReaction };
+  return { messages: views, isThinking, lastResult, sendMessage, regenerate, setReaction, finalizeApprovalStep };
 }

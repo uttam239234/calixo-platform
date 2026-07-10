@@ -9,9 +9,26 @@
  * report) — this phase adds the facade without touching Media's internals.
  */
 import { BrandKitEngine } from "../BrandKitEngine";
-import type { BrandSummary } from "./contracts";
+import type { BrandStyleProfile, BrandSummary } from "./contracts";
 
 export class BrandPlatformAPI {
+  /** Colors/voice/logo for generation modules (Content Studio's "brand style" auto-fill) — not part of `BrandSummary`. */
+  getBrandStyleProfile(id: string): BrandStyleProfile | undefined {
+    const kit = BrandKitEngine.getBrand(id);
+    if (!kit) return undefined;
+    return {
+      id: kit.id,
+      brandName: kit.profile.brandName,
+      colors: [kit.colors.primary.hex, kit.colors.secondary.hex, kit.colors.accent.hex].filter(Boolean),
+      voiceTone: kit.voice.tone,
+      writingStyle: kit.voice.writingStyle,
+      preferredCTA: kit.voice.ctaStyle,
+      forbiddenWords: [...kit.voice.forbiddenWords],
+      preferredWords: [...kit.voice.preferredVocabulary],
+      logoUrl: kit.logos.primary,
+    };
+  }
+
   getBrandSummary(id: string): BrandSummary | undefined {
     const kit = BrandKitEngine.getBrand(id);
     if (!kit) return undefined;

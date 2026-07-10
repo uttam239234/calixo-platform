@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCopilotSessions } from "@/hooks/useCopilotSessions";
 import { useCopilotConversation } from "@/hooks/useCopilotConversation";
 import { useWorkspaceContext } from "@/hooks/useWorkspaceContext";
@@ -11,31 +10,37 @@ import {
   CopilotChatHeader,
   CopilotMessageList,
   CopilotComposer,
-  CopilotContextPanel,
-  CopilotExecutionPanel,
-  CopilotPlanPipeline,
-  CopilotSuggestedPrompts,
+  CopilotContextDrawer,
+  CopilotPowerUserDrawer,
   buildPipelineStages,
-  type CopilotModuleId,
+  classifyAttachment,
+  type CopilotAttachment,
 } from "@/components/copilot";
-import { initializeCopilotFoundation } from "@/core/copilot";
+import { useCopilot } from "@/features/copilot/CopilotProvider";
 import { DEFAULT_MODEL_CONFIG } from "@/aios/types";
-
-// Registers the built-in Skills and Tools once per browser session. Safe
-// to call repeatedly — the foundation guards against double-registration.
-initializeCopilotFoundation();
+import type { ClarificationOption, ExecutionStep } from "@/core/copilot";
 
 export default function CopilotPage() {
-  const sessions = useCopilotSessions();
+  const { tenantContext, mode, toggleMode, canExecute, recordMessageOutcome, approveStep, rejectStep, showToast } = useCopilot();
+  const sessions = useCopilotSessions(tenantContext.workspaceId, tenantContext.userId);
   const conversation = useCopilotConversation(sessions.currentSessionId, sessions.currentSession?.conversationId ?? null);
   const workspaceContext = useWorkspaceContext(sessions.currentSessionId);
   const execution = useCopilotExecution();
 
   const [input, setInput] = useState("");
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<CopilotAttachment[]>([]);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [resolvingStepId, setResolvingStepId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => setInput((e as CustomEvent<string>).detail);
+    window.addEventListener("copilot-command-palette:insert-prompt", handler);
+    return () => window.removeEventListener("copilot-command-palette:insert-prompt", handler);
+  }, []);
 
   const lastResult = conversation.lastResult;
-  const currentPlan = lastResult && lastResult.clarificationsNeeded.length === 0 ? lastResult.plan : undefined;
+  const currentPlan = lastResult && !lastResult.awaitingClarification ? lastResult.plan : undefined;
   const tasks = useMemo(() => (currentPlan ? execution.getTasks(currentPlan.id) : []), [currentPlan, execution]);
   const isRunningCurrent = currentPlan ? execution.runningPlanId === currentPlan.id : false;
 
@@ -57,13 +62,36 @@ export default function CopilotPage() {
     [lastResult, executionStageStatus, executionProgress]
   );
 
+  const handleAttach = useCallback((files: FileList) => {
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result !== "string") return;
+        setAttachments(prev => [...prev, { id: `${file.name}-${Date.now()}-${prev.length}`, name: file.name, kind: classifyAttachment(file), dataUrl: reader.result as string }]);
+      };
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const handleRemoveAttachment = useCallback((id: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  }, []);
+
   const handleSend = useCallback(async () => {
     const text = input;
     if (!text.trim()) return;
+    if (!canExecute) {
+      showToast("You don't have permission to run AI actions.");
+      return;
+    }
     setInput("");
-    await conversation.sendMessage(text);
+    const sentAttachments = attachments;
+    setAttachments([]);
+    const startedAt = Date.now();
+    const result = await conversation.sendMessage(text, sentAttachments);
+    if (result) recordMessageOutcome(text, result, Date.now() - startedAt);
     await workspaceContext.pushRecentChat(text.slice(0, 60));
-  }, [input, conversation, workspaceContext]);
+  }, [input, attachments, canExecute, conversation, workspaceContext, recordMessageOutcome, showToast]);
 
   const handleRegenerate = useCallback(
     async (messageId: string) => {
@@ -80,6 +108,30 @@ export default function CopilotPage() {
   const handleRunPlan = useCallback(() => {
     if (currentPlan) execution.runPlan(currentPlan);
   }, [currentPlan, execution]);
+
+  const handleSuggestedAction = useCallback((label: string) => setInput(label), []);
+  const handleSelectClarificationOption = useCallback((option: ClarificationOption) => setInput(option.label), []);
+
+  const handleApproveStep = useCallback(
+    async (messageId: string, step: ExecutionStep) => {
+      setResolvingStepId(step.id);
+      try {
+        const outcome = await approveStep(step);
+        conversation.finalizeApprovalStep(messageId, step.id, outcome?.responseText ?? "Something went wrong approving that.");
+      } finally {
+        setResolvingStepId(null);
+      }
+    },
+    [approveStep, conversation]
+  );
+
+  const handleRejectStep = useCallback(
+    (messageId: string, step: ExecutionStep) => {
+      const outcome = rejectStep(step);
+      conversation.finalizeApprovalStep(messageId, step.id, outcome?.responseText ?? "Okay, cancelled.");
+    },
+    [rejectStep, conversation]
+  );
 
   return (
     <div className="flex h-[calc(100vh-7rem)] gap-4">
@@ -101,7 +153,14 @@ export default function CopilotPage() {
       />
 
       <div className="flex min-w-0 flex-1 flex-col rounded-3xl border border-border bg-card">
-        <CopilotChatHeader session={sessions.currentSession} model={DEFAULT_MODEL_CONFIG.model} />
+        <CopilotChatHeader
+          session={sessions.currentSession}
+          model={DEFAULT_MODEL_CONFIG.model}
+          mode={mode}
+          onToggleMode={toggleMode}
+          onOpenContext={() => setContextOpen(true)}
+          onOpenSearch={() => window.dispatchEvent(new Event("copilot-command-palette:toggle"))}
+        />
         <CopilotMessageList
           messages={conversation.messages}
           isThinking={conversation.isThinking}
@@ -109,43 +168,30 @@ export default function CopilotPage() {
           onRegenerate={handleRegenerate}
           onReact={conversation.setReaction}
           onEditPrompt={setInput}
+          onSuggestedAction={handleSuggestedAction}
+          onSelectClarificationOption={handleSelectClarificationOption}
+          onApproveStep={handleApproveStep}
+          onRejectStep={handleRejectStep}
+          resolvingStepId={resolvingStepId}
+          onSelectStarterPrompt={setInput}
         />
-        <CopilotComposer value={input} onChange={setInput} onSend={handleSend} disabled={conversation.isThinking} />
+        <CopilotComposer
+          value={input}
+          onChange={setInput}
+          onSend={handleSend}
+          disabled={conversation.isThinking || !canExecute}
+          disabledReason={!canExecute ? "You don't have permission to run AI actions." : undefined}
+          attachments={attachments}
+          onAttach={handleAttach}
+          onRemoveAttachment={handleRemoveAttachment}
+        />
       </div>
 
-      <div className="scrollbar-thin w-[300px] flex-shrink-0 space-y-4 overflow-y-auto pb-2 pr-0.5">
-        <Card>
-          <CardHeader title="Workspace Context" description="Read & saved via MemoryEngine" />
-          <CardContent>
-            <CopilotContextPanel context={workspaceContext.context} saving={workspaceContext.saving} onSave={workspaceContext.save} />
-          </CardContent>
-        </Card>
+      {mode === "power-user" && (
+        <CopilotPowerUserDrawer tasks={tasks} hasPlan={!!currentPlan} isRunning={isRunningCurrent} onRun={handleRunPlan} pipelineStages={pipelineStages} />
+      )}
 
-        <Card>
-          <CardHeader title="Execution" description="Live task states from ExecutionEngine" />
-          <CardContent>
-            <CopilotExecutionPanel tasks={tasks} hasPlan={!!currentPlan} isRunning={isRunningCurrent} onRun={handleRunPlan} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader title="Execution Plan" description="Planner pipeline" />
-          <CardContent>
-            <CopilotPlanPipeline stages={pipelineStages} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader title="Suggested Prompts" description="Context-aware by module" />
-          <CardContent>
-            <CopilotSuggestedPrompts
-              currentModule={workspaceContext.context.currentModule}
-              onSelectModule={(id: CopilotModuleId) => workspaceContext.setCurrentModule(id)}
-              onSelectPrompt={setInput}
-            />
-          </CardContent>
-        </Card>
-      </div>
+      <CopilotContextDrawer open={contextOpen} onClose={() => setContextOpen(false)} context={workspaceContext.context} saving={workspaceContext.saving} onSave={workspaceContext.save} />
     </div>
   );
 }

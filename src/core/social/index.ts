@@ -32,6 +32,8 @@ export { logSocialEvent, logSocialError, trackSocialAction, trackSocialTiming } 
 export { registerSocialUsageTypes, canUseSocialFeature, recordSocialUsage, getSocialUsageTotal, SOCIAL_USAGE_TYPES } from "./commercial/SocialUsageAdapter";
 export type { SocialUsageTenantContext } from "./commercial/SocialUsageAdapter";
 
+export { registerSocialSkills } from "./skills/registerSocialSkills";
+
 import { registerSocialAutomationWiring } from "./automation/SocialAutomationAdapter";
 import { registerSocialReports } from "./reports/registerSocialReports";
 import { registerSocialUsageTypes } from "./commercial/SocialUsageAdapter";

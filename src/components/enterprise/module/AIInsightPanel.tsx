@@ -33,27 +33,27 @@ const typeConfig: Record<
 > = {
   insight: {
     icon: <Lightbulb size={16} />,
-    color: "text-cyan-400",
-    bg: "bg-cyan-500/10",
-    border: "border-cyan-500/20",
+    color: "text-primary",
+    bg: "bg-primary/10",
+    border: "border-primary/20",
   },
   alert: {
     icon: <AlertTriangle size={16} />,
-    color: "text-amber-400",
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/20",
+    color: "text-warning",
+    bg: "bg-warning/10",
+    border: "border-warning/20",
   },
   recommendation: {
     icon: <Sparkles size={16} />,
-    color: "text-purple-400",
-    bg: "bg-purple-500/10",
-    border: "border-purple-500/20",
+    color: "text-ai",
+    bg: "bg-ai/10",
+    border: "border-ai/20",
   },
   trend: {
     icon: <TrendingUp size={16} />,
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/20",
+    color: "text-success",
+    bg: "bg-success/10",
+    border: "border-success/20",
   },
 };
 
@@ -71,8 +71,8 @@ function InsightCard({
       className={cn(
         "rounded-xl border p-3.5 transition-all cursor-pointer",
         config.border,
-        "bg-slate-800/30 hover:bg-slate-800/50",
-        "hover:border-slate-600/60"
+        "bg-surface/30 hover:bg-surface/50",
+        "hover:border-border"
       )}
       onClick={() => onClick?.(insight)}
     >
@@ -88,7 +88,7 @@ function InsightCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-white">
+            <span className="text-xs font-semibold text-foreground">
               {insight.title}
             </span>
             {insight.priority && (
@@ -96,26 +96,26 @@ function InsightCard({
                 className={cn(
                   "text-[10px] font-bold uppercase px-1.5 py-0.5 rounded",
                   insight.priority === "high"
-                    ? "bg-red-500/10 text-red-400"
+                    ? "bg-destructive/10 text-destructive"
                     : insight.priority === "medium"
-                      ? "bg-amber-500/10 text-amber-400"
-                      : "bg-slate-500/10 text-slate-400"
+                      ? "bg-warning/10 text-warning"
+                      : "bg-muted text-muted-foreground"
                 )}
               >
                 {insight.priority}
               </span>
             )}
             {insight.confidence !== undefined && (
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[10px] text-muted-foreground">
                 {insight.confidence}% confidence
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-400 mt-1 leading-relaxed line-clamp-3">
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-3">
             {insight.content}
           </p>
           {insight.timestamp && (
-            <p className="text-[10px] text-slate-500 mt-1.5">
+            <p className="text-[10px] text-muted-foreground mt-1.5">
               {insight.timestamp}
             </p>
           )}
@@ -151,7 +151,7 @@ export function AIInsightPanel({
                 variant="ghost"
                 size="sm"
                 onClick={onViewAll}
-                className="text-xs text-cyan-400 hover:text-cyan-300 h-8"
+                className="text-xs text-primary hover:text-primary/80 h-8"
               >
                 View all
                 <ChevronRight size={14} />
@@ -165,21 +165,21 @@ export function AIInsightPanel({
               {Array.from({ length: 3 }).map((_, i) => (
                 <div
                   key={i}
-                  className="rounded-xl border border-slate-700/50 bg-slate-800/20 p-3.5"
+                  className="rounded-xl border border-border bg-surface/20 p-3.5"
                 >
                   <div className="flex items-start gap-2.5">
-                    <div className="h-7 w-7 rounded-lg bg-slate-700/50 animate-pulse" />
+                    <div className="h-7 w-7 rounded-lg bg-surface animate-pulse" />
                     <div className="flex-1 space-y-2">
-                      <div className="h-3.5 w-36 rounded bg-slate-700/50 animate-pulse" />
-                      <div className="h-3 w-full rounded bg-slate-700/50 animate-pulse" />
-                      <div className="h-3 w-3/4 rounded bg-slate-700/50 animate-pulse" />
+                      <div className="h-3.5 w-36 rounded bg-surface animate-pulse" />
+                      <div className="h-3 w-full rounded bg-surface animate-pulse" />
+                      <div className="h-3 w-3/4 rounded bg-surface animate-pulse" />
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : insights.length === 0 ? (
-            <p className="text-sm text-slate-500 text-center py-6">
+            <p className="text-sm text-muted-foreground text-center py-6">
               No insights available
             </p>
           ) : (

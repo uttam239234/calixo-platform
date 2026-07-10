@@ -45,9 +45,9 @@ export function ModuleSettingsLayout({
       >
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-lg font-bold text-white">{title}</h2>
+            <h2 className="text-lg font-bold text-foreground">{title}</h2>
             {description && (
-              <p className="text-sm text-slate-400">{description}</p>
+              <p className="text-sm text-muted-foreground">{description}</p>
             )}
           </div>
           {onSave && (

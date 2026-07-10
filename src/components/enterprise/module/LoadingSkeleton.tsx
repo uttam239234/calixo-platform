@@ -24,14 +24,14 @@ export function ModuleLoadingSkeleton({
           <Skeleton className="h-10 w-24 rounded-xl" />
           <Skeleton className="h-10 w-24 rounded-xl" />
         </div>
-        <div className="rounded-xl border border-slate-800/60 bg-slate-900/40 p-4 space-y-3">
+        <div className="rounded-xl border border-border bg-surface/40 p-4 space-y-3">
           <div className="flex gap-4">
             {Array.from({ length: columns }).map((_, i) => (
               <Skeleton key={i} className="h-4 flex-1" />
             ))}
           </div>
           {Array.from({ length: rows }).map((_, i) => (
-            <div key={i} className="flex gap-4 pt-3 border-t border-slate-800/40">
+            <div key={i} className="flex gap-4 pt-3 border-t border-border/70">
               {Array.from({ length: columns }).map((_, j) => (
                 <Skeleton key={j} className="h-4 flex-1" />
               ))}
@@ -73,7 +73,7 @@ export function ModuleLoadingSkeleton({
       <div className={cn("space-y-6", className)}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-slate-800/60 bg-slate-900/40 p-4 space-y-3">
+            <div key={i} className="rounded-xl border border-border bg-surface/40 p-4 space-y-3">
               <div className="flex items-start justify-between">
                 <Skeleton className="h-9 w-9 rounded-xl" />
                 <Skeleton className="h-5 w-14 rounded-full" />
@@ -84,14 +84,14 @@ export function ModuleLoadingSkeleton({
           ))}
         </div>
         <div className="grid gap-6 xl:grid-cols-3">
-          <div className="xl:col-span-2 rounded-xl border border-slate-800/60 bg-slate-900/40 p-6 space-y-4">
+          <div className="xl:col-span-2 rounded-xl border border-border bg-surface/40 p-6 space-y-4">
             <div className="flex items-center justify-between">
               <Skeleton className="h-5 w-40" />
               <Skeleton className="h-4 w-24" />
             </div>
             <Skeleton className="h-64 w-full rounded-xl" />
           </div>
-          <div className="rounded-xl border border-slate-800/60 bg-slate-900/40 p-6 space-y-4">
+          <div className="rounded-xl border border-border bg-surface/40 p-6 space-y-4">
             <Skeleton className="h-5 w-40" />
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3">
@@ -122,7 +122,7 @@ export function ModuleLoadingSkeleton({
       {Array.from({ length: rows * columns }).map((_, i) => (
         <div
           key={i}
-          className="rounded-xl border border-slate-800/60 bg-slate-900/40 p-5 space-y-3"
+          className="rounded-xl border border-border bg-surface/40 p-5 space-y-3"
         >
           <Skeleton className="h-5 w-36" />
           <Skeleton className="h-8 w-24" />

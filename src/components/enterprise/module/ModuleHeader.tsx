@@ -44,17 +44,17 @@ export function ModuleHeader({
     >
       {/* Breadcrumbs */}
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav className="flex items-center gap-1.5 mb-2 text-xs text-slate-500">
+        <nav className="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
           {breadcrumbs.map((crumb, i) => (
             <span key={i} className="flex items-center gap-1.5">
-              {i > 0 && <span className="text-slate-600">/</span>}
+              {i > 0 && <span className="text-muted-foreground">/</span>}
               {crumb.href || crumb.onClick ? (
                 <button
                   onClick={() => {
                     if (crumb.onClick) crumb.onClick();
                     else if (crumb.href) window.location.href = crumb.href;
                   }}
-                  className="hover:text-slate-300 transition-colors"
+                  className="hover:text-foreground transition-colors"
                 >
                   {crumb.label}
                 </button>
@@ -70,8 +70,8 @@ export function ModuleHeader({
         <div className="min-w-0">
           {/* Subtitle badge */}
           {workspace && (
-            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_12px_#67e8f9]" />
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_12px_var(--primary)]" />
               {workspace}
             </div>
           )}
@@ -79,31 +79,31 @@ export function ModuleHeader({
           {/* Title row */}
           <div className="flex items-center gap-3">
             {icon && (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex-shrink-0">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 border border-primary/30 flex-shrink-0">
                 {icon}
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl truncate">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl truncate">
                 {title}
               </h1>
               {description && (
-                <p className="mt-1 text-sm text-slate-400">{description}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{description}</p>
               )}
             </div>
           </div>
 
           {/* Metadata row */}
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             {organization && (
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-600" />
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground" />
                 {organization}
               </span>
             )}
             {lastUpdated && (
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-600" />
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground" />
                 Updated: {lastUpdated}
               </span>
             )}
