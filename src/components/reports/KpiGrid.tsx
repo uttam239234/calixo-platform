@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MetricFormat, ReportDataset, ReportDefinition } from "@/core/reports";
-import type { KpiCardView, KpiStatus } from "./types";
+import type { KpiCardView } from "./types";
 
 interface KpiGridProps {
   report: ReportDefinition | null;
@@ -24,8 +24,9 @@ function formatMetricValue(value: number, format: MetricFormat): string {
   }
 }
 
-function buildKpiViews(report: ReportDefinition, dataset?: ReportDataset): KpiCardView[] {
-  return report.metrics.map((metric, i) => {
+/** Real aggregation only — no fabricated trend/comparison. A single-snapshot aggregation has no real prior-period value to diff against, so unlike `dataset.summary` (a real facade's own change values), this path shows the value alone. */
+function buildFallbackKpiViews(report: ReportDefinition, dataset?: ReportDataset): KpiCardView[] {
+  return report.metrics.map(metric => {
     const values = (dataset?.rows ?? []).map(row => Number(row[metric.field]) || 0);
     let value = 0;
     if (values.length > 0) {
@@ -36,60 +37,37 @@ function buildKpiViews(report: ReportDefinition, dataset?: ReportDataset): KpiCa
       else if (metric.aggregation === "max") value = Math.max(...values);
       else value = total;
     }
-    const trend = ((i * 13 + 7) % 41) - 20;
-    const status: KpiStatus = trend > 5 ? "good" : trend < -5 ? "critical" : "neutral";
-    const sparkline = values.length > 0 ? values.slice(0, 8) : Array.from({ length: 8 }, (_, j) => ((i * 7 + j * 13) % 100) + 10);
-
-    return { metricId: metric.id, label: metric.name, value, formattedValue: formatMetricValue(value, metric.format), trend, status, sparkline };
+    return { metricId: metric.id, label: metric.name, formattedValue: formatMetricValue(value, metric.format) };
   });
 }
 
-const STATUS_DOT: Record<KpiStatus, string> = {
-  good: "success",
-  warning: "warning",
-  critical: "error",
-  neutral: "info",
-};
-
-function MiniSparkline({ values }: { values: number[] }) {
-  const max = Math.max(...values, 1);
-  return (
-    <div className="flex h-6 items-end gap-0.5" aria-hidden="true">
-      {values.map((v, i) => (
-        <div key={i} className="w-1 flex-1 rounded-t bg-primary/30" style={{ height: `${Math.max(8, (v / max) * 100)}%` }} />
-      ))}
-    </div>
-  );
-}
-
 function KpiCard({ kpi }: { kpi: KpiCardView }) {
-  const TrendIcon = kpi.trend > 0 ? ArrowUpRight : kpi.trend < 0 ? ArrowDownRight : Minus;
-  const trendClass = kpi.trend > 0 ? "text-success" : kpi.trend < 0 ? "text-destructive" : "text-muted-foreground";
+  const trendClass = kpi.tone === "positive" ? "text-success" : kpi.tone === "negative" ? "text-destructive" : "text-muted-foreground";
+  const TrendIcon = kpi.tone === "positive" ? ArrowUpRight : kpi.tone === "negative" ? ArrowDownRight : null;
 
   return (
     <div className="card p-4">
-      <div className="flex items-start justify-between">
-        <p className="text-xs font-medium text-muted-foreground">{kpi.label}</p>
-        <span className={cn("status-dot", STATUS_DOT[kpi.status])}>
-          <span className="ping" />
-          <span className="core" />
-        </span>
-      </div>
+      <p className="text-xs font-medium text-muted-foreground">{kpi.label}</p>
       <p className="mt-1.5 text-2xl font-bold tabular-nums text-foreground">{kpi.formattedValue}</p>
-      <div className="mt-1 flex items-center gap-1">
-        <TrendIcon size={12} className={trendClass} />
-        <span className={cn("text-xs font-medium", trendClass)}>{Math.abs(kpi.trend)}%</span>
-        <span className="text-xs text-muted-foreground">vs last period</span>
-      </div>
-      <div className="mt-2.5">
-        <MiniSparkline values={kpi.sparkline} />
-      </div>
+      {kpi.change ? (
+        <div className="mt-1 flex items-center gap-1">
+          {TrendIcon && <TrendIcon size={12} className={trendClass} />}
+          <span className={cn("text-xs font-medium", trendClass)}>{kpi.change}</span>
+        </div>
+      ) : (
+        <p className="mt-1 text-xs text-muted-foreground">No prior-period comparison available</p>
+      )}
     </div>
   );
 }
 
 export function KpiGrid({ report, dataset }: KpiGridProps) {
-  const kpis = useMemo(() => (report ? buildKpiViews(report, dataset) : []), [report, dataset]);
+  const kpis = useMemo<KpiCardView[]>(() => {
+    if (dataset?.summary && dataset.summary.length > 0) {
+      return dataset.summary.map(item => ({ metricId: item.id, label: item.label, formattedValue: item.value, change: item.change, tone: item.tone }));
+    }
+    return report ? buildFallbackKpiViews(report, dataset) : [];
+  }, [report, dataset]);
 
   if (!report) return null;
 

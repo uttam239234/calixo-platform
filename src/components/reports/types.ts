@@ -12,16 +12,13 @@ export type ReportsCenterMode = "view" | "build";
 
 export type RightPanelTab = "properties" | "filters" | "export" | "schedule" | "metadata";
 
-export type KpiStatus = "good" | "warning" | "critical" | "neutral";
-
 export interface KpiCardView {
   metricId: string;
   label: string;
-  value: number;
   formattedValue: string;
-  trend: number;
-  status: KpiStatus;
-  sparkline: number[];
+  /** Only present when a real facade supplied a genuine prior-period comparison (`ReportDataset.summary`) — never fabricated for a formula-generated fallback dataset. */
+  change?: string;
+  tone?: "positive" | "negative" | "neutral";
 }
 
 /** An execution record enriched with the (client-side only) user who triggered it — the platform's ReportExecutionRecord has no user field. */

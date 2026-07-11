@@ -8,11 +8,16 @@ export type InvitationStatus = "pending" | "accepted" | "rejected" | "expired" |
 
 export const INVITATION_STATUSES: InvitationStatus[] = ["pending", "accepted", "rejected", "expired", "cancelled"];
 
+import type { PeopleAccessLevel } from "./user";
+
 export interface Invitation {
   id: string;
   email: string;
+  organizationId: string;
   workspaceId: string;
   teamId?: string;
+  /** The single access-level choice from the brief's 4-step invite flow — see `PeopleAccessLevel` in `./user`. */
+  accessLevel: PeopleAccessLevel;
   roleIds: string[];
   invitedBy: string;
   status: InvitationStatus;

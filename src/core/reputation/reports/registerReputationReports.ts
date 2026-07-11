@@ -128,9 +128,9 @@ export function registerReputationReports(registry: ReportRegistry = reportRegis
   const crisisReport = buildCrisisReport();
   registerReports([executiveReport, sentimentReport, competitorReport, crisisReport], registry);
 
-  reportScheduler.create({ reportId: executiveReport.id, frequency: "weekly", recipients: [REPUTATION_OWNER], exportFormat: "pdf" });
-  reportScheduler.create({ reportId: sentimentReport.id, frequency: "weekly", recipients: [REPUTATION_OWNER], exportFormat: "excel" });
-  reportScheduler.create({ reportId: competitorReport.id, frequency: "monthly", recipients: [REPUTATION_OWNER], exportFormat: "pdf" });
+  reportScheduler.create({ reportId: executiveReport.id, frequency: "weekly", recipients: [{ type: "user", id: REPUTATION_OWNER, label: REPUTATION_OWNER }], exportFormat: "pdf" });
+  reportScheduler.create({ reportId: sentimentReport.id, frequency: "weekly", recipients: [{ type: "user", id: REPUTATION_OWNER, label: REPUTATION_OWNER }], exportFormat: "excel" });
+  reportScheduler.create({ reportId: competitorReport.id, frequency: "monthly", recipients: [{ type: "user", id: REPUTATION_OWNER, label: REPUTATION_OWNER }], exportFormat: "pdf" });
 
   registeredIds = { executiveReportId: executiveReport.id, sentimentReportId: sentimentReport.id, competitorReportId: competitorReport.id, crisisReportId: crisisReport.id };
   return registeredIds;

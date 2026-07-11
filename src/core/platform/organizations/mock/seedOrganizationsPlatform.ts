@@ -3,18 +3,23 @@ import { organizationEngine } from "../OrganizationEngine";
 import type { Organization } from "../types";
 
 /**
- * Seeds a handful of demo organizations by genuinely driving
- * `OrganizationEngine.create()`/`invite()`/`addMember()` (not hand-built
- * objects) — the same "mock generation doubles as a live demonstration
- * the engine works" precedent used by every other platform foundation
- * this session (Reports' `ReportBuilder`, Users' `InvitationEngine`).
- * Idempotent — safe to call from a hook's `refresh()` on every render,
- * same as `seedAnalyticsDashboards()`/`seedAnalyticsSegments()`. Not
- * auto-invoked on import.
+ * Seeds demo organizations by genuinely driving `OrganizationEngine.create()`/
+ * `addMember()` (not hand-built objects) — the same "mock generation doubles
+ * as a live demonstration the engine works" precedent used by every other
+ * platform foundation this session. Idempotent — safe to call from a hook's
+ * `refresh()` on every render. Not auto-invoked on import.
+ *
+ * Matches the Settings brief's own worked example exactly: one demo user
+ * (`user-current`, the same fallback id used app-wide when no real login
+ * session exists — see `TenantProviders.tsx`) belongs to 4 organizations
+ * with 4 different roles, so the Organization Profile switcher has a real,
+ * genuinely multi-org scenario to demonstrate out of the box.
  */
 export interface OrganizationsMockSeedResult {
   organizations: Organization[];
 }
+
+const CURRENT_USER_ID = "user-current";
 
 let seeded = false;
 
@@ -24,16 +29,37 @@ export function seedOrganizationsPlatformMockData(): OrganizationsMockSeedResult
   }
   seeded = true;
 
-  const acme = organizationEngine.create({ name: "Acme Marketing Group", ownerId: "user-1", tier: "enterprise" });
-  const north = organizationEngine.create({ name: "Northwind Digital", ownerId: "user-2", tier: "growth" });
-  const bright = organizationEngine.create({ name: "Brightline Studio", ownerId: "user-3", tier: "starter" });
+  const royalGlobal = organizationEngine.create({
+    name: "Royal Global University",
+    ownerId: CURRENT_USER_ID,
+    tier: "education",
+    profile: { email: "info@royalglobal.edu", website: "https://royalglobal.edu", industry: "Higher Education", companySize: "1,000-5,000" },
+  });
+  const calixoTech = organizationEngine.create({
+    name: "Calixo Technologies",
+    ownerId: CURRENT_USER_ID,
+    tier: "enterprise",
+    profile: { email: "hello@calixo.io", website: "https://calixo.io", industry: "Software", companySize: "51-200" },
+  });
+  const mitWpu = organizationEngine.create({
+    name: "MIT WPU",
+    ownerId: "user-2",
+    tier: "growth",
+    profile: { email: "contact@mitwpu.edu.in", website: "https://mitwpu.edu.in", industry: "Higher Education", companySize: "1,000-5,000" },
+  });
+  const agencyClientA = organizationEngine.create({
+    name: "Agency Client A",
+    ownerId: "user-3",
+    tier: "starter",
+    profile: { industry: "Marketing Agency", companySize: "11-50" },
+  });
 
-  organizationEngine.addMember(acme.id, "user-4", "admin");
-  organizationEngine.addMember(acme.id, "user-5", "member");
-  organizationEngine.invite(acme.id, "new.hire@acme-marketing.com", "member", "user-1");
+  // `user-current` is Owner of the two orgs it created above, plus a
+  // Consultant (mapped to "admin") at MIT WPU and a Viewer (mapped to
+  // "guest") at Agency Client A — the brief's own 4-organization,
+  // 4-different-roles example.
+  organizationEngine.addMember(mitWpu.id, CURRENT_USER_ID, "admin");
+  organizationEngine.addMember(agencyClientA.id, CURRENT_USER_ID, "guest");
 
-  organizationEngine.addMember(north.id, "user-6", "member");
-  organizationEngine.invite(north.id, "contractor@northwind.digital", "guest", "user-2");
-
-  return { organizations: [acme, north, bright] };
+  return { organizations: [royalGlobal, calixoTech, mitWpu, agencyClientA] };
 }

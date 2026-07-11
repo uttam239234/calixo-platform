@@ -6,10 +6,15 @@ import { brandMonitoringManifest } from "./brand.manifest";
 import { contentManifest } from "./content.manifest";
 import { aiCopilotManifest } from "./ai-copilot.manifest";
 import { reportsManifest } from "./reports.manifest";
-import { administrationManifest } from "./administration.manifest";
+import { settingsManifest } from "./settings.manifest";
 import { ModuleRegistry } from "../ModuleRegistry";
 import type { ModuleManifest } from "../ModuleManifest";
 
+/**
+ * Administration (Users & Teams, Roles & Permissions, Workspaces, Integrations,
+ * Billing & Plans, Audit Logs, API & Webhooks) no longer registers its own
+ * top-level nav — it lives entirely inside Settings' internal shell now.
+ */
 const allManifests: ModuleManifest[] = [
   dashboardManifest,
   analyticsManifest,
@@ -19,7 +24,7 @@ const allManifests: ModuleManifest[] = [
   contentManifest,
   aiCopilotManifest,
   reportsManifest,
-  administrationManifest,
+  settingsManifest,
 ];
 
 export { allManifests };

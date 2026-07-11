@@ -5,6 +5,7 @@
 import type { User, UserStatus } from "./user";
 
 export interface DirectorySearchParams {
+  organizationId?: string;
   keyword?: string;
   email?: string;
   department?: string;

@@ -15,7 +15,7 @@ import { memoryUserStorageProvider } from "../storage/UserStorageProvider";
 import { userValidationEngine, UserValidationEngine } from "../validation/UserValidationEngine";
 import { presenceEngine, PresenceEngine } from "../presence/PresenceEngine";
 import { activityEngine, ActivityEngine } from "../activity/ActivityEngine";
-import type { PresenceStatus, User, UserChangeRecord, UserSaveResult, UserStatus, UserStorageProvider } from "../types/index";
+import type { PeopleAccessLevel, PresenceStatus, User, UserChangeRecord, UserSaveResult, UserStatus, UserStorageProvider } from "../types/index";
 
 export class UserEngine {
   constructor(
@@ -67,9 +67,10 @@ export class UserEngine {
     userId: string,
     patch: Partial<Pick<User, "displayName" | "phone" | "avatar" | "title" | "department" | "timezone" | "locale" | "language" | "preferences">>
   ): UserSaveResult {
+    const organizationId = this.load(userId)?.organizationId;
     const result = this.save(userId, patch);
-    if (result.success) {
-      this.activity.record(userId, "profile-update", `Profile updated: ${Object.keys(patch).join(", ") || "no fields"}`);
+    if (result.success && organizationId) {
+      this.activity.record(userId, organizationId, "profile-update", `Profile updated: ${Object.keys(patch).join(", ") || "no fields"}`);
     }
     return result;
   }
@@ -80,6 +81,38 @@ export class UserEngine {
     if (result.success) {
       this.recordChange(userId, "status-change", { status: previous } as Partial<User>, { status });
     }
+    return result;
+  }
+
+  /** Reversible — sets status to suspended and logs a readable activity event. */
+  suspend(userId: string): UserSaveResult {
+    const organizationId = this.load(userId)?.organizationId;
+    const result = this.updateStatus(userId, "suspended");
+    if (result.success && organizationId) this.activity.record(userId, organizationId, "suspended", "Access suspended");
+    return result;
+  }
+
+  /** Reverses a suspension, returning the person to active status. */
+  reinstate(userId: string): UserSaveResult {
+    const organizationId = this.load(userId)?.organizationId;
+    const result = this.updateStatus(userId, "active");
+    if (result.success && organizationId) this.activity.record(userId, organizationId, "reinstated", "Access reinstated");
+    return result;
+  }
+
+  /** Changes a person's business-facing access level (Owner/Administrator/Manager/Member/Viewer) and logs a readable activity event. */
+  updateAccessLevel(userId: string, accessLevel: PeopleAccessLevel): UserSaveResult {
+    const organizationId = this.load(userId)?.organizationId;
+    const result = this.save(userId, { accessLevel });
+    if (result.success && organizationId) this.activity.record(userId, organizationId, "role-changed", `Access level set to ${accessLevel}`);
+    return result;
+  }
+
+  /** Resets a person's access level back to the baseline "Member" tier and clears any granular role assignments. */
+  resetAccess(userId: string): UserSaveResult {
+    const organizationId = this.load(userId)?.organizationId;
+    const result = this.save(userId, { accessLevel: "member", roleIds: [] });
+    if (result.success && organizationId) this.activity.record(userId, organizationId, "role-changed", "Access reset to Member");
     return result;
   }
 

@@ -81,8 +81,8 @@ export function registerAdsReports(registry: ReportRegistry = reportRegistry): {
   const budgetReport = buildBudgetPacingReport();
   registerReports([campaignReport, budgetReport], registry);
 
-  reportScheduler.create({ reportId: campaignReport.id, frequency: "weekly", recipients: [ADS_OWNER], exportFormat: "pdf" });
-  reportScheduler.create({ reportId: budgetReport.id, frequency: "weekly", recipients: [ADS_OWNER], exportFormat: "excel" });
+  reportScheduler.create({ reportId: campaignReport.id, frequency: "weekly", recipients: [{ type: "user", id: ADS_OWNER, label: ADS_OWNER }], exportFormat: "pdf" });
+  reportScheduler.create({ reportId: budgetReport.id, frequency: "weekly", recipients: [{ type: "user", id: ADS_OWNER, label: ADS_OWNER }], exportFormat: "excel" });
 
   registeredIds = { campaignReportId: campaignReport.id, budgetReportId: budgetReport.id };
   return registeredIds;

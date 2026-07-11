@@ -82,8 +82,8 @@ export function registerSocialReports(registry: ReportRegistry = reportRegistry)
   const platformReport = buildPlatformReport();
   registerReports([engagementReport, platformReport], registry);
 
-  reportScheduler.create({ reportId: engagementReport.id, frequency: "weekly", recipients: [SOCIAL_OWNER], exportFormat: "pdf" });
-  reportScheduler.create({ reportId: platformReport.id, frequency: "weekly", recipients: [SOCIAL_OWNER], exportFormat: "excel" });
+  reportScheduler.create({ reportId: engagementReport.id, frequency: "weekly", recipients: [{ type: "user", id: SOCIAL_OWNER, label: SOCIAL_OWNER }], exportFormat: "pdf" });
+  reportScheduler.create({ reportId: platformReport.id, frequency: "weekly", recipients: [{ type: "user", id: SOCIAL_OWNER, label: SOCIAL_OWNER }], exportFormat: "excel" });
 
   registeredIds = { engagementReportId: engagementReport.id, platformReportId: platformReport.id };
   return registeredIds;

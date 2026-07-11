@@ -172,7 +172,7 @@ export const NOTIFICATION_TEMPLATES: TemplateDefinition[] = [
     bodyTemplate: '{{userName}} ({{userEmail}}) has joined {{organizationName}} as {{role}}.',
     channels: ['in_app', 'email', 'slack'],
     defaultPriority: 'normal',
-    actionUrlTemplate: '/dashboard/users',
+    actionUrlTemplate: '/dashboard/settings/users',
     actionLabelTemplate: 'View Team',
     variables: ['userName', 'userEmail', 'organizationName', 'role'],
   },

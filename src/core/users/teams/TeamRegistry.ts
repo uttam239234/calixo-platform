@@ -12,7 +12,10 @@ import { appLogger } from "@/logging";
 import type { Team, TeamHierarchyNode } from "../types/index";
 
 export interface TeamListParams {
+  organizationId?: string;
   workspaceId?: string;
+  /** Archived teams are hidden by default — pass `true` to include them. */
+  includeArchived?: boolean;
 }
 
 export class TeamRegistry {
@@ -45,7 +48,18 @@ export class TeamRegistry {
   }
 
   list(params: TeamListParams = {}): Team[] {
-    return Array.from(this.teams.values()).filter(t => !params.workspaceId || t.workspaceId === params.workspaceId);
+    return Array.from(this.teams.values())
+      .filter(t => !params.organizationId || t.organizationId === params.organizationId)
+      .filter(t => !params.workspaceId || t.workspaceId === params.workspaceId)
+      .filter(t => params.includeArchived || !t.archived);
+  }
+
+  archive(id: string): Team | undefined {
+    const team = this.teams.get(id);
+    if (!team) return undefined;
+    team.archived = true;
+    team.updatedAt = new Date().toISOString();
+    return team;
   }
 
   /** Direct children only, computed live from parentTeamId links (not the denormalized childTeamIds array). */
@@ -73,14 +87,15 @@ export class TeamRegistry {
     return this.teams.get(teamId)?.memberIds ?? [];
   }
 
-  /** Nested hierarchy tree, rooted at teams with no parent (or an unregistered parent), optionally scoped to a workspace. */
-  hierarchy(workspaceId?: string): TeamHierarchyNode[] {
-    const scoped = this.list(workspaceId ? { workspaceId } : {});
+  /** Nested hierarchy tree, rooted at teams with no parent (or an unregistered parent), optionally scoped to an organization and/or workspace. */
+  hierarchy(params: TeamListParams = {}): TeamHierarchyNode[] {
+    const scoped = this.list(params);
+    const inScope = (team: Team) => (!params.organizationId || team.organizationId === params.organizationId) && (!params.workspaceId || team.workspaceId === params.workspaceId);
     const roots = scoped.filter(t => !t.parentTeamId || !this.teams.has(t.parentTeamId));
     const build = (team: Team): TeamHierarchyNode => ({
       team,
       children: this.childTeams(team.id)
-        .filter(child => !workspaceId || child.workspaceId === workspaceId)
+        .filter(inScope)
         .map(build),
     });
     return roots.map(build);

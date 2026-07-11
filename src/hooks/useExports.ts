@@ -8,7 +8,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { exportEngine } from "@/core/reports";
 import type { ExportFormat, ExportRecord } from "@/core/reports";
-import { DEMO_OWNER } from "@/components/reports/constants";
 
 export function useExports(reportId: string | null) {
   const [history, setHistory] = useState<ExportRecord[]>([]);
@@ -26,9 +25,9 @@ export function useExports(reportId: string | null) {
   const formats = exportEngine.getSupportedFormats();
 
   const requestExport = useCallback(
-    (format: ExportFormat): ExportRecord | undefined => {
+    (format: ExportFormat, requestedBy = "current-user"): ExportRecord | undefined => {
       if (!reportId) return undefined;
-      const record = exportEngine.requestExport({ reportId, format, requestedBy: DEMO_OWNER });
+      const record = exportEngine.requestExport({ reportId, format, requestedBy });
       refresh();
       return record;
     },

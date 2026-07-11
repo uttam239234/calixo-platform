@@ -1,8 +1,20 @@
 /**
  * Calixo Platform - Organization Types
- * 
+ *
  * Core types for multi-tenant organization management.
  */
+
+import type { OrganizationMemberRole } from "@/core/platform/organizations/types";
+
+export type { OrganizationMemberRole };
+
+/** Business-friendly labels for the underlying technical role — "Use business language only," per the Settings brief. */
+export const ORGANIZATION_ROLE_LABELS: Record<OrganizationMemberRole, string> = {
+  owner: "Owner",
+  admin: "Consultant",
+  member: "Member",
+  guest: "Viewer",
+};
 
 export interface OrganizationProfile {
   id: string;
@@ -20,6 +32,8 @@ export interface OrganizationProfile {
   memberCount: number;
   createdAt: string;
   updatedAt: string;
+  /** The querying user's own role in this organization — absent only when the caller didn't ask for it. */
+  myRole?: OrganizationMemberRole;
 }
 
 export type OrganizationPlan = 'free' | 'starter' | 'professional' | 'enterprise' | 'agency';

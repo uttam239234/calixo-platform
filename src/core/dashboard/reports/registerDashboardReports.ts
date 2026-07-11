@@ -80,8 +80,8 @@ export function registerDashboardReports(registry: ReportRegistry = reportRegist
   const operationsReport = buildOperationsReport();
   registerReports([executiveReport, operationsReport], registry);
 
-  reportScheduler.create({ reportId: executiveReport.id, frequency: "weekly", recipients: [DASHBOARD_OWNER], exportFormat: "pdf" });
-  reportScheduler.create({ reportId: operationsReport.id, frequency: "weekly", recipients: [DASHBOARD_OWNER], exportFormat: "excel" });
+  reportScheduler.create({ reportId: executiveReport.id, frequency: "weekly", recipients: [{ type: "user", id: DASHBOARD_OWNER, label: DASHBOARD_OWNER }], exportFormat: "pdf" });
+  reportScheduler.create({ reportId: operationsReport.id, frequency: "weekly", recipients: [{ type: "user", id: DASHBOARD_OWNER, label: DASHBOARD_OWNER }], exportFormat: "excel" });
 
   registeredIds = { executiveReportId: executiveReport.id, operationsReportId: operationsReport.id };
   return registeredIds;

@@ -10,6 +10,7 @@ import { appLogger } from "@/logging";
 import type { User, UserStatus } from "../types/index";
 
 export interface UserListParams {
+  organizationId?: string;
   workspaceId?: string;
   teamId?: string;
   status?: UserStatus;
@@ -56,6 +57,7 @@ export class UserRegistry {
 
   list(params: UserListParams = {}): User[] {
     return Array.from(this.users.values())
+      .filter(u => !params.organizationId || u.organizationId === params.organizationId)
       .filter(u => !params.workspaceId || u.workspaceId === params.workspaceId)
       .filter(u => !params.teamId || u.teamIds.includes(params.teamId!))
       .filter(u => !params.status || u.status === params.status)

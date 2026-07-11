@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Check, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/Input";
-import { EXPORT_FORMATS, REPORT_CATEGORIES, SCHEDULE_FREQUENCIES } from "@/core/reports";
+import { EXPORT_FORMATS, REPORT_CATEGORIES, SCHEDULE_FREQUENCIES, reportEngine } from "@/core/reports";
 import type {
   ExportFormat,
   ReportBuilderSaveInput,
   ReportBuilderStage,
   ReportCategory,
+  ReportDefinition,
   ReportDimension,
   ReportFilter,
   ReportLayout,
@@ -20,6 +21,7 @@ import type {
   WidgetTypeDefinition,
 } from "@/core/reports";
 import type { ModuleCategory } from "@/core/modules/ModuleTypes";
+import { ReportWidgetRenderer } from "./charts/ReportWidgetRenderer";
 import { AGGREGATION_OPTIONS, DEMO_OWNER, DIMENSION_TYPE_OPTIONS, FILTER_OPERATOR_OPTIONS, LAYOUT_TYPE_OPTIONS, MODULE_OPTIONS } from "./constants";
 
 const STEPS: { id: ReportBuilderStage; label: string }[] = [
@@ -44,6 +46,7 @@ interface ReportBuilderPanelProps {
   onCreateWidget: (params: { type: WidgetTypeDefinition["type"]; title: string; metricIds?: string[]; dimensionIds?: string[] }) => ReportWidget;
   onSave: (input: ReportBuilderSaveInput) => void;
   onCancel: () => void;
+  defaultOwner?: string;
 }
 
 function genLocalId(prefix: string): string {
@@ -62,6 +65,7 @@ export function ReportBuilderPanel({
   onCreateWidget,
   onSave,
   onCancel,
+  defaultOwner,
 }: ReportBuilderPanelProps) {
   const [activeStep, setActiveStep] = useState(0);
 
@@ -88,7 +92,40 @@ export function ReportBuilderPanel({
   const [exportFormats, setExportFormats] = useState<Set<ExportFormat>>(new Set(["pdf", "csv"]));
   const [scheduleFreqs, setScheduleFreqs] = useState<Set<ScheduleFrequency>>(new Set(["manual"]));
 
-  const [saveMeta, setSaveMeta] = useState({ name: "", description: "", owner: DEMO_OWNER, tags: "" });
+  const [saveMeta, setSaveMeta] = useState({ name: "", description: "", owner: defaultOwner || DEMO_OWNER, tags: "" });
+
+  // Preview-only: same deterministic fallback `ReportEngine` uses for any report with no real
+  // facade binding (custom/advanced fields have no generic way to map to a real module). Not a new
+  // fake-data path — it's the existing, disclosed formula fallback, run early so the widget step
+  // shows a live chart instead of a blank list while building.
+  const previewReport: ReportDefinition | null = useMemo(() => {
+    if (dimensions.length === 0 && metrics.length === 0) return null;
+    return {
+      id: "builder-preview",
+      name: saveMeta.name || "Untitled Report",
+      description: "",
+      module,
+      category,
+      owner: saveMeta.owner || DEMO_OWNER,
+      tags: [],
+      permissions: [],
+      widgets,
+      filters: [],
+      metrics,
+      dimensions,
+      defaultLayout: { type: layoutType, widgetPlacements: [] },
+      supportedExports: [],
+      supportedSchedules: [],
+      aiSummaryEnabled: false,
+      favorite: false,
+      archived: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- saveMeta.name/owner intentionally excluded, preview should only re-derive on data/metric/widget/layout changes
+  }, [module, category, dimensions, metrics, widgets, layoutType]);
+
+  const previewDataset = useMemo(() => (previewReport ? reportEngine.prepareDataset(previewReport) : undefined), [previewReport]);
 
   const goTo = (index: number) => setActiveStep(Math.max(0, Math.min(STEPS.length - 1, index)));
 
@@ -342,6 +379,20 @@ export function ReportBuilderPanel({
               </div>
             ))}
           </div>
+
+          {widgets.length > 0 && previewReport && (
+            <div>
+              <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Live Preview (sample data)</p>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {widgets.map(w => (
+                  <div key={w.id} className="card overflow-hidden p-3">
+                    <p className="mb-2 truncate text-xs font-medium text-foreground">{w.title}</p>
+                    <ReportWidgetRenderer report={previewReport} widget={w} dataset={previewDataset} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

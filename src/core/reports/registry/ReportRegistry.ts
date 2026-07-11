@@ -34,12 +34,13 @@ export class ReportRegistry {
     return this.reports.get(id);
   }
 
-  list(params: { module?: ModuleCategory; category?: ReportCategory; owner?: string; favorite?: boolean } = {}): ReportDefinition[] {
+  list(params: { module?: ModuleCategory; category?: ReportCategory; owner?: string; favorite?: boolean; archived?: boolean } = {}): ReportDefinition[] {
     return Array.from(this.reports.values())
       .filter(r => !params.module || r.module === params.module)
       .filter(r => !params.category || r.category === params.category)
       .filter(r => !params.owner || r.owner === params.owner)
-      .filter(r => params.favorite === undefined || r.favorite === params.favorite);
+      .filter(r => params.favorite === undefined || r.favorite === params.favorite)
+      .filter(r => params.archived === undefined || r.archived === params.archived);
   }
 
   discover(query: string): ReportDefinition[] {
@@ -69,6 +70,14 @@ export class ReportRegistry {
     const report = this.reports.get(id);
     if (!report) return undefined;
     report.favorite = favorite;
+    report.updatedAt = new Date().toISOString();
+    return { ...report };
+  }
+
+  markArchived(id: string, archived = true): ReportDefinition | undefined {
+    const report = this.reports.get(id);
+    if (!report) return undefined;
+    report.archived = archived;
     report.updatedAt = new Date().toISOString();
     return { ...report };
   }

@@ -40,10 +40,8 @@ export { UsersPlatformAPI, usersPlatformAPI } from "./platform/UsersPlatformAPI"
 
 export { seedUsersPlatformMockData } from "./mock/seed";
 export type { UsersMockSeedResult } from "./mock/seed";
-export { generateMockUsers } from "./mock/mockUsers";
-export { generateMockTeams } from "./mock/mockTeams";
-export { generateMockInvitations } from "./mock/mockInvitations";
-export { generateMockActivity } from "./mock/mockActivity";
+export { ORG_ROSTERS } from "./mock/rosters";
+export type { OrgRosterSpec } from "./mock/rosters";
 export { WORKSPACES, DEPARTMENTS, JOB_TITLES } from "./mock/data";
 export type { MockWorkspace } from "./mock/data";
 

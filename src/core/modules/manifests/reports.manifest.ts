@@ -28,10 +28,10 @@ export const reportsManifest: ModuleManifest = defineModule({
     },
   ],
   permissions: [
-    { name: "reports.view", description: "View reports", action: "view", resource: "reports" },
-    { name: "reports.create", description: "Create custom reports", action: "create", resource: "reports" },
-    { name: "reports.export", description: "Export reports", action: "export", resource: "reports" },
-    { name: "reports.manage", description: "Manage report schedules", action: "manage", resource: "reports" },
+    { name: "reports.view", description: "View reports", action: "view", resource: "report" },
+    { name: "reports.create", description: "Create custom reports", action: "create", resource: "report" },
+    { name: "reports.export", description: "Export reports", action: "export", resource: "report" },
+    { name: "reports.manage", description: "Manage report schedules", action: "manage", resource: "report" },
   ],
   reports: [
     { id: "executive-summary", name: "Executive Summary", description: "High-level performance overview", format: "PDF", type: "scheduled" },

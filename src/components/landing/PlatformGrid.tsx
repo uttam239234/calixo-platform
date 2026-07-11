@@ -30,7 +30,7 @@ const modules = [
   { icon: Workflow, title: "Workflow & Automation", description: "Automate the busywork across every module with visual, no-code workflows.", href: "/dashboard/workflows" },
   { icon: Bot, title: "AI Copilot", description: "One AI that understands your entire business and can act across every module.", href: "/dashboard/ai" },
   { icon: FolderOpen, title: "Assets & Library", description: "A single home for every brand asset, creative, and content file your team ships.", href: "/dashboard/assets" },
-  { icon: Users, title: "Users & Teams", description: "Manage roles, permissions, and collaboration across your whole organization.", href: "/dashboard/users" },
+  { icon: Users, title: "Users & Teams", description: "Manage roles, permissions, and collaboration across your whole organization.", href: "/dashboard/settings/users" },
   { icon: Settings, title: "Settings & Administration", description: "Enterprise controls for security, billing, and configuration — all in one place.", href: "/dashboard/settings" },
 ];
 

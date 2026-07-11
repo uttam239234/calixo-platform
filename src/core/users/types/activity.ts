@@ -11,7 +11,12 @@ export type ActivityType =
   | "team-join"
   | "team-leave"
   | "password-change"
-  | "workspace-switch";
+  | "workspace-switch"
+  | "organization-joined"
+  | "invite-accepted"
+  | "role-changed"
+  | "suspended"
+  | "reinstated";
 
 export const ACTIVITY_TYPES: ActivityType[] = [
   "login",
@@ -21,11 +26,17 @@ export const ACTIVITY_TYPES: ActivityType[] = [
   "team-leave",
   "password-change",
   "workspace-switch",
+  "organization-joined",
+  "invite-accepted",
+  "role-changed",
+  "suspended",
+  "reinstated",
 ];
 
 export interface ActivityEvent {
   id: string;
   userId: string;
+  organizationId: string;
   type: ActivityType;
   description: string;
   metadata?: Record<string, unknown>;

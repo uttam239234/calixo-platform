@@ -6,11 +6,11 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/Input";
 import { SCHEDULE_FREQUENCIES } from "@/core/reports";
-import type { ExportFormat, ReportSchedule, ScheduleFrequency } from "@/core/reports";
+import type { ExportFormat, ReportRecipient, ReportSchedule, ScheduleFrequency } from "@/core/reports";
 
 interface SchedulePanelProps {
   schedules: ReportSchedule[];
-  onCreate: (params: { frequency: ScheduleFrequency; recipients: string[]; exportFormat?: ExportFormat }) => void;
+  onCreate: (params: { frequency: ScheduleFrequency; recipients: ReportRecipient[]; exportFormat?: ExportFormat }) => void;
   onPause: (id: string) => void;
   onResume: (id: string) => void;
   onDelete: (id: string) => void;
@@ -26,10 +26,11 @@ export function SchedulePanel({ schedules, onCreate, onPause, onResume, onDelete
   const [recipients, setRecipients] = useState("");
 
   const handleCreate = () => {
-    const list = recipients
+    const list: ReportRecipient[] = recipients
       .split(",")
       .map(r => r.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .map(email => ({ type: "email", id: email, label: email }));
     if (list.length === 0) return;
     onCreate({ frequency, recipients: list });
     setRecipients("");

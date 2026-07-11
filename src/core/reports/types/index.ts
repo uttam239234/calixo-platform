@@ -9,3 +9,5 @@ export * from "./schedule";
 export * from "./report";
 export * from "./template";
 export * from "./dashboard";
+export * from "./sourceBinding";
+export * from "./assistant";

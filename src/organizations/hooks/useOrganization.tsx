@@ -67,14 +67,14 @@ export function OrganizationProvider({
   }, [userId]);
 
   const updateOrganization = useCallback(async (orgId: string, data: UpdateOrganizationRequest): Promise<OrganizationProfile> => {
-    const org = await organizationService.updateOrganization(orgId, data);
+    const org = await organizationService.updateOrganization(orgId, data, userId ?? undefined);
     setOrganization(org);
     setOrganizations(prev => prev.map(o => o.id === orgId ? org : o));
     return org;
-  }, []);
+  }, [userId]);
 
   const archiveOrganization = useCallback(async (orgId: string) => {
-    await organizationService.archiveOrganization(orgId);
+    await organizationService.archiveOrganization(orgId, userId ?? undefined);
     setOrganizations(prev => {
       const filtered = prev.filter(o => o.id !== orgId);
       if (organization?.id === orgId) {
@@ -82,7 +82,7 @@ export function OrganizationProvider({
       }
       return filtered;
     });
-  }, [organization]);
+  }, [organization, userId]);
 
   const value: OrganizationContextValue = {
     organization,

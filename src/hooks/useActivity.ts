@@ -3,19 +3,22 @@
 /**
  * Calixo Users & Teams Center - activity feed/history state.
  * The only place allowed to call ActivityEngine — components never
- * import it directly.
+ * import it directly. Scoped to a single organization.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { activityEngine } from "@/core/users";
 import type { ActivityEvent, ActivityType } from "@/core/users";
 
-export function useActivity() {
+export function useActivity(organizationId: string) {
   const [recentEvents, setRecentEvents] = useState<ActivityEvent[]>([]);
 
-  const refresh = useCallback((limit = 50) => {
-    setRecentEvents(activityEngine.recent(limit));
-  }, []);
+  const refresh = useCallback(
+    (limit = 50) => {
+      setRecentEvents(activityEngine.recent(organizationId, limit));
+    },
+    [organizationId]
+  );
 
   useEffect(() => {
     (async () => {
@@ -23,26 +26,13 @@ export function useActivity() {
     })();
   }, [refresh]);
 
-  const historyFor = useCallback((userId: string, limit?: number) => activityEngine.history(userId, limit), []);
-  const byType = useCallback((type: ActivityType, limit?: number) => activityEngine.byType(type, limit), []);
-
-  const recentlyActiveUserIds = useMemo(() => {
-    const seen = new Set<string>();
-    const ordered: string[] = [];
-    for (const event of recentEvents) {
-      if (seen.has(event.userId)) continue;
-      seen.add(event.userId);
-      ordered.push(event.userId);
-      if (ordered.length >= 10) break;
-    }
-    return ordered;
-  }, [recentEvents]);
+  const historyFor = useCallback((userId: string, limit?: number) => activityEngine.history({ userId, organizationId, limit }), [organizationId]);
+  const byType = useCallback((type: ActivityType, limit?: number) => activityEngine.byType(organizationId, type, limit), [organizationId]);
 
   return {
     recentEvents,
     historyFor,
     byType,
-    recentlyActiveUserIds,
     refresh,
   };
 }

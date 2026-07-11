@@ -1,199 +1,220 @@
 /**
  * Calixo Platform - Organization Service
- * 
- * Manages organization lifecycle: create, update, archive, switch.
+ *
+ * A thin adapter, not a second organization store. Every method here
+ * delegates to the canonical `organizationPlatformAPI`/`organizationEngine`
+ * (`src/core/platform/organizations`) — the real, multi-org-aware,
+ * per-organization-role-aware engine — and maps its `Organization` shape
+ * to/from this module's pre-existing `OrganizationProfile` shape, which 12
+ * files across every certified module already import via `useOrganization()`.
+ * Keeping this adapter's public method signatures unchanged means none of
+ * those 12 files need to change; only what backs them becomes real.
  */
 
-import { appLogger } from '@/logging';
 import { NotFoundError } from '@/errors';
-import { generateId, slugify } from '@/shared/utils/string';
+import { organizationPlatformAPI } from '@/core/platform/organizations/OrganizationPlatformAPI';
+import type { Organization, OrganizationStatus } from '@/core/platform/organizations/types';
+import type { SubscriptionTier } from '@/core/platform/subscription/types';
 import type {
   OrganizationProfile,
   CreateOrganizationRequest,
   UpdateOrganizationRequest,
-  OrganizationSettings,
-  OrganizationBranding,
-  OrganizationLocalization,
+  OrganizationPlan,
 } from '@/organizations/types';
 
-const DEFAULT_SETTINGS: OrganizationSettings = {
-  timezone: 'UTC',
-  dateFormat: 'MM/DD/YYYY',
-  timeFormat: '12h',
-  weekStartsOn: 'monday',
-  language: 'en',
-  defaultCurrency: 'USD',
-  security: {
-    twoFactorRequired: false,
-    ipAllowlist: [],
-    sessionTimeout: 60,
-    passwordPolicy: {
-      minLength: 8,
-      requireUppercase: true,
-      requireNumbers: true,
-      requireSpecialChars: false,
-      expiryDays: 90,
+const TIER_TO_PLAN: Record<SubscriptionTier, OrganizationPlan> = {
+  free: 'free',
+  trial: 'free',
+  starter: 'starter',
+  growth: 'professional',
+  enterprise: 'enterprise',
+  education: 'enterprise',
+  agency: 'agency',
+  custom: 'enterprise',
+};
+
+const PLAN_TO_TIER: Record<OrganizationPlan, SubscriptionTier> = {
+  free: 'free',
+  starter: 'starter',
+  professional: 'growth',
+  enterprise: 'enterprise',
+  agency: 'agency',
+};
+
+const STRENGTH_TO_PASSWORD_POLICY: Record<Organization['settings']['security']['passwordPolicyStrength'], OrganizationProfile['settings']['security']['passwordPolicy']> = {
+  basic: { minLength: 8, requireUppercase: false, requireNumbers: false, requireSpecialChars: false, expiryDays: 0 },
+  strong: { minLength: 10, requireUppercase: true, requireNumbers: true, requireSpecialChars: false, expiryDays: 180 },
+  strict: { minLength: 12, requireUppercase: true, requireNumbers: true, requireSpecialChars: true, expiryDays: 90 },
+};
+
+function isActiveStatus(status: OrganizationStatus): boolean {
+  return status === "active" || status === "trial";
+}
+
+/** Canonical `Organization` → this module's legacy `OrganizationProfile` display shape. The canonical record is the source of truth; this is a read/compat view for the 12 pre-existing consumers. `viewerId`, when given, resolves `myRole` via the real per-org membership list. */
+function toProfile(org: Organization, viewerId?: string): OrganizationProfile {
+  const myRole = viewerId ? organizationPlatformAPI.getMembers(org.id).find(m => m.userId === viewerId)?.role : undefined;
+  return {
+    id: org.id,
+    name: org.name,
+    slug: org.slug,
+    ownerId: org.ownerId,
+    plan: TIER_TO_PLAN[org.tier],
+    isActive: isActiveStatus(org.status),
+    isDeleted: org.status === "archived",
+    deletedAt: org.archivedAt,
+    settings: {
+      timezone: org.settings.timezone,
+      dateFormat: org.settings.dateFormat,
+      timeFormat: org.settings.timeFormat,
+      weekStartsOn: 'monday',
+      language: org.settings.language,
+      defaultCurrency: org.settings.defaultCurrency,
+      security: {
+        twoFactorRequired: org.settings.security.twoFactorRequired,
+        ipAllowlist: [],
+        sessionTimeout: org.settings.security.sessionTimeoutMinutes,
+        passwordPolicy: STRENGTH_TO_PASSWORD_POLICY[org.settings.security.passwordPolicyStrength],
+      },
+      features: {
+        allowMultipleWorkspaces: true,
+        allowGuestAccess: true,
+        allowApiAccess: true,
+        allowWhiteLabel: org.tier === "enterprise" || org.tier === "custom",
+      },
     },
-  },
-  features: {
-    allowMultipleWorkspaces: true,
-    allowGuestAccess: false,
-    allowApiAccess: true,
-    allowWhiteLabel: false,
-  },
-};
-
-const DEFAULT_BRANDING: OrganizationBranding = {
-  colors: {
-    primary: '#3B82F6',
-    secondary: '#6B7280',
-    accent: '#8B5CF6',
-    background: '#FFFFFF',
-    foreground: '#111827',
-  },
-};
-
-const DEFAULT_LOCALIZATION: OrganizationLocalization = {
-  defaultLocale: 'en-US',
-  supportedLocales: ['en-US'],
-  defaultTimezone: 'UTC',
-  defaultCurrency: 'USD',
-  dateFormat: 'MM/DD/YYYY',
-  timeFormat: '12h',
-  firstDayOfWeek: 'monday',
-  numberFormat: {
-    decimal: '.',
-    thousands: ',',
-    precision: 2,
-  },
-};
+    branding: {
+      logo: org.branding.logo,
+      logoDark: org.branding.logoDark,
+      favicon: org.branding.favicon,
+      colors: { ...org.branding.colors, background: "#FFFFFF", foreground: "#111827" },
+      domain: org.branding.domain,
+    },
+    localization: {
+      defaultLocale: org.settings.language === "en" ? "en-US" : org.settings.language,
+      supportedLocales: [org.settings.language === "en" ? "en-US" : org.settings.language],
+      defaultTimezone: org.settings.timezone,
+      defaultCurrency: org.settings.defaultCurrency,
+      dateFormat: org.settings.dateFormat,
+      timeFormat: org.settings.timeFormat,
+      firstDayOfWeek: 'monday',
+      numberFormat: { decimal: '.', thousands: ',', precision: 2 },
+    },
+    business: {
+      email: org.profile.email,
+      phone: org.profile.phone,
+      website: org.profile.website,
+      industry: org.profile.industry,
+      companySize: org.profile.companySize,
+      address: org.profile.address
+        ? { street: org.profile.address.line1, city: org.profile.address.city, state: org.profile.address.state, postalCode: org.profile.address.postalCode, country: org.profile.address.country }
+        : undefined,
+    },
+    memberCount: org.memberCount,
+    createdAt: org.createdAt,
+    updatedAt: org.updatedAt,
+    myRole,
+  };
+}
 
 export class OrganizationService {
-  private organizations: Map<string, OrganizationProfile> = new Map();
-  private userOrganizations: Map<string, Set<string>> = new Map(); // userId -> Set<orgId>
-
   async createOrganization(userId: string, request: CreateOrganizationRequest): Promise<OrganizationProfile> {
-    const now = new Date().toISOString();
-    const slug = request.slug || slugify(request.name);
-
-    const org: OrganizationProfile = {
-      id: generateId(16),
+    const org = organizationPlatformAPI.create({
       name: request.name,
-      slug,
+      slug: request.slug,
       ownerId: userId,
-      plan: 'free',
-      isActive: true,
-      isDeleted: false,
+      tier: "trial",
+      profile: { industry: request.industry, companySize: request.companySize },
       settings: {
-        ...DEFAULT_SETTINGS,
-        timezone: request.timezone || DEFAULT_SETTINGS.timezone,
-        language: request.locale?.split('-')[0] || DEFAULT_SETTINGS.language,
-        defaultCurrency: request.currency || DEFAULT_SETTINGS.defaultCurrency,
+        ...(request.timezone ? { timezone: request.timezone } : {}),
+        ...(request.currency ? { defaultCurrency: request.currency } : {}),
+        ...(request.locale ? { language: request.locale.split('-')[0] } : {}),
       },
-      branding: { ...DEFAULT_BRANDING },
-      localization: {
-        ...DEFAULT_LOCALIZATION,
-        defaultTimezone: request.timezone || DEFAULT_LOCALIZATION.defaultTimezone,
-        defaultCurrency: request.currency || DEFAULT_LOCALIZATION.defaultCurrency,
-        defaultLocale: request.locale || DEFAULT_LOCALIZATION.defaultLocale,
-      },
-      business: {
-        industry: request.industry,
-        companySize: request.companySize,
-      },
-      memberCount: 1,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    this.organizations.set(org.id, org);
-    
-    if (!this.userOrganizations.has(userId)) {
-      this.userOrganizations.set(userId, new Set());
-    }
-    this.userOrganizations.get(userId)!.add(org.id);
-
-    appLogger.info('OrganizationService', `Organization created: ${org.name} (${org.id})`);
-    return { ...org };
+    });
+    return toProfile(org, userId);
   }
 
-  async getOrganization(orgId: string): Promise<OrganizationProfile | null> {
-    const org = this.organizations.get(orgId);
-    if (!org || org.isDeleted) return null;
-    return { ...org };
+  async getOrganization(orgId: string, viewerId?: string): Promise<OrganizationProfile | null> {
+    const org = organizationPlatformAPI.get(orgId);
+    if (!org || org.status === "archived") return null;
+    return toProfile(org, viewerId);
   }
 
   async getUserOrganizations(userId: string): Promise<OrganizationProfile[]> {
-    const orgIds = this.userOrganizations.get(userId);
-    if (!orgIds) return [];
-
-    return Array.from(orgIds)
-      .map(id => this.organizations.get(id))
-      .filter((org): org is OrganizationProfile => !!org && !org.isDeleted)
-      .map(org => ({ ...org }))
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    return organizationPlatformAPI
+      .getForUser(userId)
+      .filter(org => org.status !== "archived")
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .map(org => toProfile(org, userId));
   }
 
-  async updateOrganization(orgId: string, data: UpdateOrganizationRequest): Promise<OrganizationProfile> {
-    const org = this.organizations.get(orgId);
-    if (!org || org.isDeleted) {
-      throw new NotFoundError('Organization');
-    }
+  async updateOrganization(orgId: string, data: UpdateOrganizationRequest, actorId?: string): Promise<OrganizationProfile> {
+    const existing = organizationPlatformAPI.get(orgId);
+    if (!existing || existing.status === "archived") throw new NotFoundError('Organization');
 
-    if (data.name !== undefined) org.name = data.name;
-    if (data.settings !== undefined) {
-      org.settings = { ...org.settings, ...data.settings };
-    }
-    if (data.branding !== undefined) {
-      org.branding = { ...org.branding, ...data.branding, colors: { ...org.branding.colors, ...data.branding.colors } };
-    }
-    if (data.localization !== undefined) {
-      org.localization = { ...org.localization, ...data.localization };
-    }
-    if (data.business !== undefined) {
-      org.business = { ...org.business, ...data.business };
-    }
-
-    org.updatedAt = new Date().toISOString();
-    appLogger.info('OrganizationService', `Organization updated: ${org.id}`);
-    return { ...org };
+    const org = organizationPlatformAPI.update(
+      orgId,
+      {
+        name: data.name,
+        profile: data.business
+          ? {
+              email: data.business.email,
+              phone: data.business.phone,
+              website: data.business.website,
+              industry: data.business.industry,
+              companySize: data.business.companySize,
+              address: data.business.address
+                ? { line1: data.business.address.street, city: data.business.address.city, state: data.business.address.state, postalCode: data.business.address.postalCode, country: data.business.address.country }
+                : undefined,
+            }
+          : undefined,
+        settings: data.settings || data.localization
+          ? {
+              ...(data.settings?.timezone ? { timezone: data.settings.timezone } : {}),
+              ...(data.settings?.dateFormat ? { dateFormat: data.settings.dateFormat } : {}),
+              ...(data.settings?.timeFormat ? { timeFormat: data.settings.timeFormat } : {}),
+              ...(data.settings?.language ? { language: data.settings.language } : {}),
+              ...(data.settings?.defaultCurrency ? { defaultCurrency: data.settings.defaultCurrency } : {}),
+              ...(data.localization?.defaultTimezone ? { timezone: data.localization.defaultTimezone } : {}),
+              ...(data.localization?.defaultCurrency ? { defaultCurrency: data.localization.defaultCurrency } : {}),
+              ...(data.settings?.security
+                ? { security: { ...existing.settings.security, twoFactorRequired: data.settings.security.twoFactorRequired, sessionTimeoutMinutes: data.settings.security.sessionTimeout } }
+                : {}),
+            }
+          : undefined,
+        branding: data.branding
+          ? { logo: data.branding.logo, logoDark: data.branding.logoDark, favicon: data.branding.favicon, domain: data.branding.domain, colors: data.branding.colors ? { primary: data.branding.colors.primary, secondary: data.branding.colors.secondary, accent: data.branding.colors.accent } : undefined }
+          : undefined,
+      },
+      actorId ?? existing.ownerId
+    );
+    if (!org) throw new NotFoundError('Organization');
+    return toProfile(org, actorId);
   }
 
-  async archiveOrganization(orgId: string): Promise<void> {
-    const org = this.organizations.get(orgId);
-    if (!org || org.isDeleted) {
-      throw new NotFoundError('Organization');
-    }
-
-    org.isDeleted = true;
-    org.deletedAt = new Date().toISOString();
-    appLogger.info('OrganizationService', `Organization archived: ${org.id}`);
+  async archiveOrganization(orgId: string, actorId?: string): Promise<void> {
+    const existing = organizationPlatformAPI.get(orgId);
+    if (!existing || existing.status === "archived") throw new NotFoundError('Organization');
+    organizationPlatformAPI.archive(orgId, actorId ?? existing.ownerId);
   }
 
   async switchOrganization(userId: string, orgId: string): Promise<OrganizationProfile> {
-    const org = await this.getOrganization(orgId);
-    if (!org) {
-      throw new NotFoundError('Organization');
-    }
-
-    const userOrgs = this.userOrganizations.get(userId);
-    if (!userOrgs || !userOrgs.has(orgId)) {
-      throw new NotFoundError('Organization access denied');
-    }
-
-    appLogger.info('OrganizationService', `User ${userId} switched to organization ${orgId}`);
-    return org;
+    const memberOf = organizationPlatformAPI.getForUser(userId);
+    const org = memberOf.find(o => o.id === orgId);
+    if (!org) throw new NotFoundError('Organization access denied');
+    return toProfile(org, userId);
   }
 
   async addUserToOrganization(userId: string, orgId: string): Promise<void> {
-    if (!this.organizations.has(orgId)) {
-      throw new NotFoundError('Organization');
-    }
-    if (!this.userOrganizations.has(userId)) {
-      this.userOrganizations.set(userId, new Set());
-    }
-    this.userOrganizations.get(userId)!.add(orgId);
+    const existing = organizationPlatformAPI.get(orgId);
+    if (!existing) throw new NotFoundError('Organization');
+    organizationPlatformAPI.addMember(orgId, userId, "member");
   }
 }
 
 export const organizationService = new OrganizationService();
+
+/** Maps a full canonical→plan tier for callers that need the reverse of `TIER_TO_PLAN` (e.g. tier upgrade flows outside this adapter). */
+export function planToTier(plan: OrganizationPlan): SubscriptionTier {
+  return PLAN_TO_TIER[plan];
+}

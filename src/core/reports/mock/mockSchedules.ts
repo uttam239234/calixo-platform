@@ -3,12 +3,18 @@
  */
 
 import { generateId } from "@/shared/utils/string";
-import { SCHEDULE_FREQUENCIES } from "../types";
-import type { ExportFormat, ReportSchedule } from "../types";
+import { SCHEDULE_FREQUENCIES, DELIVERY_METHODS } from "../types";
+import type { ExportFormat, ReportRecipient, ReportSchedule } from "../types";
 import { reportScheduler } from "../scheduler/ReportScheduler";
 import { MOCK_OWNERS, daysAgoISO, pick } from "./data";
 
 const FORMATS: ExportFormat[] = ["pdf", "excel", "csv"];
+
+function mockRecipients(i: number): ReportRecipient[] {
+  const owner = pick(MOCK_OWNERS, i);
+  const email = `${owner.toLowerCase().replace(/\s+/g, ".")}@calixo.io`;
+  return [{ type: "user", id: `user-${i % 40}`, label: owner }, { type: "email", id: email, label: email }];
+}
 
 export function generateMockSchedules(reportIds: string[], count = 30): ReportSchedule[] {
   if (reportIds.length === 0) return [];
@@ -21,7 +27,8 @@ export function generateMockSchedules(reportIds: string[], count = 30): ReportSc
       reportId: pick(reportIds, i),
       frequency,
       active: i % 5 !== 0,
-      recipients: [pick(MOCK_OWNERS, i), pick(MOCK_OWNERS, i + 3)].map(name => `${name.toLowerCase().replace(/\s+/g, ".")}@calixo.io`),
+      recipients: mockRecipients(i),
+      deliveryMethod: pick(DELIVERY_METHODS, i).id,
       exportFormat: pick(FORMATS, i),
       timezone: "UTC",
       nextRunAt: reportScheduler.computeNextRunAt(frequency, new Date()),

@@ -18,18 +18,48 @@ export interface OrganizationBranding {
   domain?: string;
 }
 
+export type TimeFormat = "12h" | "24h";
+export type MeasurementUnit = "metric" | "imperial";
+export type PasswordPolicyStrength = "basic" | "strong" | "strict";
+
 export interface OrganizationSettings {
   timezone: string;
   dateFormat: string;
+  timeFormat: TimeFormat;
   language: string;
   defaultCurrency: string;
-  security: { twoFactorRequired: boolean; sessionTimeoutMinutes: number };
+  measurementUnit: MeasurementUnit;
+  security: {
+    twoFactorRequired: boolean;
+    sessionTimeoutMinutes: number;
+    passwordPolicyStrength: PasswordPolicyStrength;
+    allowedEmailDomains: string[];
+  };
 }
 
 export interface OrganizationPreferences {
   defaultLandingModule: string;
   digestFrequency: "daily" | "weekly" | "off";
   theme: "light" | "dark" | "system";
+}
+
+export interface OrganizationAddress {
+  line1?: string;
+  line2?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+}
+
+/** Business-facing organization contact/profile info — the fields "My Company" settings screens need beyond the core identity fields (name/slug/owner). */
+export interface OrganizationProfileInfo {
+  email?: string;
+  phone?: string;
+  website?: string;
+  industry?: string;
+  companySize?: string;
+  address?: OrganizationAddress;
 }
 
 export type OrganizationMemberRole = "owner" | "admin" | "member" | "guest";
@@ -85,6 +115,7 @@ export interface Organization {
   ownerId: string;
   status: OrganizationStatus;
   tier: SubscriptionTier;
+  profile: OrganizationProfileInfo;
   settings: OrganizationSettings;
   branding: OrganizationBranding;
   preferences: OrganizationPreferences;
@@ -102,12 +133,14 @@ export interface CreateOrganizationInput {
   slug?: string;
   ownerId: string;
   tier?: SubscriptionTier;
+  profile?: Partial<OrganizationProfileInfo>;
   settings?: Partial<OrganizationSettings>;
   branding?: Partial<OrganizationBranding>;
 }
 
 export interface UpdateOrganizationInput {
   name?: string;
+  profile?: Partial<OrganizationProfileInfo>;
   settings?: Partial<OrganizationSettings>;
   branding?: Partial<OrganizationBranding>;
   preferences?: Partial<OrganizationPreferences>;

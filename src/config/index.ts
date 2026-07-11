@@ -124,13 +124,13 @@ export const ROUTES = {
   
   ADMIN: {
     SETTINGS: '/dashboard/settings',
-    USERS: '/dashboard/users',
-    ROLES: '/dashboard/roles',
-    WORKSPACES: '/dashboard/workspaces',
-    INTEGRATIONS: '/dashboard/integrations',
-    BILLING: '/dashboard/billing',
-    AUDIT: '/dashboard/audit',
-    API: '/dashboard/api',
+    USERS: '/dashboard/settings/users',
+    ROLES: '/dashboard/settings/roles',
+    WORKSPACES: '/dashboard/settings/workspaces',
+    INTEGRATIONS: '/dashboard/settings/integrations',
+    BILLING: '/dashboard/settings/billing',
+    AUDIT: '/dashboard/settings/audit',
+    API: '/dashboard/settings/api',
   },
   
   get DASHBOARD_ROUTES() {

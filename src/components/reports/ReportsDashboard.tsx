@@ -38,7 +38,7 @@ export function ReportsDashboard({ report, dataset, executing }: ReportsDashboar
 
       <section>
         <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Widgets</h2>
-        <WidgetCanvas report={report} />
+        <WidgetCanvas report={report} dataset={dataset} />
       </section>
     </div>
   );

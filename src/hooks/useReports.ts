@@ -21,7 +21,7 @@ export function useReports() {
   const [historyUsers, setHistoryUsers] = useState<Record<string, string>>({});
 
   const refresh = useCallback(() => {
-    setReports(reportRegistry.list());
+    setReports(reportRegistry.list({ archived: false }));
   }, []);
 
   useEffect(() => {
@@ -30,7 +30,10 @@ export function useReports() {
     })();
   }, [refresh]);
 
-  const currentReport = useMemo(() => reports.find(r => r.id === currentReportId) ?? null, [reports, currentReportId]);
+  // Falls back to a direct registry lookup so selecting an archived report (filtered out of the
+  // browsable `reports` list) still resolves — "archived" hides a report from browsing, not from
+  // being opened once selected (e.g. from the Library's Archived view).
+  const currentReport = useMemo(() => reports.find(r => r.id === currentReportId) ?? (currentReportId ? reportRegistry.lookup(currentReportId) ?? null : null), [reports, currentReportId]);
   const dataset = currentReportId ? datasetsById[currentReportId] : undefined;
 
   const selectReport = useCallback((id: string) => {
@@ -67,12 +70,30 @@ export function useReports() {
     [refresh]
   );
 
+  const archiveReport = useCallback(
+    (id: string) => {
+      reportRegistry.markArchived(id, true);
+      refresh();
+    },
+    [refresh]
+  );
+
+  const unarchiveReport = useCallback(
+    (id: string) => {
+      reportRegistry.markArchived(id, false);
+      refresh();
+    },
+    [refresh]
+  );
+
+  const listArchived = useCallback((): ReportDefinition[] => reportRegistry.list({ archived: true }), []);
+
   const duplicateReport = useCallback(
     (id: string): ReportDefinition | undefined => {
       const source = reportRegistry.lookup(id);
       if (!source) return undefined;
       const now = new Date().toISOString();
-      const duplicate: ReportDefinition = { ...source, id: generateId(16), name: `${source.name} (Copy)`, favorite: false, createdAt: now, updatedAt: now };
+      const duplicate: ReportDefinition = { ...source, id: generateId(16), name: `${source.name} (Copy)`, favorite: false, archived: false, createdAt: now, updatedAt: now };
       reportRegistry.register(duplicate);
       refresh();
       return duplicate;
@@ -128,6 +149,9 @@ export function useReports() {
     dataset,
     executing,
     toggleFavorite,
+    archiveReport,
+    unarchiveReport,
+    listArchived,
     duplicateReport,
     registerReport,
     getHistory,

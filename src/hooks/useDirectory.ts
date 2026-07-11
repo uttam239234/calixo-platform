@@ -12,14 +12,18 @@ import type { DirectorySearchParams, DirectorySearchResult } from "@/core/users"
 
 const EMPTY_RESULT: DirectorySearchResult = { query: {}, total: 0, items: [] };
 
-export function useDirectory() {
+export function useDirectory(organizationId: string) {
   const [query, setQuery] = useState<DirectorySearchParams>({});
   const [result, setResult] = useState<DirectorySearchResult>(EMPTY_RESULT);
 
-  const search = useCallback((params: DirectorySearchParams) => {
-    setQuery(params);
-    setResult(directorySearchEngine.search(params));
-  }, []);
+  const search = useCallback(
+    (params: DirectorySearchParams) => {
+      const scoped = { ...params, organizationId };
+      setQuery(scoped);
+      setResult(directorySearchEngine.search(scoped));
+    },
+    [organizationId]
+  );
 
   const searchKeyword = useCallback(
     (keyword: string) => {
@@ -38,7 +42,7 @@ export function useDirectory() {
     setResult(EMPTY_RESULT);
   }, []);
 
-  const isActive = Object.keys(query).length > 0;
+  const isActive = Object.keys(query).filter(k => k !== "organizationId").length > 0;
 
   return {
     query,

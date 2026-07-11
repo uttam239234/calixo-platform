@@ -24,6 +24,8 @@ export * from './delivery';
 export * from './inbox';
 export * from './audit';
 export { NotificationsPlatformAPI, notificationsPlatformAPI } from './platform/NotificationsPlatformAPI';
+export { organizationNotificationPreferencesStore } from './preferences/OrganizationNotificationPreferences';
+export type { OrganizationNotificationPreferences, OrganizationNotificationPreferencesPatch } from './preferences/OrganizationNotificationPreferences';
 
 import { appLogger } from '@/logging';
 import { notificationService } from '@/communication/services';

@@ -2,27 +2,34 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 
+export type ThemePreference = "light" | "dark" | "system";
 type Theme = "light" | "dark";
 
 interface ThemeContextValue {
+  /** The resolved, rendered theme — always "light" or "dark", even when `preference` is "system". */
   theme: Theme;
+  /** What the user actually picked — includes "system" per the Branding/Preferences "Theme Preference" control. */
+  preference: ThemePreference;
   toggleTheme: () => void;
-  setTheme: (theme: Theme) => void;
+  setTheme: (theme: ThemePreference) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 const STORAGE_KEY = "calixo-theme";
 
+function systemPrefersDark(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
+  const [preference, setPreferenceState] = useState<ThemePreference>(() => {
     if (typeof window === "undefined") return "light";
-    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-    if (stored === "light" || stored === "dark") {
-      return stored;
-    }
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    const stored = localStorage.getItem(STORAGE_KEY) as ThemePreference | null;
+    if (stored === "light" || stored === "dark" || stored === "system") return stored;
+    return systemPrefersDark() ? "dark" : "light";
   });
+  const [theme, setThemeState] = useState<Theme>(() => (preference === "system" ? (systemPrefersDark() ? "dark" : "light") : preference));
   const [mounted] = useState(() => {
     if (typeof window === "undefined") return false;
     return true;
@@ -32,10 +39,21 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  const setTheme = useCallback((newTheme: Theme) => {
-    setThemeState(newTheme);
-    localStorage.setItem(STORAGE_KEY, newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
+  // Reacts live to OS theme changes only while "system" is selected.
+  useEffect(() => {
+    if (preference !== "system" || typeof window === "undefined") return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (e: MediaQueryListEvent) => setThemeState(e.matches ? "dark" : "light");
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, [preference]);
+
+  const setTheme = useCallback((newPreference: ThemePreference) => {
+    setPreferenceState(newPreference);
+    localStorage.setItem(STORAGE_KEY, newPreference);
+    const resolved = newPreference === "system" ? (systemPrefersDark() ? "dark" : "light") : newPreference;
+    setThemeState(resolved);
+    document.documentElement.classList.toggle("dark", resolved === "dark");
   }, []);
 
   const toggleTheme = useCallback(() => {
@@ -47,7 +65,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, preference, toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

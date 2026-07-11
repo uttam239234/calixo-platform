@@ -129,6 +129,7 @@ export class ReportBuilder {
       supportedSchedules: this.draft.supportedSchedules,
       aiSummaryEnabled: input.aiSummaryEnabled ?? false,
       favorite: false,
+      archived: false,
       createdAt: now,
       updatedAt: now,
     };

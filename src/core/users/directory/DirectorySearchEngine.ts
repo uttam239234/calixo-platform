@@ -18,7 +18,7 @@ export class DirectorySearchEngine {
     const q = params.keyword?.trim().toLowerCase();
     const items: DirectorySearchResultItem[] = [];
 
-    for (const user of this.registry.list()) {
+    for (const user of this.registry.list(params.organizationId ? { organizationId: params.organizationId } : {})) {
       let score = 0;
       const matchedOn: string[] = [];
 

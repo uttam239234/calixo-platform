@@ -4,7 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, Clock3, LayoutTemplate, Search, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { REPORT_CATEGORIES } from "@/core/reports";
-import type { ReportCategory, ReportDashboard, ReportDefinition, ReportSchedule, ReportTemplate } from "@/core/reports";
+import type { ReportCategory, ReportDashboard, ReportDefinition } from "@/core/reports";
 import { ReportCard } from "./ReportCard";
 import { DashboardBrowser } from "./DashboardBrowser";
 import { HistoryPanel } from "./HistoryPanel";
@@ -15,14 +15,11 @@ interface ReportsSidebarProps {
   favorites: ReportDefinition[];
   recent: ReportDefinition[];
   dashboards: ReportDashboard[];
-  templates: ReportTemplate[];
-  schedules: ReportSchedule[];
   history: HistoryRecordView[];
   currentReportId: string | null;
   onSelectReport: (id: string) => void;
   onToggleFavorite: (id: string) => void;
   onSelectDashboard: (dashboard: ReportDashboard) => void;
-  onBrowseTemplates: () => void;
 }
 
 function Section({ title, icon, defaultOpen = false, children }: { title: string; icon: ReactNode; defaultOpen?: boolean; children: ReactNode }) {
@@ -50,14 +47,11 @@ export function ReportsSidebar({
   favorites,
   recent,
   dashboards,
-  templates,
-  schedules,
   history,
   currentReportId,
   onSelectReport,
   onToggleFavorite,
   onSelectDashboard,
-  onBrowseTemplates,
 }: ReportsSidebarProps) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<ReportCategory | "all">("all");
@@ -126,27 +120,6 @@ export function ReportsSidebar({
 
         <Section title="Dashboards" icon={<LayoutTemplate size={11} />}>
           <DashboardBrowser dashboards={dashboards} onSelectDashboard={onSelectDashboard} />
-        </Section>
-
-        <Section title={`Templates (${templates.length})`} icon={<LayoutTemplate size={11} />}>
-          <button type="button" onClick={onBrowseTemplates} className="btn btn-outline btn-sm w-full">
-            Browse Templates
-          </button>
-        </Section>
-
-        <Section title={`Scheduled Reports (${schedules.length})`} icon={<Clock3 size={11} />}>
-          {schedules.length === 0 ? (
-            <p className="px-1 py-2 text-xs text-muted-foreground">No schedules yet</p>
-          ) : (
-            <div className="space-y-1">
-              {schedules.slice(0, 10).map(s => (
-                <div key={s.id} className="flex items-center justify-between rounded-xl bg-accent/30 px-2.5 py-1.5 text-[11px]">
-                  <span className="capitalize text-foreground">{s.frequency}</span>
-                  <span className={cn("badge", s.active ? "badge-success" : "badge-outline")}>{s.active ? "Active" : "Paused"}</span>
-                </div>
-              ))}
-            </div>
-          )}
         </Section>
 
         <Section title="History" icon={<Clock3 size={11} />}>

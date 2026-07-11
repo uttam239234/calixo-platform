@@ -11,8 +11,10 @@
  */
 import { notificationService } from "../services";
 import { inboxService } from "../inbox";
+import { organizationNotificationPreferencesStore } from "../preferences/OrganizationNotificationPreferences";
 import type { InboxItem } from "../types";
 import type { NotificationSummary } from "@/core/platform/contracts";
+import type { OrganizationNotificationPreferences, OrganizationNotificationPreferencesPatch } from "../preferences/OrganizationNotificationPreferences";
 
 export class NotificationsPlatformAPI {
   async getInboxItems(userId: string, limit = 8): Promise<InboxItem[]> {
@@ -39,6 +41,15 @@ export class NotificationsPlatformAPI {
 
   async send(input: Parameters<typeof notificationService.send>[0]) {
     return notificationService.send(input);
+  }
+
+  /** Organization-wide notification policy — see `OrganizationNotificationPreferences`'s doc comment for how this differs from the personal, per-user `NotificationPreference`. */
+  getPreferences(organizationId: string): OrganizationNotificationPreferences {
+    return organizationNotificationPreferencesStore.get(organizationId);
+  }
+
+  updatePreferences(organizationId: string, patch: OrganizationNotificationPreferencesPatch): OrganizationNotificationPreferences {
+    return organizationNotificationPreferencesStore.update(organizationId, patch);
   }
 }
 

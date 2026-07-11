@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { reportScheduler, SCHEDULE_FREQUENCIES } from "@/core/reports";
-import type { ExportFormat, ReportSchedule, ScheduleFrequency } from "@/core/reports";
+import type { DeliveryMethod, ExportFormat, ReportRecipient, ReportSchedule, ScheduleFrequency } from "@/core/reports";
 
 export function useSchedules(reportId: string | null) {
   const [schedules, setSchedules] = useState<ReportSchedule[]>([]);
@@ -25,7 +25,7 @@ export function useSchedules(reportId: string | null) {
   }, [refresh]);
 
   const createSchedule = useCallback(
-    (params: { frequency: ScheduleFrequency; recipients: string[]; exportFormat?: ExportFormat }) => {
+    (params: { frequency: ScheduleFrequency; recipients: ReportRecipient[]; deliveryMethod?: DeliveryMethod; exportFormat?: ExportFormat }) => {
       if (!reportId) return undefined;
       const schedule = reportScheduler.create({ reportId, ...params });
       refresh();
@@ -58,5 +58,5 @@ export function useSchedules(reportId: string | null) {
     [refresh]
   );
 
-  return { schedules, createSchedule, pause, resume, remove, frequencies: SCHEDULE_FREQUENCIES };
+  return { schedules, createSchedule, pause, resume, remove, refresh, frequencies: SCHEDULE_FREQUENCIES };
 }

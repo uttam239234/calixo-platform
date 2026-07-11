@@ -72,7 +72,7 @@ export function registerContentReports(registry: ReportRegistry = reportRegistry
   const usageReport = buildUsageReport();
   registerReports([generationSummaryReport, usageReport], registry);
 
-  reportScheduler.create({ reportId: generationSummaryReport.id, frequency: "weekly", recipients: [CONTENT_OWNER], exportFormat: "pdf" });
+  reportScheduler.create({ reportId: generationSummaryReport.id, frequency: "weekly", recipients: [{ type: "user", id: CONTENT_OWNER, label: CONTENT_OWNER }], exportFormat: "pdf" });
 
   registeredIds = { generationSummaryReportId: generationSummaryReport.id, usageReportId: usageReport.id };
   return registeredIds;

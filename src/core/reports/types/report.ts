@@ -121,6 +121,7 @@ export interface ReportDefinition {
   supportedSchedules: ScheduleFrequency[];
   aiSummaryEnabled: boolean;
   favorite: boolean;
+  archived: boolean;
   createdAt: string;
   updatedAt: string;
   metadata?: Record<string, unknown>;
@@ -138,12 +139,24 @@ export interface ReportDatasetColumn {
   format?: MetricFormat;
 }
 
+export interface ReportKpiSummaryItem {
+  id: string;
+  label: string;
+  value: string;
+  change?: string;
+  tone?: "positive" | "negative" | "neutral";
+}
+
 export interface ReportDataset {
   reportId: string;
   columns: ReportDatasetColumn[];
   rows: Record<string, unknown>[];
   rowCount: number;
   generatedAt: string;
+  /** KPI-card tiles for reports backed by a real platform facade (see `ReportDataSourceRouter`) — separate from `rows` since KPI tiles are single current values, not an iterable series. Absent for formula-generated/custom reports. */
+  summary?: ReportKpiSummaryItem[];
+  /** Set when this dataset came from a real platform facade rather than `ReportEngine`'s deterministic-formula fallback — surfaced in the UI as a "Live data from X" badge. */
+  sourceLabel?: string;
 }
 
 export type ReportExecutionStatus = "queued" | "running" | "completed" | "failed";

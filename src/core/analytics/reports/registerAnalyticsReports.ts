@@ -136,9 +136,9 @@ export function registerAnalyticsReports(registry: ReportRegistry = reportRegist
   const audienceReport = buildAudienceAnalyticsReport();
   registerReports([channelReport, trafficReport, executiveReport, revenueReport, audienceReport], registry);
 
-  reportScheduler.create({ reportId: channelReport.id, frequency: "weekly", recipients: [ANALYTICS_OWNER], exportFormat: "pdf" });
-  reportScheduler.create({ reportId: trafficReport.id, frequency: "daily", recipients: [ANALYTICS_OWNER], exportFormat: "excel" });
-  reportScheduler.create({ reportId: executiveReport.id, frequency: "monthly", recipients: [ANALYTICS_OWNER], exportFormat: "pdf" });
+  reportScheduler.create({ reportId: channelReport.id, frequency: "weekly", recipients: [{ type: "user", id: ANALYTICS_OWNER, label: ANALYTICS_OWNER }], exportFormat: "pdf" });
+  reportScheduler.create({ reportId: trafficReport.id, frequency: "daily", recipients: [{ type: "user", id: ANALYTICS_OWNER, label: ANALYTICS_OWNER }], exportFormat: "excel" });
+  reportScheduler.create({ reportId: executiveReport.id, frequency: "monthly", recipients: [{ type: "user", id: ANALYTICS_OWNER, label: ANALYTICS_OWNER }], exportFormat: "pdf" });
 
   registeredIds = { channelReportId: channelReport.id, trafficReportId: trafficReport.id, executiveReportId: executiveReport.id, revenueReportId: revenueReport.id, audienceReportId: audienceReport.id };
   return registeredIds;

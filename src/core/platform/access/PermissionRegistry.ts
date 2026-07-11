@@ -21,8 +21,8 @@ export function parsePermissionName(name: string): { resourceType: string; actio
   return { resourceType, action };
 }
 
-/** Every resource type Authorization protects — the full conceptual order plus leaf-level types (`user`/`team`/`department`/`module`/`notification`/`billing`/`knowledge`/`media`/`file`/`dashboard`/`api`) that aren't part of the tenant-nesting cascade at all. */
-const ALL_RESOURCE_TYPES: ResourceType[] = [...FULL_RESOURCE_ORDER, "user", "team", "department", "module", "notification", "billing", "knowledge", "media", "file", "dashboard", "api"];
+/** Every resource type Authorization protects — the full conceptual order plus leaf-level types (`user`/`team`/`department`/`module`/`notification`/`billing`/`knowledge`/`media`/`file`/`dashboard`/`api`/`role`) that aren't part of the tenant-nesting cascade at all. */
+const ALL_RESOURCE_TYPES: ResourceType[] = [...FULL_RESOURCE_ORDER, "user", "team", "department", "module", "notification", "billing", "knowledge", "media", "file", "dashboard", "api", "role"];
 
 export class PermissionRegistry {
   private readonly all: string[];

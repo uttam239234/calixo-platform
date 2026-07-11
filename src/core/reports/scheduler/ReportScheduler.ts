@@ -6,7 +6,7 @@
  */
 
 import { generateId } from "@/shared/utils/string";
-import type { ExportFormat, ReportSchedule, ScheduleFrequency } from "../types";
+import type { DeliveryMethod, ExportFormat, ReportRecipient, ReportSchedule, ScheduleFrequency } from "../types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -16,7 +16,8 @@ export class ReportScheduler {
   create(params: {
     reportId: string;
     frequency: ScheduleFrequency;
-    recipients: string[];
+    recipients: ReportRecipient[];
+    deliveryMethod?: DeliveryMethod;
     exportFormat?: ExportFormat;
     timezone?: string;
   }): ReportSchedule {
@@ -27,6 +28,7 @@ export class ReportScheduler {
       frequency: params.frequency,
       active: true,
       recipients: params.recipients,
+      deliveryMethod: params.deliveryMethod ?? "email",
       exportFormat: params.exportFormat ?? "pdf",
       timezone: params.timezone ?? "UTC",
       nextRunAt: this.computeNextRunAt(params.frequency),
@@ -37,7 +39,7 @@ export class ReportScheduler {
     return { ...schedule };
   }
 
-  update(id: string, updates: Partial<Pick<ReportSchedule, "frequency" | "recipients" | "exportFormat" | "timezone" | "active">>): ReportSchedule {
+  update(id: string, updates: Partial<Pick<ReportSchedule, "frequency" | "recipients" | "deliveryMethod" | "exportFormat" | "timezone" | "active">>): ReportSchedule {
     const schedule = this.mustGet(id);
     Object.assign(schedule, updates);
     if (updates.frequency) schedule.nextRunAt = this.computeNextRunAt(updates.frequency);
@@ -86,6 +88,11 @@ export class ReportScheduler {
       case "quarterly": {
         const next = new Date(from);
         next.setMonth(next.getMonth() + 3);
+        return next.toISOString();
+      }
+      case "yearly": {
+        const next = new Date(from);
+        next.setFullYear(next.getFullYear() + 1);
         return next.toISOString();
       }
       default:

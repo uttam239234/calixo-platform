@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Building2, Check, ChevronDown, Plus, Search } from 'lucide-react';
 import { useOrganization } from '@/organizations/hooks/useOrganization';
 import { useAuth } from '@/identity/hooks/useAuth';
-import type { OrganizationSwitcherProps } from '@/organizations/types';
+import { ORGANIZATION_ROLE_LABELS, type OrganizationSwitcherProps } from '@/organizations/types';
 
 export function OrganizationSwitcher({
   align = 'start',
@@ -39,7 +39,7 @@ export function OrganizationSwitcher({
 
   if (!organization) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500">
+      <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
         <Building2 size={16} />
         <span>No organization</span>
       </div>
@@ -73,7 +73,7 @@ export function OrganizationSwitcher({
     <div ref={dropdownRef} className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+        className="flex items-center gap-2 w-full px-3 py-2 text-sm font-medium text-foreground hover:bg-accent rounded-lg transition-colors"
       >
         <div
           className="w-6 h-6 rounded flex items-center justify-center text-white text-xs font-bold"
@@ -83,27 +83,27 @@ export function OrganizationSwitcher({
         </div>
         <div className="flex-1 text-left min-w-0">
           <div className="truncate">{organization.name}</div>
-          <div className="text-xs text-gray-500">{organization.plan.toUpperCase()}</div>
+          <div className="text-xs text-muted-foreground">{organization.myRole ? ORGANIZATION_ROLE_LABELS[organization.myRole] : organization.plan.toUpperCase()}</div>
         </div>
-        <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`transition-transform text-muted-foreground ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
         <div
-          className={`absolute ${side === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'} 
+          className={`absolute ${side === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'}
             ${align === 'end' ? 'right-0' : 'left-0'}
-            w-72 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 overflow-hidden`}
+            w-72 bg-card rounded-lg shadow-lg border border-border z-50 overflow-hidden`}
         >
           {/* Search */}
-          <div className="p-2 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-md">
-              <Search size={14} className="text-gray-400" />
+          <div className="p-2 border-b border-border">
+            <div className="flex items-center gap-2 px-2 py-1 bg-accent/50 rounded-md">
+              <Search size={14} className="text-muted-foreground" />
               <input
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search organizations..."
-                className="bg-transparent text-sm outline-none flex-1 text-gray-700 dark:text-gray-200 placeholder-gray-400"
+                className="bg-transparent text-sm outline-none flex-1 text-foreground placeholder:text-muted-foreground"
               />
             </div>
           </div>
@@ -111,7 +111,7 @@ export function OrganizationSwitcher({
           {/* Organizations list */}
           <div className="max-h-60 overflow-y-auto">
             {filtered.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-gray-500">
+              <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                 {search ? 'No organizations found' : 'No organizations yet'}
               </div>
             ) : (
@@ -119,8 +119,8 @@ export function OrganizationSwitcher({
                 <button
                   key={org.id}
                   onClick={() => handleSelect(org.id)}
-                  className={`flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                    org.id === organization.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                  className={`flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-accent transition-colors ${
+                    org.id === organization.id ? 'bg-primary/10' : ''
                   }`}
                 >
                   <div
@@ -130,11 +130,11 @@ export function OrganizationSwitcher({
                     {org.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 text-left min-w-0">
-                    <div className="font-medium text-gray-900 dark:text-gray-100 truncate">{org.name}</div>
-                    <div className="text-xs text-gray-500">{org.plan.toUpperCase()}</div>
+                    <div className="font-medium text-foreground truncate">{org.name}</div>
+                    <div className="text-xs text-muted-foreground">{org.myRole ? ORGANIZATION_ROLE_LABELS[org.myRole] : org.plan.toUpperCase()}</div>
                   </div>
                   {org.id === organization.id && (
-                    <Check size={16} className="text-blue-600 flex-shrink-0" />
+                    <Check size={16} className="text-primary flex-shrink-0" />
                   )}
                 </button>
               ))
@@ -143,7 +143,7 @@ export function OrganizationSwitcher({
 
           {/* Create button */}
           {showCreateButton && (
-            <div className="border-t border-gray-200 dark:border-gray-700 p-2">
+            <div className="border-t border-border p-2">
               {isCreating ? (
                 <div className="flex items-center gap-2">
                   <input
@@ -152,19 +152,19 @@ export function OrganizationSwitcher({
                     onChange={e => setNewOrgName(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleCreate()}
                     placeholder="Organization name..."
-                    className="flex-1 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-transparent text-gray-700 dark:text-gray-200 outline-none focus:border-blue-500"
+                    className="flex-1 px-2 py-1.5 text-sm border border-border rounded-md bg-transparent text-foreground outline-none focus:border-primary"
                     autoFocus
                   />
                   <button
                     onClick={handleCreate}
                     disabled={!newOrgName.trim()}
-                    className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                    className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50"
                   >
                     Create
                   </button>
                   <button
                     onClick={() => { setIsCreating(false); setNewOrgName(''); }}
-                    className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900"
+                    className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
                   >
                     Cancel
                   </button>
@@ -172,7 +172,7 @@ export function OrganizationSwitcher({
               ) : (
                 <button
                   onClick={() => setIsCreating(true)}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
                 >
                   <Plus size={16} />
                   <span>Create organization</span>

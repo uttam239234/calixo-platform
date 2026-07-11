@@ -7,12 +7,14 @@
  */
 
 import { generateId } from "@/shared/utils/string";
-import type { Invitation, InvitationActionResult, InvitationStatus } from "../types/index";
+import type { Invitation, InvitationActionResult, InvitationStatus, PeopleAccessLevel } from "../types/index";
 
 export interface CreateInvitationInput {
   email: string;
+  organizationId: string;
   workspaceId: string;
   teamId?: string;
+  accessLevel: PeopleAccessLevel;
   roleIds?: string[];
   invitedBy: string;
   message?: string;
@@ -31,8 +33,10 @@ export class InvitationEngine {
     const invitation: Invitation = {
       id: generateId(12),
       email: input.email,
+      organizationId: input.organizationId,
       workspaceId: input.workspaceId,
       teamId: input.teamId,
+      accessLevel: input.accessLevel,
       roleIds: input.roleIds ?? [],
       invitedBy: input.invitedBy,
       status: "pending",
@@ -93,8 +97,9 @@ export class InvitationEngine {
     return Array.from(this.invitations.values()).find(i => i.token === token);
   }
 
-  list(params: { workspaceId?: string; status?: InvitationStatus } = {}): Invitation[] {
+  list(params: { organizationId?: string; workspaceId?: string; status?: InvitationStatus } = {}): Invitation[] {
     return Array.from(this.invitations.values())
+      .filter(i => !params.organizationId || i.organizationId === params.organizationId)
       .filter(i => !params.workspaceId || i.workspaceId === params.workspaceId)
       .filter(i => !params.status || i.status === params.status);
   }

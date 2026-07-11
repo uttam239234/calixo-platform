@@ -1,13 +1,19 @@
 /**
  * Calixo Platform - Report Engine
  *
- * Loads, validates, filters, and executes reports against mock datasets.
- * No visualization and no export logic lives here — those are separate,
- * dedicated services (VisualizationEngine, ExportEngine).
+ * Loads, validates, filters, and executes reports. `execute()` tries
+ * `ReportDataSourceRouter` first — real data from the owning module's
+ * platform facade, for any report tagged with a source binding (the AI
+ * Report Assistant and the Beginner Mode templates always tag theirs) —
+ * and only falls back to this engine's own deterministic-formula
+ * `prepareDataset()` for fully custom/advanced reports with no real
+ * facade to bind to. No visualization and no export logic lives here —
+ * those are separate, dedicated services (VisualizationEngine, ExportEngine).
  */
 
 import { generateId } from "@/shared/utils/string";
 import { reportRegistry, ReportRegistry } from "../registry/ReportRegistry";
+import { reportDataSourceRouter, ReportDataSourceRouter } from "./ReportDataSourceRouter";
 import type {
   ReportDataset,
   ReportDatasetColumn,
@@ -19,7 +25,10 @@ import type {
 } from "../types";
 
 export class ReportEngine {
-  constructor(private registry: ReportRegistry = reportRegistry) {}
+  constructor(
+    private registry: ReportRegistry = reportRegistry,
+    private sourceRouter: ReportDataSourceRouter = reportDataSourceRouter
+  ) {}
 
   private history: ReportExecutionRecord[] = [];
 
@@ -95,11 +104,13 @@ export class ReportEngine {
     }
   }
 
-  /** Builds a structured mock dataset shaped by the report's declared metrics/dimensions. */
+  /** Fallback only — a structured mock dataset shaped by the report's declared metrics/dimensions, for reports `ReportDataSourceRouter` has no real facade binding for (custom/advanced hand-built reports with arbitrary typed fields). */
   prepareDataset(report: ReportDefinition, rowCount = 12): ReportDataset {
+    // `column.id` is the dimension/metric's `field` (the row-lookup key below), not its registry `id` —
+    // otherwise a chart component has no reliable way to read a row's value for a given column.
     const columns: ReportDatasetColumn[] = [
-      ...report.dimensions.map(d => ({ id: d.id, label: d.name, kind: "dimension" as const })),
-      ...report.metrics.map(m => ({ id: m.id, label: m.name, kind: "metric" as const, format: m.format })),
+      ...report.dimensions.map(d => ({ id: d.field, label: d.name, kind: "dimension" as const })),
+      ...report.metrics.map(m => ({ id: m.field, label: m.name, kind: "metric" as const, format: m.format })),
     ];
 
     const rows: Record<string, unknown>[] = Array.from({ length: rowCount }, (_, i) => {
@@ -117,7 +128,7 @@ export class ReportEngine {
     return { reportId: report.id, columns, rows, rowCount: rows.length, generatedAt: new Date().toISOString() };
   }
 
-  /** Runs a report end-to-end (load -> validate -> prepare -> filter) and records history. Mock execution — no real data source is queried. */
+  /** Runs a report end-to-end (load -> validate -> real-source-or-formula -> filter) and records history — this is the "Live Reporting" re-execution path: the report definition stays constant, calling this again always re-fetches current data. */
   async execute(reportId: string, options: { filters?: ReportFilter[] } = {}): Promise<{ record: ReportExecutionRecord; dataset?: ReportDataset }> {
     const startedAt = new Date().toISOString();
     const report = this.load(reportId);
@@ -142,7 +153,7 @@ export class ReportEngine {
       return { record };
     }
 
-    let dataset = this.prepareDataset(report);
+    let dataset = (await this.sourceRouter.getDataset(report)) ?? this.prepareDataset(report);
     dataset = this.applyFilters(dataset, options.filters ?? report.filters);
 
     const completedAt = new Date().toISOString();

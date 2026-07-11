@@ -34,6 +34,20 @@ export class PolicyPlatformAPI {
     return policy;
   }
 
+  async enablePolicy(id: string, actorId: string): Promise<Policy> {
+    const policy = await policyService.enablePolicy(id);
+    this.invalidateScope(policy);
+    void platformEventBus.publish({ type: "PolicyUpdated", userId: actorId, payload: { policyId: policy.id } });
+    return policy;
+  }
+
+  async disablePolicy(id: string, actorId: string): Promise<Policy> {
+    const policy = await policyService.disablePolicy(id);
+    this.invalidateScope(policy);
+    void platformEventBus.publish({ type: "PolicyUpdated", userId: actorId, payload: { policyId: policy.id } });
+    return policy;
+  }
+
   async deletePolicy(id: string, actorId: string): Promise<boolean> {
     const policy = await policyService.getPolicy(id).catch(() => null);
     const result = await policyService.deletePolicy(id);

@@ -12,6 +12,7 @@
  */
 import { initializeAccessPlatform } from "@/access";
 import { seedDefaultAccessPolicies } from "./policies";
+import { seedBusinessRoles } from "./mock/seedBusinessRoles";
 
 export * from "./types";
 
@@ -29,6 +30,8 @@ export { AccessPlatformAPI, accessPlatformAPI } from "./AccessPlatformAPI";
 export { ResourceAuthorizationAPI, resourceAuthorizationAPI } from "./ResourceAuthorizationAPI";
 
 export { seedDefaultAccessPolicies } from "./policies";
+export { seedBusinessRoles, BUSINESS_ROLES, BUSINESS_ROLE_SLUGS } from "./mock/seedBusinessRoles";
+export type { BusinessRoleSeed } from "./mock/seedBusinessRoles";
 export * from "./apiAuth";
 
 let initialized = false;
@@ -43,4 +46,5 @@ export async function initializeAccessControlFoundation(): Promise<void> {
   initialized = true;
   await initializeAccessPlatform();
   await seedDefaultAccessPolicies();
+  await seedBusinessRoles();
 }

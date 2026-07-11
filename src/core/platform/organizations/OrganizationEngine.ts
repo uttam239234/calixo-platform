@@ -26,10 +26,14 @@ function slugify(name: string): string {
 const DEFAULT_SETTINGS = (): Organization["settings"] => ({
   timezone: "UTC",
   dateFormat: "MMM d, yyyy",
+  timeFormat: "12h",
   language: "en",
   defaultCurrency: "USD",
-  security: { twoFactorRequired: false, sessionTimeoutMinutes: 60 },
+  measurementUnit: "imperial",
+  security: { twoFactorRequired: false, sessionTimeoutMinutes: 60, passwordPolicyStrength: "basic", allowedEmailDomains: [] },
 });
+
+const DEFAULT_PROFILE = (): Organization["profile"] => ({});
 
 const DEFAULT_BRANDING = (): Organization["branding"] => ({
   colors: { primary: "#4F46E5", secondary: "#0EA5E9", accent: "#F59E0B" },
@@ -63,7 +67,8 @@ export class OrganizationEngine {
       ownerId: input.ownerId,
       status: tier === "trial" ? "trial" : "active",
       tier,
-      settings: { ...DEFAULT_SETTINGS(), ...input.settings },
+      profile: { ...DEFAULT_PROFILE(), ...input.profile },
+      settings: { ...DEFAULT_SETTINGS(), ...input.settings, security: { ...DEFAULT_SETTINGS().security, ...input.settings?.security } },
       branding: { ...DEFAULT_BRANDING(), ...input.branding },
       preferences: DEFAULT_PREFERENCES(),
       featureFlagOverrides: {},
@@ -85,8 +90,9 @@ export class OrganizationEngine {
     const organization = organizationRegistry.lookup(id);
     if (!organization) return undefined;
     if (input.name) organization.name = input.name;
-    if (input.settings) organization.settings = { ...organization.settings, ...input.settings };
-    if (input.branding) organization.branding = { ...organization.branding, ...input.branding };
+    if (input.profile) organization.profile = { ...organization.profile, ...input.profile, address: { ...organization.profile.address, ...input.profile.address } };
+    if (input.settings) organization.settings = { ...organization.settings, ...input.settings, security: { ...organization.settings.security, ...input.settings.security } };
+    if (input.branding) organization.branding = { ...organization.branding, ...input.branding, colors: { ...organization.branding.colors, ...input.branding.colors } };
     if (input.preferences) organization.preferences = { ...organization.preferences, ...input.preferences };
     organization.updatedAt = now();
     this.recordAudit(id, actorId, "organization.updated", id);
