@@ -29,6 +29,10 @@ export class PromotionPlatformAPI {
   getRedemptions(organizationId: string): PromotionRedemption[] {
     return promotionEngine.getRedemptions(organizationId);
   }
+
+  setActive(code: string, isActive: boolean): PromotionDefinition {
+    return promotionEngine.setActive(code, isActive);
+  }
 }
 
 export const promotionPlatformAPI = new PromotionPlatformAPI();

@@ -149,6 +149,15 @@ export class SubscriptionEngine {
     return subscription;
   }
 
+  /** Takes effect from the next `renew()` (which computes `renewsAt` from `billingCycle`) — the current period's `renewsAt` is left untouched, matching standard "the change applies next cycle" SaaS behavior. */
+  changeBillingCycle(organizationId: string, billingCycle: BillingCycle): Subscription {
+    const subscription = this.getOrAssignDefault(organizationId);
+    subscription.billingCycle = billingCycle;
+    subscription.updatedAt = now();
+    void platformEventBus.publish({ type: "SubscriptionChanged", organizationId, payload: { tier: subscription.tier, status: subscription.status } });
+    return subscription;
+  }
+
   recordUsage(organizationId: string, key: SubscriptionUsageKey, delta: number): Subscription {
     const subscription = this.getOrAssignDefault(organizationId);
     subscription.usage[key] = Math.max(0, subscription.usage[key] + delta);

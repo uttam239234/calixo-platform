@@ -19,9 +19,9 @@ const SHELL_ITEMS: ShellItem[] = [
   { id: "organization", label: "Organization", href: "/dashboard/settings", icon: Building2 },
   { id: "users", label: "Users & Teams", href: "/dashboard/settings/users", icon: UserCog },
   { id: "roles", label: "Roles & Permissions", href: "/dashboard/settings/roles", icon: ShieldCheck },
-  { id: "workspaces", label: "Workspaces", href: "/dashboard/settings/workspaces", icon: Boxes, comingSoon: true },
-  { id: "integrations", label: "Integrations", href: "/dashboard/settings/integrations", icon: Link2, comingSoon: true },
-  { id: "billing", label: "Billing & Plans", href: "/dashboard/settings/billing", icon: CreditCard, comingSoon: true },
+  { id: "workspaces", label: "Workspaces", href: "/dashboard/settings/workspaces", icon: Boxes },
+  { id: "integrations", label: "Integrations", href: "/dashboard/settings/integrations", icon: Link2 },
+  { id: "billing", label: "Billing & Plans", href: "/dashboard/settings/billing", icon: CreditCard },
   { id: "audit", label: "Audit Logs", href: "/dashboard/settings/audit", icon: ScrollText, comingSoon: true },
   { id: "api", label: "API & Webhooks", href: "/dashboard/settings/api", icon: Webhook, comingSoon: true },
 ];
@@ -33,9 +33,10 @@ function isItemActive(pathname: string, href: string): boolean {
 
 /**
  * The permanent administration shell — everything Track 3 used to expose as
- * separate top-level modules now lives here. Organization, Users & Teams, and
- * Roles & Permissions are real; the rest render as disabled "Coming Soon"
- * entries (never redesigned later, just switched on when their phase starts).
+ * separate top-level modules now lives here. Organization, Users & Teams,
+ * Roles & Permissions, Workspaces, Integrations, and Billing & Plans are
+ * real; the rest render as disabled "Coming Soon" entries (never redesigned
+ * later, just switched on when their phase starts).
  */
 export function SettingsAdminSidebar() {
   const pathname = usePathname();

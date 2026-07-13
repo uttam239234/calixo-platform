@@ -61,6 +61,14 @@ export class PromotionEngine {
     return this.redemptions.filter(r => r.organizationId === organizationId);
   }
 
+  /** Enable/disable instantly — added for the Internal Plan Management Console, same size/shape as `SubscriptionEngine.changeBillingCycle`. */
+  setActive(code: string, isActive: boolean): PromotionDefinition {
+    const promotion = this.promotions.get(code);
+    if (!promotion) throw new Error(`Unknown promotion code: ${code}`);
+    promotion.isActive = isActive;
+    return promotion;
+  }
+
   count(): number {
     return this.promotions.size;
   }

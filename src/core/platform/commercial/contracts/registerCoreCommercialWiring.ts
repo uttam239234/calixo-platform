@@ -30,6 +30,8 @@ import { usageMeteringEngine } from "../UsageMeteringEngine";
 import { quotaEngine } from "../QuotaEngine";
 import { pricingEngine } from "../PricingEngine";
 import { creditEngine } from "../CreditEngine";
+import { creditPackEngine } from "../CreditPackEngine";
+import { featureFlagRegistry } from "@/core/platform/featureFlags";
 import type { UsageTypeDefinition } from "../types";
 
 let registered = false;
@@ -43,6 +45,8 @@ export function registerCoreCommercialWiring(): void {
   registerUsageTypes();
   registerDefaultQuotas();
   registerDefaultPricing();
+  registerDefaultCreditPacks();
+  registerExperimentFlags();
   registerEventDrivenUsage();
   registerCommercialTick();
 }
@@ -96,6 +100,22 @@ function registerDefaultPricing(): void {
   pricingEngine.registerRule({ id: "price-agency", tier: "agency", model: "flat", monthlyPrice: 299, annualPrice: 2990, currency: "USD" });
   pricingEngine.registerRule({ id: "price-enterprise", tier: "enterprise", model: "quote", currency: "USD" });
   pricingEngine.registerRule({ id: "price-custom", tier: "custom", model: "quote", currency: "USD" });
+}
+
+/** The 5 locked AI credit packs — the Internal Plan Management Console's Section 2 catalog, and the single source of truth `BuyCreditsDialog`/checkout read from. */
+function registerDefaultCreditPacks(): void {
+  creditPackEngine.register({ id: "pack-5", price: 5, credits: 500, isActive: true, order: 1 });
+  creditPackEngine.register({ id: "pack-10", price: 10, credits: 1000, isActive: true, order: 2 });
+  creditPackEngine.register({ id: "pack-20", price: 20, credits: 2500, isActive: true, order: 3 });
+  creditPackEngine.register({ id: "pack-50", price: 50, credits: 6000, isActive: true, order: 4 });
+  creditPackEngine.register({ id: "pack-100", price: 100, credits: 15000, isActive: true, order: 5 });
+}
+
+/** Example percentage-rollout experiments for the Internal Plan Management Console's Section 7 — `rolloutPercent: 0` until a Platform Admin dials one up. */
+function registerExperimentFlags(): void {
+  featureFlagRegistry.register({ id: "experiment-new-dashboard", label: "New Dashboard", description: "Redesigned dashboard layout and widgets.", defaultEnabled: false, category: "experimental", rolloutPercent: 0 });
+  featureFlagRegistry.register({ id: "experiment-ai-video-studio", label: "AI Video Studio", description: "AI-generated short-form video creation.", defaultEnabled: false, category: "experimental", rolloutPercent: 0 });
+  featureFlagRegistry.register({ id: "experiment-advanced-analytics", label: "Advanced Analytics", description: "Deeper cross-module analytics correlations.", defaultEnabled: false, category: "experimental", rolloutPercent: 0 });
 }
 
 /** Connector and Execution usage — recorded straight from the real events Phases 5/7 already publish, not polled. */

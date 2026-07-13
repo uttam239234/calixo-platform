@@ -22,6 +22,13 @@ export interface FeatureFlagDefinition {
   category: FlagCategory;
   dependencies?: FeatureFlagId[];
   tier?: FlagTier;
+  /**
+   * Percentage-rollout for "experimental" flags (0-100), set by the Internal
+   * Plan Management Console's Experiments section. `undefined` leaves
+   * evaluation exactly as before this field existed — only
+   * `FeatureFlagEngine.evaluate()` (the real, context-aware evaluator) reads it.
+   */
+  rolloutPercent?: number;
 }
 
 export type FlagCategory = 

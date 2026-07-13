@@ -33,6 +33,10 @@ export class SubscriptionPlatformAPI {
     return subscriptionEngine.renew(organizationId);
   }
 
+  changeBillingCycle(organizationId: string, billingCycle: BillingCycle): Subscription {
+    return subscriptionEngine.changeBillingCycle(organizationId, billingCycle);
+  }
+
   pause(organizationId: string): Subscription {
     return subscriptionEngine.pause(organizationId);
   }

@@ -37,6 +37,27 @@ const ROLES_ACTION_PERMISSIONS = {
   manage: permissionName("role", "manage"),
 } as const;
 
+/** Workspaces uses the real `"workspace"` resource — already part of the platform's tenant-containment hierarchy, no new resource type needed. */
+const WORKSPACES_ACTION_PERMISSIONS = {
+  read: permissionName("workspace", "read"),
+  update: permissionName("workspace", "update"),
+  manage: permissionName("workspace", "manage"),
+} as const;
+
+/** Integrations uses the real `"connector"` resource — already a valid `ResourceType`, already used elsewhere (Roles & Permissions' capability list, Ads/Social connector adapters) — no new resource type needed. */
+const INTEGRATIONS_ACTION_PERMISSIONS = {
+  read: permissionName("connector", "read"),
+  update: permissionName("connector", "update"),
+  manage: permissionName("connector", "manage"),
+} as const;
+
+/** Billing & Plans uses the real `"billing"` resource — already a valid `ResourceType`, already referenced by Roles & Permissions' capability list and Access Matrix ("Manage Billing") — no new resource type needed. */
+const BILLING_ACTION_PERMISSIONS = {
+  read: permissionName("billing", "read"),
+  update: permissionName("billing", "update"),
+  manage: permissionName("billing", "manage"),
+} as const;
+
 /** Same "no real login flow yet" fallback every module uses locally — matches `TenantProviders.tsx`'s `DEMO_CURRENT_USER_ID`. */
 const SETTINGS_CURRENT_USER_ID = "user-current";
 
@@ -61,6 +82,15 @@ interface SettingsContextValue {
   canReadRoles: boolean;
   canUpdateRoles: boolean;
   canManageRoles: boolean;
+  canReadWorkspaces: boolean;
+  canUpdateWorkspaces: boolean;
+  canManageWorkspaces: boolean;
+  canReadIntegrations: boolean;
+  canUpdateIntegrations: boolean;
+  canManageIntegrations: boolean;
+  canReadBilling: boolean;
+  canUpdateBilling: boolean;
+  canManageBilling: boolean;
   updateOrganization: (input: UpdateOrganizationInput) => Promise<Organization | undefined>;
   archiveOrganization: () => Promise<void>;
   refresh: () => void;
@@ -154,6 +184,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const canReadRoles = hasPermission(ROLES_ACTION_PERMISSIONS.read);
   const canUpdateRoles = hasPermission(ROLES_ACTION_PERMISSIONS.update);
   const canManageRoles = hasPermission(ROLES_ACTION_PERMISSIONS.manage);
+  const canReadWorkspaces = hasPermission(WORKSPACES_ACTION_PERMISSIONS.read);
+  const canUpdateWorkspaces = hasPermission(WORKSPACES_ACTION_PERMISSIONS.update);
+  const canManageWorkspaces = hasPermission(WORKSPACES_ACTION_PERMISSIONS.manage);
+  const canReadIntegrations = hasPermission(INTEGRATIONS_ACTION_PERMISSIONS.read);
+  const canUpdateIntegrations = hasPermission(INTEGRATIONS_ACTION_PERMISSIONS.update);
+  const canManageIntegrations = hasPermission(INTEGRATIONS_ACTION_PERMISSIONS.manage);
+  const canReadBilling = hasPermission(BILLING_ACTION_PERMISSIONS.read);
+  const canUpdateBilling = hasPermission(BILLING_ACTION_PERMISSIONS.update);
+  const canManageBilling = hasPermission(BILLING_ACTION_PERMISSIONS.manage);
 
   const showToast = useCallback((message: string) => setToast(message), []);
 
@@ -216,6 +255,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       canReadRoles,
       canUpdateRoles,
       canManageRoles,
+      canReadWorkspaces,
+      canUpdateWorkspaces,
+      canManageWorkspaces,
+      canReadIntegrations,
+      canUpdateIntegrations,
+      canManageIntegrations,
+      canReadBilling,
+      canUpdateBilling,
+      canManageBilling,
       updateOrganization,
       archiveOrganization,
       refresh: loadOrganization,
@@ -236,6 +284,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       canReadRoles,
       canUpdateRoles,
       canManageRoles,
+      canReadWorkspaces,
+      canUpdateWorkspaces,
+      canManageWorkspaces,
+      canReadIntegrations,
+      canUpdateIntegrations,
+      canManageIntegrations,
+      canReadBilling,
+      canUpdateBilling,
+      canManageBilling,
       updateOrganization,
       archiveOrganization,
       loadOrganization,
@@ -243,10 +300,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  if (hydrated && !canRead && !canReadUsers && !canReadRoles) {
+  if (hydrated && !canRead && !canReadUsers && !canReadRoles && !canReadWorkspaces && !canReadIntegrations && !canReadBilling) {
     return (
       <div className="flex items-center justify-center py-24">
-        <ModuleEmptyState icon={<Lock size={32} />} title="You don't have access to Settings" description="Ask an administrator to grant access to Organization, Users & Teams, or Roles & Permissions." />
+        <ModuleEmptyState icon={<Lock size={32} />} title="You don't have access to Settings" description="Ask an administrator to grant access to Organization, Users & Teams, Roles & Permissions, Workspaces, Integrations, or Billing." />
       </div>
     );
   }

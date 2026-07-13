@@ -55,6 +55,7 @@ export interface Workspace {
   organizationId: string;
   name: string;
   slug: string;
+  description?: string;
   type: WorkspaceType;
   isDefault: boolean;
   isArchived: boolean;
@@ -72,6 +73,7 @@ export interface CreateWorkspaceInput {
   organizationId: string;
   name: string;
   slug?: string;
+  description?: string;
   type?: WorkspaceType;
   isDefault?: boolean;
   settings?: Partial<WorkspaceSettings>;
@@ -79,6 +81,7 @@ export interface CreateWorkspaceInput {
 
 export interface UpdateWorkspaceInput {
   name?: string;
+  description?: string;
   settings?: Partial<WorkspaceSettings>;
   branding?: Partial<WorkspaceBranding>;
 }

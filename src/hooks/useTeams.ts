@@ -87,6 +87,18 @@ export function useTeams(organizationId: string) {
     [refresh]
   );
 
+  /** "Assign Workspace Lead" / "Transfer Workspace Ownership" — Workspace and Team are 1:1 (see Workspaces module), so a workspace's lead is simply its paired team's `managerId`. */
+  const setLead = useCallback(
+    (teamId: string, userId: string) => {
+      const team = teamRegistry.lookup(teamId);
+      if (!team) return;
+      team.managerId = userId;
+      team.updatedAt = new Date().toISOString();
+      refresh();
+    },
+    [refresh]
+  );
+
   /** Adds people to a team — the cross-registry write TeamRegistry's own docs call a "hook-level concern". */
   const addMembers = useCallback(
     (teamId: string, userIds: string[]) => {
@@ -130,6 +142,7 @@ export function useTeams(organizationId: string) {
     createTeam,
     renameTeam,
     archiveTeam,
+    setLead,
     addMembers,
     removeMembers,
     refresh,

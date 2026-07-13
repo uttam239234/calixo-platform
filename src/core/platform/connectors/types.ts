@@ -19,7 +19,11 @@ import type { ProviderCapability, ProviderCategory } from "@/integrations/types"
 export type ConnectorCategory =
   | "analytics" | "advertising" | "crm" | "erp" | "hr" | "finance"
   | "communication" | "email" | "social_media" | "cloud_storage" | "ai"
-  | "commerce" | "cms" | "databases" | "developer_tools" | "custom_api" | "webhook";
+  | "commerce" | "cms" | "databases" | "developer_tools" | "custom_api" | "webhook"
+  // Added for the Integrations "Connected Apps Center" (Round 13) — the
+  // brief's 9-category Marketplace taxonomy needs "Video" (YouTube) and
+  // "Productivity" (Slack, Notion), neither covered by the 17 categories above.
+  | "video" | "productivity";
 
 export interface ConnectorMarketplaceListing {
   providerId: string;

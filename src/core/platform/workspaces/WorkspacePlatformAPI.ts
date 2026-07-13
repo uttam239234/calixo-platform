@@ -7,7 +7,7 @@
  */
 import { workspaceEngine } from "./WorkspaceEngine";
 import { workspaceRegistry, type WorkspaceListParams } from "./WorkspaceRegistry";
-import type { CreateWorkspaceInput, UpdateWorkspaceInput, Workspace, WorkspaceMember, WorkspaceMemberRole } from "./types";
+import type { CreateWorkspaceInput, UpdateWorkspaceInput, Workspace, WorkspaceAuditEntry, WorkspaceMember, WorkspaceMemberRole } from "./types";
 
 export class WorkspacePlatformAPI {
   create(input: CreateWorkspaceInput, actorId: string): Workspace {
@@ -56,6 +56,10 @@ export class WorkspacePlatformAPI {
 
   count(): number {
     return workspaceRegistry.count();
+  }
+
+  getAuditTrail(workspaceId: string): WorkspaceAuditEntry[] {
+    return workspaceEngine.getAuditTrail(workspaceId);
   }
 }
 

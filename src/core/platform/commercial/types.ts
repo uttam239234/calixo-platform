@@ -106,6 +106,19 @@ export interface CreditBalance {
   lifetimeConsumed: number;
 }
 
+/**
+ * A purchasable AI credit pack ($ price → credit amount), catalog-managed by
+ * the Internal Plan Management Console. This is the single source of truth
+ * `BuyCreditsDialog`/checkout read from — previously a hardcoded UI constant.
+ */
+export interface CreditPackDefinition {
+  id: string;
+  price: number;
+  credits: number;
+  isActive: boolean;
+  order: number;
+}
+
 // ============================================================================
 // Licensing Platform (mandate section 3)
 // ============================================================================
@@ -351,4 +364,16 @@ export interface CommercialContext {
   organizationId: string;
   workspaceId?: string;
   userId?: string;
+}
+
+// ============================================================================
+// Global Commercial Settings — Internal Plan Management Console section 8
+// ============================================================================
+
+export interface PlatformGlobalSettings {
+  freeTrialLengthDays: number;
+  trialAiCredits: number;
+  defaultCurrency: string;
+  taxPercent: number;
+  enterpriseContactEmail: string;
 }

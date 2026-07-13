@@ -42,6 +42,7 @@ export class WorkspaceEngine {
       organizationId: input.organizationId,
       name: input.name,
       slug: input.slug ?? slugify(input.name),
+      description: input.description,
       type: input.type ?? "team",
       isDefault: input.isDefault ?? isFirstForOrg,
       isArchived: false,
@@ -65,6 +66,7 @@ export class WorkspaceEngine {
     const workspace = workspaceRegistry.lookup(id);
     if (!workspace) return undefined;
     if (input.name) workspace.name = input.name;
+    if (input.description !== undefined) workspace.description = input.description;
     if (input.settings) workspace.settings = { ...workspace.settings, ...input.settings };
     if (input.branding) workspace.branding = { ...workspace.branding, ...input.branding };
     workspace.updatedAt = now();

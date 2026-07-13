@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Search, Moon, Sun, ChevronDown, Plus, CalendarDays } from "lucide-react";
 import { useTheme } from "@/features/theme/ThemeContext";
 import { NotificationBell } from "./NotificationBell";
+import { GlobalWorkspaceSwitcher } from "./GlobalWorkspaceSwitcher";
 
 export default function Header() {
   const pathname = usePathname();
@@ -95,16 +96,8 @@ export default function Header() {
           <ChevronDown size={13} className="text-muted-foreground/50" />
         </button>
 
-        {/* Workspace Switcher */}
-        <button
-          type="button"
-          className="hidden xl:flex items-center gap-2 h-9 px-3 rounded-2xl border border-header-border text-[13px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-150"
-          aria-label="Switch workspace"
-        >
-          <div className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 text-[9px] font-bold text-primary">G</div>
-          <span>Growth Engine</span>
-          <ChevronDown size={13} className="text-muted-foreground/50" />
-        </button>
+        {/* Organization & Workspace Switcher */}
+        <GlobalWorkspaceSwitcher />
 
         {/* Theme Toggle */}
         <button

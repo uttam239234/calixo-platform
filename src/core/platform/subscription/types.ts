@@ -24,6 +24,11 @@ export interface SubscriptionLimits {
   connectors: number;
   brands: number;
   workspaces: number;
+  /** Added for the Internal Plan Management Console's Usage Limits section — an organization can belong to at most this many sub-organizations/departments. */
+  organizations: number;
+  reports: number;
+  scheduledReports: number;
+  apiRequests: number;
   modules: string[];
   featureGates: string[];
 }
@@ -33,6 +38,8 @@ export interface SubscriptionTierDefinition {
   label: string;
   description: string;
   limits: SubscriptionLimits;
+  /** Added for the Internal Plan Management Console — a disabled/archived tier is never offered as an upgrade target, but existing subscribers keep working. */
+  isActive: boolean;
 }
 
 export interface SubscriptionUsage {

@@ -38,6 +38,7 @@ export * from "./WebhookPlatformAPI";
 
 import { schemaPlatformAPI } from "@/core/platform/data";
 import { seedExampleConnectors } from "./seed/exampleConnectors";
+import { seedAdditionalConnectors } from "./seed/additionalConnectors";
 
 let initialized = false;
 
@@ -67,4 +68,5 @@ export async function initializeConnectorFoundation(): Promise<void> {
   }
 
   seedExampleConnectors();
+  seedAdditionalConnectors();
 }

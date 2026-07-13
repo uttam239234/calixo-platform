@@ -37,6 +37,13 @@ import { organizationRegistry, initializeOrganizationsFoundation, seedOrganizati
 import { userRegistry, initializeUsersFoundation, seedUsersPlatformMockData } from "@/core/users";
 import { initializeAccessControlFoundation } from "@/core/platform/access";
 import { seedRoleAssignmentsForRoster } from "@/features/settings/roles/seedRoleAssignments";
+import { seedDepartmentWorkspaces } from "@/features/settings/workspaces/seedDepartmentWorkspaces";
+import { seedOrganizationConnections } from "@/features/settings/integrations/seedOrganizationConnections";
+import { seedRoleAssignmentsForOrganizationMembers } from "@/features/settings/integrations/seedOrganizationMemberRoles";
+import { initializeConnectorFoundation } from "@/core/platform/connectors";
+import { seedDashboardConnections } from "@/core/dashboard/integrations/seedDashboardConnections";
+import { initializeCommercialFoundation } from "@/core/platform/commercial";
+import { seedOrganizationBilling } from "@/features/settings/billing/seedOrganizationBilling";
 
 const DEMO_CURRENT_USER_ID = "user-current";
 
@@ -60,6 +67,39 @@ function OrganizationBootstrap({ children }: { children: ReactNode }) {
       // real login flow exists yet and this data needs to exist regardless.
       await initializeAccessControlFoundation();
       await seedRoleAssignmentsForRoster();
+      // Grants the real demo user ("user-current"/"user-2"/"user-3") a real,
+      // permission-checked role in every organization it's actually a member
+      // of — closes a gap the roster-only role seed above left open (see
+      // `seedOrganizationMemberRoles.ts`), needed by any hard-gated platform
+      // check (e.g. the Connector Platform's `ConnectorRuntime`).
+      await seedRoleAssignmentsForOrganizationMembers();
+      // Real per-department Workspace records (Marketing/Admissions/Outreach/...),
+      // one per existing Team — replaces the generic per-org mock workspace id
+      // every team/person previously shared. Must run before `WorkspaceBootstrap`
+      // below reads real data; see that component's own gating for why the
+      // ordering works out even though it's a sibling effect, not a sequenced call.
+      await seedDepartmentWorkspaces();
+      // Registers the Marketplace's 8 additional apps and connects each
+      // organization's real starter set — must run after organizations exist,
+      // same "seed after the data it depends on" ordering as the steps above.
+      await initializeConnectorFoundation();
+      // Registers Google Ads/Meta/Instagram/LinkedIn/YouTube into the shared
+      // connector registry — previously only triggered by the Dashboard page
+      // mounting; needed here too since `seedOrganizationConnections()` below
+      // installs real connections for some of these providers (found via this
+      // round's own isolation verification route: without this, install()
+      // throws "Provider google-ads not found"). Its own "org-current" demo
+      // connections are unrelated to the 4 real organizations below.
+      await seedDashboardConnections();
+      await seedOrganizationConnections();
+      // Registers pricing rules, usage types, and quotas — otherwise only
+      // reachable via the umbrella `initializePlatformFoundation()`, which is
+      // itself gated behind a real session user that never exists in this
+      // demo (found via this round's own research). Then grants each
+      // organization's real included AI credits and seeds realistic starting
+      // billing data (consumption, a default payment method, paid invoices).
+      await initializeCommercialFoundation();
+      await seedOrganizationBilling();
       refreshOrganizations();
     })();
   }, [refreshOrganizations]);
