@@ -65,6 +65,7 @@ export class OrganizationEngine {
       name: input.name,
       slug: input.slug ?? slugify(input.name),
       ownerId: input.ownerId,
+      clerkOrgId: input.clerkOrgId,
       status: tier === "trial" ? "trial" : "active",
       tier,
       profile: { ...DEFAULT_PROFILE(), ...input.profile },

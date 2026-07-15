@@ -11,8 +11,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { SOCIAL_CURRENT_USER_ID, SOCIAL_ORGANIZATION_ID } from "@/core/social";
-import { useUser } from "@/identity/hooks/useAuth";
+import { SOCIAL_ORGANIZATION_ID } from "@/core/social";
+import { useUser } from "@clerk/nextjs";
+import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 import { useOrganizationId } from "@/organizations/hooks/useOrganization";
 import { authorizationPlatformAPI, permissionName } from "@/core/platform/access";
 import { initializePlatformFoundation } from "@/core/platform";
@@ -45,31 +46,32 @@ export interface SocialTenantContext {
 
 export function useSocialTenant() {
   const [permissions, setPermissions] = useState<string[] | null>(null);
-  const sessionUser = useUser();
+  const { identity } = useCalixoIdentity();
+  const { user: clerkUser } = useUser();
   const organizationId = useOrganizationId();
 
   const tenantContext = useMemo<SocialTenantContext>(
-    () => ({ organizationId: organizationId ?? SOCIAL_ORGANIZATION_ID, userId: sessionUser?.id ?? SOCIAL_CURRENT_USER_ID }),
-    [organizationId, sessionUser?.id]
+    () => ({ organizationId: organizationId ?? SOCIAL_ORGANIZATION_ID, userId: identity?.userId ?? "" }),
+    [organizationId, identity?.userId]
   );
-  const currentUserName = sessionUser?.name ?? "Aarav Mehta";
+  const currentUserName = clerkUser?.fullName ?? clerkUser?.firstName ?? "";
 
-  /** `null` = no gating (unauthenticated demo default, unchanged behavior). Once a real session exists this becomes the user's real effective permission list. */
+  /** `null` while identity resolution is still in flight — `middleware.ts` already blocks unauthenticated requests before this component ever renders. */
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!sessionUser) {
+      if (!identity) {
         if (!cancelled) setPermissions(null);
         return;
       }
       await initializePlatformFoundation();
-      const effective = await authorizationPlatformAPI.getEffectivePermissions(sessionUser.id, organizationId ?? undefined);
+      const effective = await authorizationPlatformAPI.getEffectivePermissions(identity.userId, organizationId ?? undefined);
       if (!cancelled) setPermissions(effective);
     })();
     return () => {
       cancelled = true;
     };
-  }, [sessionUser, organizationId]);
+  }, [identity, organizationId]);
 
   const hasPermission = useCallback((permission: string) => !permissions || permissions.includes(permission), [permissions]);
 

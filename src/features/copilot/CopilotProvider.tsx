@@ -12,13 +12,14 @@ import {
   estimateTokens,
   logCopilotError,
   COPILOT_ORGANIZATION_ID,
-  COPILOT_CURRENT_USER_ID,
   COPILOT_WORKSPACE_ID,
 } from "@/core/copilot";
 import type { ExecutionStep, OrganizationPreferences, SendMessageOutcome } from "@/core/copilot";
-import { useUser } from "@/identity/hooks/useAuth";
+import { useUser } from "@clerk/nextjs";
+import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 import { useOrganizationId } from "@/organizations/hooks/useOrganization";
 import { authorizationPlatformAPI, permissionName } from "@/core/platform/access";
+import { entitlementPlatformAPI } from "@/core/platform/commercial";
 import { initializePlatformFoundation } from "@/core/platform";
 import { ModuleEmptyState } from "@/components/enterprise/module";
 
@@ -64,6 +65,9 @@ interface CopilotContextValue {
   canExecute: boolean;
   canApprove: boolean;
   canManage: boolean;
+  /** Real plan-tier entitlement (`entitlementPlatformAPI.canAccess`), distinct from `canRead`/`canExecute` RBAC — a Trial-tier organization has no real permission problem, it simply isn't entitled to this module at all. */
+  hasAiCopilotAccess: boolean;
+  upgradeRequiredReason?: string;
   orgPreferences: OrganizationPreferences;
   updateOrgPreferences: (patch: Partial<OrganizationPreferences>) => Promise<void>;
   recordMessageOutcome: (requestText: string, outcome: SendMessageOutcome, elapsedMs: number) => void;
@@ -89,14 +93,15 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<string[] | null>(null);
   const [orgPreferences, setOrgPreferences] = useState<OrganizationPreferences>({});
 
-  const sessionUser = useUser();
+  const { identity } = useCalixoIdentity();
+  const { user: clerkUser } = useUser();
   const organizationId = useOrganizationId();
 
   const tenantContext = useMemo<CopilotTenantContext>(
-    () => ({ organizationId: organizationId ?? COPILOT_ORGANIZATION_ID, workspaceId: COPILOT_WORKSPACE_ID, userId: sessionUser?.id ?? COPILOT_CURRENT_USER_ID }),
-    [organizationId, sessionUser?.id]
+    () => ({ organizationId: organizationId ?? COPILOT_ORGANIZATION_ID, workspaceId: COPILOT_WORKSPACE_ID, userId: identity?.userId ?? "" }),
+    [organizationId, identity?.userId]
   );
-  const currentUserName = sessionUser?.name ?? "Aarav Mehta";
+  const currentUserName = clerkUser?.fullName ?? clerkUser?.firstName ?? "";
 
   useEffect(() => {
     initializeCopilotFoundation();
@@ -140,28 +145,35 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
     }
   }, [toast]);
 
-  /** `null` = no gating (unauthenticated demo default, unchanged behavior). */
+  /** `null` while identity resolution is still in flight — `middleware.ts` already blocks unauthenticated requests before this component ever renders. */
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!sessionUser) {
+      if (!identity) {
         if (!cancelled) setPermissions(null);
         return;
       }
       await initializePlatformFoundation();
-      const effective = await authorizationPlatformAPI.getEffectivePermissions(sessionUser.id, organizationId ?? undefined);
+      const effective = await authorizationPlatformAPI.getEffectivePermissions(identity.userId, organizationId ?? undefined);
       if (!cancelled) setPermissions(effective);
     })();
     return () => {
       cancelled = true;
     };
-  }, [sessionUser, organizationId]);
+  }, [identity, organizationId]);
 
   const hasPermission = useCallback((permission: string) => !permissions || permissions.includes(permission), [permissions]);
   const canRead = hasPermission(COPILOT_ACTION_PERMISSIONS.read);
   const canExecute = hasPermission(COPILOT_ACTION_PERMISSIONS.execute);
   const canApprove = hasPermission(COPILOT_ACTION_PERMISSIONS.approve);
   const canManage = hasPermission(COPILOT_ACTION_PERMISSIONS.manage);
+
+  const entitlementDecision = useMemo(
+    () => (tenantContext.organizationId ? entitlementPlatformAPI.canAccess(tenantContext.organizationId, "module", "ai-copilot") : { allowed: true, reason: undefined }),
+    [tenantContext.organizationId]
+  );
+  const hasAiCopilotAccess = entitlementDecision.allowed;
+  const upgradeRequiredReason = entitlementDecision.reason;
 
   const showToast = useCallback((message: string) => setToast(message), []);
 
@@ -235,6 +247,8 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
       canExecute,
       canApprove,
       canManage,
+      hasAiCopilotAccess,
+      upgradeRequiredReason,
       orgPreferences,
       updateOrgPreferences,
       recordMessageOutcome,
@@ -242,8 +256,20 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
       rejectStep,
       showToast,
     }),
-    [hydrated, mode, toggleMode, tenantContext, currentUserName, canRead, canExecute, canApprove, canManage, orgPreferences, updateOrgPreferences, recordMessageOutcome, approveStep, rejectStep, showToast]
+    [hydrated, mode, toggleMode, tenantContext, currentUserName, canRead, canExecute, canApprove, canManage, hasAiCopilotAccess, upgradeRequiredReason, orgPreferences, updateOrgPreferences, recordMessageOutcome, approveStep, rejectStep, showToast]
   );
+
+  if (hydrated && !hasAiCopilotAccess) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <ModuleEmptyState
+          icon={<Lock size={32} />}
+          title="Upgrade required"
+          description={upgradeRequiredReason ?? "AI Copilot isn't included in your current plan."}
+        />
+      </div>
+    );
+  }
 
   if (hydrated && !canRead) {
     return (

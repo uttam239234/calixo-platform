@@ -3,106 +3,51 @@
 /**
  * Calixo Platform - Dashboard Tenant Context Bridge
  *
- * Mounts the real Identity/Organization/Workspace platform providers for
- * the `/dashboard/*` route group. None of these were previously mounted
- * anywhere in the app — every dashboard hook read hardcoded demo
- * constants instead. `AuthProvider` never redirects and settles to
- * `{ user: null, isAuthenticated: false }` when nothing is in
- * localStorage, so mounting it here is a no-op until a real login flow
- * exists, and becomes real the moment one does.
+ * Production identity migration (Round 18): the real, Clerk-verified
+ * identity now drives this bridge — `useCalixoIdentity()` resolves a real
+ * `userId`/`organizationId` (JIT-provisioning on first contact; see
+ * `src/identity/bridge/resolveCalixoIdentity.ts`), replacing the
+ * `DEMO_CURRENT_USER_ID` fallback that previously made this a no-op ("no
+ * real login flow exists yet") on every request.
  *
- * `OrganizationProvider` takes `userId` as a prop rather than reading
- * context itself, and neither it nor `WorkspaceProvider` auto-load on
- * mount ("initial load is triggered externally", per their own source) —
- * the bootstrap components below call `refreshOrganizations()`/
- * `refreshWorkspaces()` once per `userId`/`organizationId` change;
- * `refreshOrganizations()` itself already no-ops safely when its `userId`
- * is falsy, so the bootstrap doesn't need to duplicate that check.
+ * `OrganizationProvider`/`organizationService` were already real — they
+ * always delegated to the canonical `organizationPlatformAPI`
+ * (`core/platform/organizations`), a genuine RBAC-aware multi-org engine.
+ * The only thing that was fake was the `userId` fed into them and "active
+ * org" defaulting to `orgs[0]` rather than a real selection. Both are fixed
+ * here without touching the 12 other files that already consume
+ * `useOrganization()`/`useOrganizationId()` — only what backs them changes.
  *
- * `DEMO_CURRENT_USER_ID` is the same "no real login flow exists yet"
- * fallback every other module already uses locally (e.g. Reports'
- * `REPORTS_CURRENT_USER_ID`), applied here at the shared session-bootstrap
- * level so the organization switcher — and every module reading
- * `useOrganizationId()` — sees one real, consistent "current organization"
- * instead of each module silently falling back to its own disconnected
- * constant. Swap this for `sessionUser.id` the moment a real login flow
- * exists; nothing downstream needs to change.
+ * The rich pre-seeded demo roster (`seedOrganizationsPlatformMockData` and
+ * friends — Royal Global University / Calixo Technologies / MIT WPU /
+ * Agency Client A) is no longer auto-seeded here: attaching any real signed
+ *-in user to that roster would itself be the kind of hardcoded shortcut
+ * this migration exists to remove. `resolveCalixoIdentity()` still ensures
+ * every foundational registry (subscription tiers, RBAC roles, connector
+ * catalog, commercial platform) is initialized — just not fake identities.
  */
 
 import { useEffect, type ReactNode } from "react";
-import { AuthProvider, useUser } from "@/identity/hooks/useAuth";
+import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 import { OrganizationProvider, useOrganization, useOrganizationId } from "@/organizations/hooks/useOrganization";
 import { WorkspaceProvider, useWorkspace } from "@/workspaces/hooks/useWorkspace";
-import { organizationRegistry, initializeOrganizationsFoundation, seedOrganizationsPlatformMockData } from "@/core/platform/organizations";
-import { userRegistry, initializeUsersFoundation, seedUsersPlatformMockData } from "@/core/users";
-import { initializeAccessControlFoundation } from "@/core/platform/access";
-import { seedRoleAssignmentsForRoster } from "@/features/settings/roles/seedRoleAssignments";
-import { seedDepartmentWorkspaces } from "@/features/settings/workspaces/seedDepartmentWorkspaces";
-import { seedOrganizationConnections } from "@/features/settings/integrations/seedOrganizationConnections";
-import { seedRoleAssignmentsForOrganizationMembers } from "@/features/settings/integrations/seedOrganizationMemberRoles";
-import { initializeConnectorFoundation } from "@/core/platform/connectors";
-import { seedDashboardConnections } from "@/core/dashboard/integrations/seedDashboardConnections";
-import { initializeCommercialFoundation } from "@/core/platform/commercial";
-import { seedOrganizationBilling } from "@/features/settings/billing/seedOrganizationBilling";
 
-const DEMO_CURRENT_USER_ID = "user-current";
-
-function OrganizationBootstrap({ children }: { children: ReactNode }) {
-  const { refreshOrganizations } = useOrganization();
+function OrganizationBootstrap({ children, activeOrganizationId }: { children: ReactNode; activeOrganizationId: string | null }) {
+  const { organizations, organization, switchOrganization, refreshOrganizations } = useOrganization();
 
   useEffect(() => {
     (async () => {
-      if (organizationRegistry.count() === 0) {
-        initializeOrganizationsFoundation();
-        seedOrganizationsPlatformMockData();
-      }
-      // Users & Teams' roster is keyed to these same organizations (see `core/users/mock/rosters.ts`) — seed it right alongside them, once, app-wide.
-      if (userRegistry.count() === 0) {
-        initializeUsersFoundation();
-        seedUsersPlatformMockData();
-      }
-      // Real business roles (Owner/Administrator/Manager/Member/Viewer) + a real
-      // UserRoleAssignment per roster person — both idempotent, and neither gated
-      // behind a session user (unlike SettingsProvider's own effect), since no
-      // real login flow exists yet and this data needs to exist regardless.
-      await initializeAccessControlFoundation();
-      await seedRoleAssignmentsForRoster();
-      // Grants the real demo user ("user-current"/"user-2"/"user-3") a real,
-      // permission-checked role in every organization it's actually a member
-      // of — closes a gap the roster-only role seed above left open (see
-      // `seedOrganizationMemberRoles.ts`), needed by any hard-gated platform
-      // check (e.g. the Connector Platform's `ConnectorRuntime`).
-      await seedRoleAssignmentsForOrganizationMembers();
-      // Real per-department Workspace records (Marketing/Admissions/Outreach/...),
-      // one per existing Team — replaces the generic per-org mock workspace id
-      // every team/person previously shared. Must run before `WorkspaceBootstrap`
-      // below reads real data; see that component's own gating for why the
-      // ordering works out even though it's a sibling effect, not a sequenced call.
-      await seedDepartmentWorkspaces();
-      // Registers the Marketplace's 8 additional apps and connects each
-      // organization's real starter set — must run after organizations exist,
-      // same "seed after the data it depends on" ordering as the steps above.
-      await initializeConnectorFoundation();
-      // Registers Google Ads/Meta/Instagram/LinkedIn/YouTube into the shared
-      // connector registry — previously only triggered by the Dashboard page
-      // mounting; needed here too since `seedOrganizationConnections()` below
-      // installs real connections for some of these providers (found via this
-      // round's own isolation verification route: without this, install()
-      // throws "Provider google-ads not found"). Its own "org-current" demo
-      // connections are unrelated to the 4 real organizations below.
-      await seedDashboardConnections();
-      await seedOrganizationConnections();
-      // Registers pricing rules, usage types, and quotas — otherwise only
-      // reachable via the umbrella `initializePlatformFoundation()`, which is
-      // itself gated behind a real session user that never exists in this
-      // demo (found via this round's own research). Then grants each
-      // organization's real included AI credits and seeds realistic starting
-      // billing data (consumption, a default payment method, paid invoices).
-      await initializeCommercialFoundation();
-      await seedOrganizationBilling();
-      refreshOrganizations();
+      await refreshOrganizations();
     })();
   }, [refreshOrganizations]);
+
+  // Keeps the "active" organization in sync with the identity bridge's real resolution (the org Clerk's session says is active, or the user's JIT-provisioned org) rather than the provider's own "defaults to orgs[0]" fallback.
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    if (organization?.id === activeOrganizationId) return;
+    if (!organizations.some(o => o.id === activeOrganizationId)) return;
+    void switchOrganization(activeOrganizationId);
+  }, [activeOrganizationId, organization?.id, organizations, switchOrganization]);
 
   return <>{children}</>;
 }
@@ -118,23 +63,28 @@ function WorkspaceBootstrap({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-function OrganizationProviderBridge({ children }: { children: ReactNode }) {
-  const user = useUser();
-  return (
-    <OrganizationProvider userId={user?.id ?? DEMO_CURRENT_USER_ID}>
-      <OrganizationBootstrap>{children}</OrganizationBootstrap>
-    </OrganizationProvider>
-  );
+function SignedOutState() {
+  return <div className="mx-auto max-w-6xl px-6 py-24 text-sm text-muted-foreground">Redirecting to sign-in…</div>;
 }
 
 export function DashboardTenantProviders({ children }: { children: ReactNode }) {
+  const { loaded, signedIn, identity } = useCalixoIdentity();
+
+  if (!loaded) {
+    return <div className="mx-auto max-w-6xl px-6 py-24 text-sm text-muted-foreground">Loading your workspace…</div>;
+  }
+  // `middleware.ts` already redirects an unauthenticated request before this ever renders — this is a defensive fallback, not the primary gate (matching Clerk's current "protect at the resource" guidance).
+  if (!signedIn || !identity) {
+    return <SignedOutState />;
+  }
+
   return (
-    <AuthProvider>
-      <OrganizationProviderBridge>
+    <OrganizationProvider userId={identity.userId}>
+      <OrganizationBootstrap activeOrganizationId={identity.organizationId}>
         <WorkspaceProvider>
           <WorkspaceBootstrap>{children}</WorkspaceBootstrap>
         </WorkspaceProvider>
-      </OrganizationProviderBridge>
-    </AuthProvider>
+      </OrganizationBootstrap>
+    </OrganizationProvider>
   );
 }

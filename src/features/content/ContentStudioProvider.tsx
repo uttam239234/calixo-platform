@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { CheckCircle2, Lock, X } from "lucide-react";
 import {
-  CONTENT_CURRENT_USER_ID,
   CONTENT_ORGANIZATION_ID,
   canUseContentFeature,
   contentPlatformAPI,
@@ -22,11 +21,13 @@ import type {
   CreativeOutputKind,
   GenerationHistoryEntry,
 } from "@/core/content";
-import { useUser } from "@/identity/hooks/useAuth";
+import { useUser } from "@clerk/nextjs";
+import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 import { useOrganizationId } from "@/organizations/hooks/useOrganization";
 import { authorizationPlatformAPI, permissionName } from "@/core/platform/access";
 import { initializePlatformFoundation } from "@/core/platform";
 import { ModuleEmptyState } from "@/components/enterprise/module";
+import { generateContentAction, generateCreativeAction } from "./actions";
 
 /**
  * The brief's dotted permission names (content.read/content.create/...) consolidate onto the
@@ -93,14 +94,15 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState("");
   const [permissions, setPermissions] = useState<string[] | null>(null);
 
-  const sessionUser = useUser();
+  const { identity } = useCalixoIdentity();
+  const { user: clerkUser } = useUser();
   const organizationId = useOrganizationId();
 
   const tenantContext = useMemo<ContentTenantContext>(
-    () => ({ organizationId: organizationId ?? CONTENT_ORGANIZATION_ID, userId: sessionUser?.id ?? CONTENT_CURRENT_USER_ID }),
-    [organizationId, sessionUser?.id]
+    () => ({ organizationId: organizationId ?? CONTENT_ORGANIZATION_ID, userId: identity?.userId ?? "" }),
+    [organizationId, identity?.userId]
   );
-  const currentUserName = sessionUser?.name ?? "Aarav Mehta";
+  const currentUserName = clerkUser?.fullName ?? clerkUser?.firstName ?? "";
 
   useEffect(() => {
     initializeContentFoundation();
@@ -138,22 +140,22 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
     }
   }, [toast]);
 
-  /** `null` = no gating (unauthenticated demo default, unchanged behavior). */
+  /** `null` while identity resolution is still in flight — `middleware.ts` already blocks unauthenticated requests before this component ever renders. */
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!sessionUser) {
+      if (!identity) {
         if (!cancelled) setPermissions(null);
         return;
       }
       await initializePlatformFoundation();
-      const effective = await authorizationPlatformAPI.getEffectivePermissions(sessionUser.id, organizationId ?? undefined);
+      const effective = await authorizationPlatformAPI.getEffectivePermissions(identity.userId, organizationId ?? undefined);
       if (!cancelled) setPermissions(effective);
     })();
     return () => {
       cancelled = true;
     };
-  }, [sessionUser, organizationId]);
+  }, [identity, organizationId]);
 
   const hasPermission = useCallback((permission: string) => !permissions || permissions.includes(permission), [permissions]);
   const canRead = hasPermission(CONTENT_ACTION_PERMISSIONS.read);
@@ -174,7 +176,13 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
       if (!canCreate) return undefined;
       const startedAt = Date.now();
       try {
-        const entry = await contentPlatformAPI.generateCreative({ ...brief, brandStyleId: brief.brandStyleId ?? selectedBrandId }, outputId, tenantContext.organizationId);
+        // Real backend enforcement boundary — see `generateCreativeAction`'s doc comment.
+        const actionResult = await generateCreativeAction({ ...brief, brandStyleId: brief.brandStyleId ?? selectedBrandId }, outputId);
+        if (!actionResult.ok || !actionResult.entry) {
+          showToast(actionResult.error ?? "Something went wrong generating that creative.");
+          return undefined;
+        }
+        const entry = actionResult.entry;
         recordContentUsage(tenantContext, "content.creativeGeneration");
         if ((entry.variantImageUrls?.length ?? 0) > 0) recordContentUsage(tenantContext, "content.variant");
         trackContentAction("generateCreative");
@@ -196,7 +204,13 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
       if (!canCreate) return undefined;
       const startedAt = Date.now();
       try {
-        const entry = await contentPlatformAPI.generateContent({ ...brief, brandStyleId: brief.brandStyleId ?? selectedBrandId }, outputId, tenantContext.organizationId);
+        // Real backend enforcement boundary — see `generateContentAction`'s doc comment.
+        const actionResult = await generateContentAction({ ...brief, brandStyleId: brief.brandStyleId ?? selectedBrandId }, outputId);
+        if (!actionResult.ok || !actionResult.entry) {
+          showToast(actionResult.error ?? "Something went wrong generating that content.");
+          return undefined;
+        }
+        const entry = actionResult.entry;
         recordContentUsage(tenantContext, "content.contentGeneration");
         if ((entry.textVariants?.length ?? 0) > 0) recordContentUsage(tenantContext, "content.variant");
         trackContentAction("generateContent");

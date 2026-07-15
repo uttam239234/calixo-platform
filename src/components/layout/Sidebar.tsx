@@ -5,8 +5,26 @@ import { usePathname } from "next/navigation";
 import "@/core/modules/bootstrap";
 import { ModuleNavigation } from "@/core/modules";
 import type { ModuleNavSection, ModuleNavItem } from "@/core/modules";
-import { ChevronLeft, ChevronRight, Zap, HardDrive, CreditCard } from "lucide-react";
+import { ChevronLeft, ChevronRight, Zap, HardDrive, CreditCard, KeyRound, Landmark, ScrollText, Boxes, HeartPulse } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useInternalRole } from "@/features/platform-admin/internalRole";
+
+/**
+ * Staff-only quick links — never registered through the generic
+ * `ModuleNavigation` module system (that registry has no per-role
+ * visibility concept, and is meant for regular feature modules every
+ * customer can see). Rendered directly here, gated on `hasPlatformAdminAccess`
+ * (PLATFORM_OWNER or PLATFORM_ADMIN) so a Platform Admin — not just the
+ * bootstrap Owner — also gets a real entry point instead of needing to know
+ * the raw URL, consistent with Route Protection granting both roles access.
+ */
+const PLATFORM_NAV_ITEMS = [
+  { href: "/platform-admin/secrets", label: "Platform Secrets", icon: KeyRound },
+  { href: "/platform-admin", label: "Commercial Console", icon: Landmark },
+  { href: "/dashboard/settings/audit", label: "Global Audit Logs", icon: ScrollText },
+  { href: "/platform-admin/plans", label: "Internal Plans", icon: Boxes },
+  { href: "/platform-admin/health", label: "Platform Health", icon: HeartPulse },
+];
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -15,6 +33,7 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { hasPlatformAdminAccess } = useInternalRole();
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -140,6 +159,57 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             </div>
           </div>
         ))}
+
+        {hasPlatformAdminAccess && (
+          <div className="mb-5">
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="px-3 mb-1.5 text-[10px] font-semibold tracking-[0.1em] uppercase text-sidebar-muted"
+                >
+                  Platform
+                </motion.p>
+              )}
+            </AnimatePresence>
+            <div className="space-y-0.5">
+              {PLATFORM_NAV_ITEMS.map(item => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={item.label}
+                    className={`group relative flex items-center rounded-xl text-sm font-medium transition-all duration-150 ease-in-out ${
+                      collapsed ? "justify-center px-0 py-3 mx-auto w-11" : "gap-3 px-3 py-2.5"
+                    } ${active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"}`}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {active && !collapsed && (
+                      <motion.span
+                        layoutId="activeNavIndicator"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r-full bg-primary"
+                        transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                      />
+                    )}
+                    <Icon size={collapsed ? 20 : 18} className={`flex-shrink-0 transition-all duration-150 ${active ? "text-primary" : "text-sidebar-muted group-hover:text-primary"}`} />
+                    {active && collapsed && <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-sidebar" />}
+                    <AnimatePresence>
+                      {!collapsed && (
+                        <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 truncate">
+                          {item.label}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Bottom Section - Workspace, Plan, Storage, Version */}

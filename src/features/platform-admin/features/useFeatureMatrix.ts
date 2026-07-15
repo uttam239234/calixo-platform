@@ -23,34 +23,12 @@ import { subscriptionRegistry } from "@/core/platform/subscription";
 import type { SubscriptionTier, SubscriptionLimits } from "@/core/platform/subscription";
 import { useInternalRole } from "../internalRole";
 import { commitPlanChange } from "../commitPlanChange";
+import { saveSubscriptionTierAction } from "@/core/platform/configStore/actions";
 import { SELF_SERVE_TIERS } from "@/features/settings/billing/constants";
+import { ALL_MODULE_IDS, LIMIT_PROXY_DEFAULTS, type MatrixRow } from "./matrixRows";
 
-export type MatrixRowKind = "module" | "featureGate" | "limitProxy";
-
-export interface MatrixRow {
-  id: string;
-  label: string;
-  kind: MatrixRowKind;
-}
-
-const ALL_MODULE_IDS = ["dashboard", "analytics", "ads", "social", "brand", "content", "ai-copilot", "reports"];
-
-export const MATRIX_ROWS: MatrixRow[] = [
-  { id: "dashboard", label: "Dashboard", kind: "module" },
-  { id: "analytics", label: "Analytics", kind: "module" },
-  { id: "ads", label: "Ads Manager", kind: "module" },
-  { id: "social", label: "Social Media", kind: "module" },
-  { id: "brand", label: "Brand Monitoring", kind: "module" },
-  { id: "content", label: "Content Studio", kind: "module" },
-  { id: "ai-copilot", label: "AI Copilot", kind: "module" },
-  { id: "reports", label: "Reports", kind: "module" },
-  { id: "workspaces", label: "Workspaces", kind: "limitProxy" },
-  { id: "connectors", label: "Integrations", kind: "limitProxy" },
-  { id: "apiRequests", label: "API Access", kind: "limitProxy" },
-  { id: "audit-export", label: "Audit Logs", kind: "featureGate" },
-];
-
-const LIMIT_PROXY_DEFAULTS: Record<string, number> = { workspaces: 10, connectors: 5, apiRequests: 10000 };
+export type { MatrixRowKind, MatrixRow } from "./matrixRows";
+export { MATRIX_ROWS, ALL_MODULE_IDS, LIMIT_PROXY_DEFAULTS } from "./matrixRows";
 
 export function isRowEnabled(limits: SubscriptionLimits, row: MatrixRow): boolean {
   if (row.kind === "module") return limits.modules.includes("*") || limits.modules.includes(row.id);
@@ -84,7 +62,10 @@ export function useFeatureMatrix() {
         nextLimits = { ...definition.limits, [key]: nextAmount };
       }
 
-      subscriptionRegistry.register({ ...definition, limits: nextLimits });
+      const description = `${nextValue ? "Enabled" : "Disabled"} ${row.label} for the ${tier} plan`;
+      const nextDefinition = { ...definition, limits: nextLimits };
+      subscriptionRegistry.register(nextDefinition);
+      void saveSubscriptionTierAction(nextDefinition, description);
       const risky = before && !nextValue ? "feature_removal" : undefined;
       await commitPlanChange({
         entityType: "subscription-tier-modules",
@@ -92,12 +73,14 @@ export function useFeatureMatrix() {
         before,
         after: nextValue,
         actor: role,
-        description: `${nextValue ? "Enabled" : "Disabled"} ${row.label} for the ${tier} plan`,
+        description,
         risky,
         restore: risky
           ? () => {
               const d = subscriptionRegistry.get(tier)!;
-              subscriptionRegistry.register({ ...d, limits: definition.limits });
+              const restored = { ...d, limits: definition.limits };
+              subscriptionRegistry.register(restored);
+              void saveSubscriptionTierAction(restored, `Undo: ${description}`);
               refresh();
             }
           : undefined,

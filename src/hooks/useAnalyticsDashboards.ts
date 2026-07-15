@@ -10,13 +10,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { analyticsDashboardRegistry, seedAnalyticsDashboards } from "@/core/analytics";
 import type { AnalyticsDashboardLayout, AnalyticsWidgetConfig } from "@/core/analytics";
-import { useUser } from "@/identity/hooks/useAuth";
+import { useUser } from "@clerk/nextjs";
 
 const FALLBACK_USER = "You";
 
 export function useAnalyticsDashboards() {
-  const sessionUser = useUser();
-  const CURRENT_USER = sessionUser?.name ?? FALLBACK_USER;
+  const { user: sessionUser } = useUser();
+  const CURRENT_USER = sessionUser?.fullName ?? sessionUser?.firstName ?? FALLBACK_USER;
   const [layouts, setLayouts] = useState<AnalyticsDashboardLayout[]>([]);
   const [activeId, setActiveId] = useState<string>("analytics-layout-executive");
 

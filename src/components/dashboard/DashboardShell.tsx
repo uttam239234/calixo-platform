@@ -38,7 +38,6 @@ import {
   DASHBOARD_WIDGET_CATALOG,
   DASHBOARD_WIDGET_PERMISSIONS,
   DASHBOARD_ORGANIZATION_ID,
-  DASHBOARD_CURRENT_USER_ID,
   dashboardActivityLog,
   canUseDashboardFeature,
   recordDashboardUsage,
@@ -47,7 +46,8 @@ import {
 } from "@/core/dashboard";
 import { useCurrentOrganization } from "@/organizations/hooks/useOrganization";
 import { useCurrentWorkspace } from "@/workspaces/hooks/useWorkspace";
-import { useUser } from "@/identity/hooks/useAuth";
+import { useUser } from "@clerk/nextjs";
+import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 import { authorizationPlatformAPI, permissionName } from "@/core/platform/access";
 import { Button } from "@/components/ui/button";
 import { Maximize2, Minimize2, LayoutGrid, Lock, Unlock } from "lucide-react";
@@ -84,7 +84,8 @@ export default function DashboardShell() {
   const notifications = useNotifications();
   const currentOrganization = useCurrentOrganization();
   const currentWorkspace = useCurrentWorkspace();
-  const sessionUser = useUser();
+  const { identity } = useCalixoIdentity();
+  const { user: clerkUser } = useUser();
   const [permissions, setPermissions] = useState<string[] | null>(null);
   const layouts = useDashboardLayouts();
   const goals = useGoals();
@@ -96,14 +97,13 @@ export default function DashboardShell() {
   const { refresh: refreshDashboard } = dashboard;
   const { refresh: refreshNotifications } = notifications;
 
-  /** Real tenant identity for Commercial usage/entitlement calls — falls back to the demo constants when no session exists yet, exactly like the Connector Platform wiring in Workstream A. */
   const tenantContext: DashboardTenantContext = useMemo(
     () => ({
       organizationId: currentOrganization?.id ?? DASHBOARD_ORGANIZATION_ID,
       workspaceId: currentWorkspace?.id,
-      userId: sessionUser?.id ?? DASHBOARD_CURRENT_USER_ID,
+      userId: identity?.userId ?? "",
     }),
-    [currentOrganization?.id, currentWorkspace?.id, sessionUser?.id]
+    [currentOrganization?.id, currentWorkspace?.id, identity?.userId]
   );
 
   useEffect(() => {
@@ -136,17 +136,17 @@ export default function DashboardShell() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!sessionUser) {
+      if (!identity) {
         if (!cancelled) setPermissions(null);
         return;
       }
-      const effective = await authorizationPlatformAPI.getEffectivePermissions(sessionUser.id, currentOrganization?.id);
+      const effective = await authorizationPlatformAPI.getEffectivePermissions(identity.userId, currentOrganization?.id);
       if (!cancelled) setPermissions(effective);
     })();
     return () => {
       cancelled = true;
     };
-  }, [sessionUser, currentOrganization?.id]);
+  }, [identity, currentOrganization?.id]);
 
   const openPalette = useCallback(() => {
     recordDashboardUsage(tenantContext, "dashboard.search");
@@ -426,7 +426,7 @@ export default function DashboardShell() {
         <motion.div variants={sectionVariants}>
           <WelcomeHero
             workspace={currentWorkspace?.name ?? currentOrganization?.name ?? "Royal Global University"}
-            userName={sessionUser?.name}
+            userName={clerkUser?.fullName ?? clerkUser?.firstName ?? undefined}
             briefing={dashboard.briefing}
             loading={loading}
             onOpenSearch={openPalette}

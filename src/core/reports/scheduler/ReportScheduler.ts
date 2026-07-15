@@ -15,6 +15,7 @@ export class ReportScheduler {
 
   create(params: {
     reportId: string;
+    organizationId?: string;
     frequency: ScheduleFrequency;
     recipients: ReportRecipient[];
     deliveryMethod?: DeliveryMethod;
@@ -25,6 +26,7 @@ export class ReportScheduler {
     const schedule: ReportSchedule = {
       id: generateId(14),
       reportId: params.reportId,
+      organizationId: params.organizationId,
       frequency: params.frequency,
       active: true,
       recipients: params.recipients,

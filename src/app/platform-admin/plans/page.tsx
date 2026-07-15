@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/Input";
 import { SimpleDialog } from "@/components/settings/users/SimpleDialog";
 import { UndoToast } from "@/features/platform-admin/UndoToast";
 import { usePlans, type PlanRow } from "@/features/platform-admin/plans/usePlans";
-import { SELF_SERVE_TIERS } from "@/features/settings/billing/constants";
 import type { SubscriptionTier } from "@/core/platform/subscription";
 
 export default function PlansPage() {
@@ -16,9 +15,6 @@ export default function PlansPage() {
   const [duplicating, setDuplicating] = useState<PlanRow | null>(null);
   const [confirmDisable, setConfirmDisable] = useState<PlanRow | null>(null);
   const [undo, setUndo] = useState<{ token: string; message: string; windowMs: number } | null>(null);
-
-  const selfServe = plans.filter(p => SELF_SERVE_TIERS.includes(p.tier));
-  const others = plans.filter(p => !SELF_SERVE_TIERS.includes(p.tier));
 
   const renderCard = (plan: PlanRow) => (
     <div key={plan.tier} className="rounded-2xl border border-border bg-card p-5">
@@ -77,11 +73,7 @@ export default function PlansPage() {
     <div>
       <p className="mb-4 text-sm text-muted-foreground">Every change here updates Billing, Subscriptions, and the Upgrade Center immediately — no deploy required.</p>
 
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Self-serve plans</p>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{selfServe.map(renderCard)}</div>
-
-      <p className="mb-2 mt-8 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Other plans</p>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{others.map(renderCard)}</div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{plans.map(renderCard)}</div>
 
       {editing && (
         <EditPlanDialog

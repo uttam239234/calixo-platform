@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/features/theme/ThemeContext";
+import { InternalRoleProvider } from "@/features/platform-admin/internalRole";
 import "@/core/modules/bootstrap";
 import "./globals.css";
 
@@ -26,9 +28,11 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        <ClerkProvider>
+          <ThemeProvider>
+            <InternalRoleProvider>{children}</InternalRoleProvider>
+          </ThemeProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

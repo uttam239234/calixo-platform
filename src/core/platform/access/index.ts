@@ -22,7 +22,10 @@ export { ResourceHierarchy, resourceHierarchy } from "./ResourceHierarchy";
 export { PermissionCache, permissionCache } from "./PermissionCache";
 export { PermissionTemplateRegistry, permissionTemplateRegistry } from "./PermissionTemplateRegistry";
 
-export { AuthorizationPlatformAPI, authorizationPlatformAPI } from "./AuthorizationPlatformAPI";
+export { AuthorizationPlatformAPI, authorizationPlatformAPI, hasPlatformBypass } from "./AuthorizationPlatformAPI";
+export { entitlementService } from "./EntitlementService";
+export type { EntitlementModuleId, EntitlementReasonCode, EntitlementResult, EntitlementActor } from "./EntitlementService";
+export { entitlementCache } from "./EntitlementCache";
 export { PermissionPlatformAPI, permissionPlatformAPI } from "./PermissionPlatformAPI";
 export { PolicyPlatformAPI, policyPlatformAPI } from "./PolicyPlatformAPI";
 export { RolePlatformAPI, rolePlatformAPI } from "./RolePlatformAPI";

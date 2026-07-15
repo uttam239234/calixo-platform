@@ -15,6 +15,7 @@ import { featureFlagRegistry } from "@/core/platform/featureFlags";
 import type { FeatureFlagDefinition } from "@/core/platform/featureFlags";
 import { useInternalRole } from "../internalRole";
 import { commitPlanChange } from "../commitPlanChange";
+import { saveExperimentRolloutAction } from "@/core/platform/configStore/actions";
 
 export function useExperiments() {
   const { role } = useInternalRole();
@@ -26,14 +27,16 @@ export function useExperiments() {
   const setRollout = useCallback(
     (flag: FeatureFlagDefinition, rolloutPercent: number) => {
       const before = flag.rolloutPercent ?? 0;
+      const description = `Changed ${flag.label}'s rollout from ${before}% to ${rolloutPercent}%`;
       featureFlagRegistry.register({ ...flag, rolloutPercent });
+      void saveExperimentRolloutAction(flag, rolloutPercent, description);
       void commitPlanChange({
         entityType: "experiment-flag",
         entityId: flag.id,
         before,
         after: rolloutPercent,
         actor: role,
-        description: `Changed ${flag.label}'s rollout from ${before}% to ${rolloutPercent}%`,
+        description,
       });
       refresh();
     },

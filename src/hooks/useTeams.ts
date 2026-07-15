@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { generateId } from "@/shared/utils/string";
-import { teamRegistry, userRegistry, userEngine } from "@/core/users";
+import { teamRegistry, userRegistry, userEngine, activityEngine } from "@/core/users";
 import type { Team } from "@/core/users";
 
 export interface CreateTeamInput {
@@ -99,7 +99,7 @@ export function useTeams(organizationId: string) {
     [refresh]
   );
 
-  /** Adds people to a team — the cross-registry write TeamRegistry's own docs call a "hook-level concern". */
+  /** Adds people to a team — the cross-registry write TeamRegistry's own docs call a "hook-level concern". Also records a real activity event per newly-added member (same `activityEngine.record` call shape `UserEngine` already uses for role changes) so Audit Logs' Activity Feed has something real to show for "added to team". */
   const addMembers = useCallback(
     (teamId: string, userIds: string[]) => {
       const team = teamRegistry.lookup(teamId);
@@ -108,11 +108,14 @@ export function useTeams(organizationId: string) {
       team.updatedAt = new Date().toISOString();
       for (const userId of userIds) {
         const user = userEngine.load(userId) ?? userRegistry.lookup(userId);
-        if (user && !user.teamIds.includes(teamId)) userEngine.save(userId, { teamIds: [...user.teamIds, teamId] });
+        if (user && !user.teamIds.includes(teamId)) {
+          userEngine.save(userId, { teamIds: [...user.teamIds, teamId] });
+          activityEngine.record(userId, organizationId, "team-join", `Added to ${team.name}`);
+        }
       }
       refresh();
     },
-    [refresh]
+    [organizationId, refresh]
   );
 
   const removeMembers = useCallback(

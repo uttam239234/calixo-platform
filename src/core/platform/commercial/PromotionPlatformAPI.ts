@@ -33,6 +33,11 @@ export class PromotionPlatformAPI {
   setActive(code: string, isActive: boolean): PromotionDefinition {
     return promotionEngine.setActive(code, isActive);
   }
+
+  /** Reconciles this realm's copy with a server-authoritative list — see `PromotionEngine.restoreAll()`. */
+  restoreAll(promotions: PromotionDefinition[]): void {
+    promotionEngine.restoreAll(promotions);
+  }
 }
 
 export const promotionPlatformAPI = new PromotionPlatformAPI();

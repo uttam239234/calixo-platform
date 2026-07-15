@@ -7,6 +7,7 @@ import type { DeliveryMethod, ReportRecipient, ReportRecipientType, ScheduleFreq
 import { useReports } from "@/hooks/useReports";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useReportsContext } from "@/features/reports/ReportsProvider";
+import { createReportScheduleAction } from "@/features/reports/actions";
 import { ModuleEmptyState } from "@/components/enterprise/module";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/Input";
@@ -49,9 +50,14 @@ export default function ScheduledReportsPage() {
     setRecipientValue("");
   }
 
-  function handleCreate() {
+  async function handleCreate() {
     if (!reportId || pendingRecipients.length === 0) return;
-    reportsPlatformAPI.createSchedule({ reportId, frequency, recipients: pendingRecipients, deliveryMethod });
+    // Real backend enforcement boundary — see `createReportScheduleAction`'s doc comment.
+    const result = await createReportScheduleAction({ reportId, frequency, recipients: pendingRecipients, deliveryMethod });
+    if (!result.ok) {
+      showToast(result.error ?? "Something went wrong creating that schedule.");
+      return;
+    }
     recordSchedule();
     refresh();
     setPendingRecipients([]);

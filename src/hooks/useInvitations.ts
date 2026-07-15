@@ -18,6 +18,7 @@ import { invitationEngine, userRegistry, activityEngine } from "@/core/users";
 import type { CreateInvitationInput, Invitation, InvitationActionResult, InvitationStatus, PeopleAccessLevel, User } from "@/core/users";
 import { organizationPlatformAPI } from "@/core/platform/organizations";
 import type { OrganizationMemberRole } from "@/core/platform/organizations";
+import { entitlementService } from "@/core/platform/access";
 
 const ACCESS_LEVEL_TO_ORG_ROLE: Record<PeopleAccessLevel, OrganizationMemberRole> = {
   owner: "owner",
@@ -40,8 +41,11 @@ export function useInvitations(organizationId: string) {
     })();
   }, [refresh]);
 
+  /** Real backend enforcement — `User Limit Enforcement` (the mandate's own named section): checked BEFORE the invitation is even created, using the seat count `AuthorizationPlatformAPI`'s own `SUBSCRIPTION_LIMIT_CHECKS` declared a gate for (`user:create -> seatsUsed`) but which had zero real call sites anywhere in the codebase. */
   const create = useCallback(
-    (input: Omit<CreateInvitationInput, "organizationId">): Invitation => {
+    async (input: Omit<CreateInvitationInput, "organizationId">): Promise<Invitation> => {
+      const entitlement = await entitlementService.canInviteUser({ userId: input.invitedBy, organizationId });
+      if (!entitlement.allowed) throw new Error(entitlement.message ?? "This plan's user limit has been reached.");
       const invitation = invitationEngine.create({ ...input, organizationId });
       refresh();
       return invitation;
@@ -50,7 +54,16 @@ export function useInvitations(organizationId: string) {
   );
 
   const accept = useCallback(
-    (id: string): InvitationActionResult => {
+    async (id: string): Promise<InvitationActionResult> => {
+      // Re-checked at acceptance too, not just at invite time — several pending
+      // invites can be created while seats were available and all accepted
+      // later, after the seat count has moved.
+      const existing = invitationEngine.lookup(id);
+      if (existing) {
+        const entitlement = await entitlementService.canInviteUser({ userId: existing.invitedBy, organizationId });
+        if (!entitlement.allowed) return { success: false, errors: [entitlement.message ?? "This plan's user limit has been reached."] };
+      }
+
       const result = invitationEngine.accept(id);
       if (result.success && result.invitation) {
         const invitation = result.invitation;

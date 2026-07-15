@@ -67,8 +67,8 @@ export function useConnectWizard({ onInstall }: UseConnectWizardOptions) {
         const connection = await onInstall(app.providerId, app.name);
         for (const workspaceId of workspaceIds) grantWorkspaceAccess(connection.id, workspaceId);
         setStep("done");
-      } catch {
-        setError(`We couldn't connect ${app.name}. Please try again.`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : `We couldn't connect ${app.name}. Please try again.`);
       } finally {
         setConnecting(false);
       }

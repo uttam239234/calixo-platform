@@ -38,6 +38,23 @@ export class PlatformGlobalSettingsEngine {
 
     return this.get();
   }
+
+  /**
+   * Raw restore — sets `this.settings` directly, WITHOUT the `trialAiCredits`
+   * write-through `update()` triggers. Hydration replays each persisted
+   * table independently (`platform_global_settings` and
+   * `platform_subscription_plans` are two separate files, saved at
+   * different times by two different sections) — re-running the
+   * write-through here would let whichever table happens to apply last
+   * silently clobber the other's more recent `trialAiCredits` value. The
+   * write-through already happened for real at the moment this was
+   * originally saved; replaying it a second time during hydration is what
+   * caused that bug (found and fixed during the Round 20 persistence
+   * verification pass).
+   */
+  restore(settings: PlatformGlobalSettings): void {
+    this.settings = { ...settings };
+  }
 }
 
 export const platformGlobalSettingsEngine = new PlatformGlobalSettingsEngine();

@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  experimental: {
+    // Enables next/navigation's forbidden()/unauthorized() + forbidden.tsx/unauthorized.tsx
+    // boundaries — used by /platform-admin's layout to return a REAL HTTP 403 for an
+    // authenticated-but-unauthorized platform role, not just a client-rendered "Access Denied".
+    authInterrupts: true,
+  },
   async redirects() {
     return [
       // Content Studio rebuild — old 15-tab IA collapsed into 4 products (AI Assistant, Creative

@@ -17,12 +17,24 @@
  * one-time token, expiring via `setTimeout`. Undo always re-applies the
  * pre-change value through the section's own real setter (`restore`) —
  * never a raw data bypass — and logs a second, real audit event.
+ *
+ * Every audit event this module writes is tagged with a reserved
+ * `organizationId` sentinel (`PLATFORM_ADMIN_ORG_SENTINEL`) rather than left
+ * blank — a blank `organizationId` already means something else elsewhere
+ * (e.g. `SecretPlatformAPI`'s key-rotation events), so "undefined" isn't a
+ * safe way to isolate Platform Admin actions from customer organizations in
+ * the Audit Logs module. Real organization ids are `generateId()`-random and
+ * can never collide with this literal string.
  */
 import { versioningEngine } from "@/core/platform/data/VersioningEngine";
 import { auditService } from "@/access/audit/AuditService";
+import { entitlementService } from "@/core/platform/access";
 import type { InternalRole } from "./internalRole";
 
 export type RiskyChangeKind = "price_change" | "plan_deletion" | "feature_removal" | "credit_reduction";
+
+/** Reserved `AuditEvent.organizationId` value for every Platform Admin console write — the Audit Logs module's "Platform Admin Logs" view is the only real consumer. */
+export const PLATFORM_ADMIN_ORG_SENTINEL = "platform-admin";
 
 const UNDO_WINDOW_MS = 5 * 60 * 1000;
 
@@ -57,6 +69,7 @@ export async function commitPlanChange<T>(params: CommitPlanChangeParams<T>): Pr
 
   await versioningEngine.snapshot(entityType, entityId, after, actor, description);
   await auditService.recordEvent({
+    organizationId: PLATFORM_ADMIN_ORG_SENTINEL,
     userId: actor,
     eventType: "entity_updated",
     resource: entityType,
@@ -64,6 +77,16 @@ export async function commitPlanChange<T>(params: CommitPlanChangeParams<T>): Pr
     description,
     changes: { before, after },
   });
+  // Every one of the 8 Plan Management Console sections writes tier-wide or
+  // platform-wide configuration (a plan's price/limits/modules, a credit
+  // pack, an experiment flag, ...) — there's no cheap way from this generic
+  // layer to know which organizations a given `entityType` touches, so
+  // invalidate every cached entitlement decision platform-wide rather than
+  // risk a stale "allowed" surviving past the change that just made it
+  // false (or vice versa). This is what makes "propagates immediately, no
+  // deployment required" real for the very next request, not just true in
+  // the underlying registry.
+  entitlementService.invalidateAll();
 
   if (!risky || !restore) return {};
 
@@ -73,8 +96,10 @@ export async function commitPlanChange<T>(params: CommitPlanChangeParams<T>): Pr
     description,
     restore: () => {
       restore(before);
+      entitlementService.invalidateAll();
       void versioningEngine.snapshot(entityType, entityId, before, actor, `Undo: ${description}`);
       void auditService.recordEvent({
+        organizationId: PLATFORM_ADMIN_ORG_SENTINEL,
         userId: actor,
         eventType: "entity_restored",
         resource: entityType,

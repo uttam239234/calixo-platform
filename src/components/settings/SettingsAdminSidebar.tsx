@@ -22,8 +22,8 @@ const SHELL_ITEMS: ShellItem[] = [
   { id: "workspaces", label: "Workspaces", href: "/dashboard/settings/workspaces", icon: Boxes },
   { id: "integrations", label: "Integrations", href: "/dashboard/settings/integrations", icon: Link2 },
   { id: "billing", label: "Billing & Plans", href: "/dashboard/settings/billing", icon: CreditCard },
-  { id: "audit", label: "Audit Logs", href: "/dashboard/settings/audit", icon: ScrollText, comingSoon: true },
-  { id: "api", label: "API & Webhooks", href: "/dashboard/settings/api", icon: Webhook, comingSoon: true },
+  { id: "audit", label: "Audit Logs", href: "/dashboard/settings/audit", icon: ScrollText },
+  { id: "api", label: "API & Webhooks", href: "/dashboard/settings/api", icon: Webhook },
 ];
 
 function isItemActive(pathname: string, href: string): boolean {
@@ -34,9 +34,9 @@ function isItemActive(pathname: string, href: string): boolean {
 /**
  * The permanent administration shell — everything Track 3 used to expose as
  * separate top-level modules now lives here. Organization, Users & Teams,
- * Roles & Permissions, Workspaces, Integrations, and Billing & Plans are
- * real; the rest render as disabled "Coming Soon" entries (never redesigned
- * later, just switched on when their phase starts).
+ * Roles & Permissions, Workspaces, Integrations, Billing & Plans, and Audit
+ * Logs are real; the rest render as disabled "Coming Soon" entries (never
+ * redesigned later, just switched on when their phase starts).
  */
 export function SettingsAdminSidebar() {
   const pathname = usePathname();

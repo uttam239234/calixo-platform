@@ -8,13 +8,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { segmentRegistry, seedAnalyticsSegments } from "@/core/analytics";
 import type { AnalyticsSegment, AnalyticsFilterState, SegmentKind } from "@/core/analytics";
-import { useUser } from "@/identity/hooks/useAuth";
+import { useUser } from "@clerk/nextjs";
 
 const FALLBACK_OWNER = "You";
 
 export function useSegments() {
-  const sessionUser = useUser();
-  const OWNER = sessionUser?.name ?? FALLBACK_OWNER;
+  const { user: sessionUser } = useUser();
+  const OWNER = sessionUser?.fullName ?? sessionUser?.firstName ?? FALLBACK_OWNER;
   const [segments, setSegments] = useState<AnalyticsSegment[]>([]);
 
   const refresh = useCallback(() => {

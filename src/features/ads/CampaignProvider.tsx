@@ -2,9 +2,10 @@
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from "react";
 import { X, CheckCircle2, Lock } from "lucide-react";
-import { adsPlatformAPI, canUseAdsFeature, initializeAdsFoundation, logAdsError, recordAdsUsage, syncAdsPlatformsFromConnectors, trackAdsAction, trackAdsTiming, ADS_CURRENT_USER_ID, ADS_ORGANIZATION_ID } from "@/core/ads";
+import { adsPlatformAPI, canUseAdsFeature, initializeAdsFoundation, logAdsError, recordAdsUsage, syncAdsPlatformsFromConnectors, trackAdsAction, trackAdsTiming, ADS_ORGANIZATION_ID } from "@/core/ads";
 import type { AdsActionCenterItem, AdsBudget, AdsHealthScore, AdsPerformanceSummary, AdsPlatform, AdsRecommendation, Campaign, CampaignAction } from "@/core/ads";
-import { useUser } from "@/identity/hooks/useAuth";
+import { useUser } from "@clerk/nextjs";
+import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 import { useOrganizationId } from "@/organizations/hooks/useOrganization";
 import { authorizationPlatformAPI, permissionName } from "@/core/platform/access";
 import { initializePlatformFoundation } from "@/core/platform";
@@ -70,15 +71,15 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   const [connectorSyncVersion, setConnectorSyncVersion] = useState(0);
   const [permissions, setPermissions] = useState<string[] | null>(null);
 
-  const sessionUser = useUser();
+  const { identity } = useCalixoIdentity();
+  const { user: clerkUser } = useUser();
   const organizationId = useOrganizationId();
 
-  /** Falls back to the demo tenant constants when no real session exists yet — same non-breaking pattern used across the rest of the app. */
   const tenantContext = useMemo<AdsTenantContext>(
-    () => ({ organizationId: organizationId ?? ADS_ORGANIZATION_ID, userId: sessionUser?.id ?? ADS_CURRENT_USER_ID }),
-    [organizationId, sessionUser?.id]
+    () => ({ organizationId: organizationId ?? ADS_ORGANIZATION_ID, userId: identity?.userId ?? "" }),
+    [organizationId, identity?.userId]
   );
-  const currentUserName = sessionUser?.name ?? "Aarav Mehta";
+  const currentUserName = clerkUser?.fullName ?? clerkUser?.firstName ?? "";
 
   useEffect(() => {
     initializeAdsFoundation();
@@ -114,22 +115,22 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     recordAdsUsage(tenantContext, "ads.campaignView");
   }, [tenantContext]);
 
-  /** `null` = no gating (unauthenticated demo default, unchanged behavior). Once a real session exists this becomes the user's real effective permission list. */
+  /** `null` while identity resolution is still in flight — `middleware.ts` already blocks unauthenticated requests before this component ever renders. */
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!sessionUser) {
+      if (!identity) {
         if (!cancelled) setPermissions(null);
         return;
       }
       await initializePlatformFoundation();
-      const effective = await authorizationPlatformAPI.getEffectivePermissions(sessionUser.id, organizationId ?? undefined);
+      const effective = await authorizationPlatformAPI.getEffectivePermissions(identity.userId, organizationId ?? undefined);
       if (!cancelled) setPermissions(effective);
     })();
     return () => {
       cancelled = true;
     };
-  }, [sessionUser, organizationId]);
+  }, [identity, organizationId]);
 
   const hasPermission = useCallback((permission: string) => !permissions || permissions.includes(permission), [permissions]);
   const canRead = hasPermission(ADS_ACTION_PERMISSIONS.read);

@@ -1,14 +1,7 @@
 import type { SubscriptionTierDefinition } from "./types";
 
-/** The canonical tiers. Pricing lives in the Commercial Platform's `PricingEngine` (Track 1 Phase 9) — this stays limits-only, matching Phase 1's original scope. */
+/** The canonical tiers — Trial, Starter, Growth, Enterprise only (Round 21: Free/Education/Agency/Custom removed entirely). Pricing lives in the Commercial Platform's `PricingEngine` (Track 1 Phase 9) — this stays limits-only, matching Phase 1's original scope. */
 export const DEFAULT_SUBSCRIPTION_TIERS: SubscriptionTierDefinition[] = [
-  {
-    tier: "free",
-    label: "Free",
-    description: "Perpetual, narrow-limits tier for individuals evaluating a single workspace.",
-    limits: { seats: 1, aiCredits: 50, storageGB: 1, connectors: 1, brands: 1, workspaces: 1, organizations: 1, reports: 3, scheduledReports: 0, apiRequests: 500, modules: ["dashboard"], featureGates: [] },
-    isActive: true,
-  },
   {
     tier: "trial",
     label: "Trial",
@@ -35,27 +28,6 @@ export const DEFAULT_SUBSCRIPTION_TIERS: SubscriptionTierDefinition[] = [
     label: "Enterprise",
     description: "Large multi-brand organizations with advanced governance needs.",
     limits: { seats: 500, aiCredits: 100000, storageGB: 2000, connectors: 200, brands: 50, workspaces: 100, organizations: 50, reports: 1000, scheduledReports: 250, apiRequests: 2000000, modules: ["*"], featureGates: ["custom-kpi-builder", "saved-segments", "sso", "audit-export", "white-label"] },
-    isActive: true,
-  },
-  {
-    tier: "education",
-    label: "Education",
-    description: "Discounted tier for accredited educational institutions.",
-    limits: { seats: 100, aiCredits: 20000, storageGB: 300, connectors: 20, brands: 10, workspaces: 20, organizations: 10, reports: 200, scheduledReports: 50, apiRequests: 200000, modules: ["dashboard", "analytics", "reports", "ai-copilot", "content", "workflow"], featureGates: ["saved-segments"] },
-    isActive: true,
-  },
-  {
-    tier: "agency",
-    label: "Agency",
-    description: "Multi-client management for marketing/creative agencies managing brands on behalf of clients.",
-    limits: { seats: 100, aiCredits: 50000, storageGB: 1000, connectors: 100, brands: 100, workspaces: 50, organizations: 100, reports: 500, scheduledReports: 100, apiRequests: 1000000, modules: ["*"], featureGates: ["custom-kpi-builder", "saved-segments", "white-label"] },
-    isActive: true,
-  },
-  {
-    tier: "custom",
-    label: "Custom",
-    description: "Negotiated limits for accounts with bespoke requirements.",
-    limits: { seats: 0, aiCredits: 0, storageGB: 0, connectors: 0, brands: 0, workspaces: 0, organizations: 0, reports: 0, scheduledReports: 0, apiRequests: 0, modules: [], featureGates: [] },
     isActive: true,
   },
 ];

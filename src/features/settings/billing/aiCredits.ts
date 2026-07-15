@@ -12,6 +12,9 @@
  */
 import { creditPlatformAPI, type CreditTransaction } from "@/core/platform/commercial";
 import { subscriptionPlatformAPI, creditPackPlatformAPI } from "@/core/platform/commercial";
+import { subscriptionEngine } from "@/core/platform/subscription";
+import { auditService } from "@/access/audit/AuditService";
+import { entitlementService } from "@/core/platform/access";
 
 function currentPeriodStart(): string {
   const d = new Date();
@@ -28,13 +31,26 @@ export function ensureMonthlyCreditsGranted(organizationId: string): void {
     .getHistory(organizationId, "ai")
     .some(tx => tx.source === "plan_allowance" && tx.amount > 0 && tx.createdAt >= periodStart);
   if (alreadyGranted) return;
-  creditPlatformAPI.grant(organizationId, "ai", subscription.limits.aiCredits, "plan_allowance", "Monthly plan allowance", subscription.renewsAt);
+  // Real, live tier limit at grant time — not the org's frozen assign-time snapshot (`subscription.limits`), so a Platform Admin raising/lowering a tier's included credits actually changes what gets granted next renewal, not just what's displayed.
+  const aiCredits = subscriptionEngine.getCurrentLimits(organizationId).aiCredits;
+  creditPlatformAPI.grant(organizationId, "ai", aiCredits, "plan_allowance", "Monthly plan allowance", subscription.renewsAt);
 }
 
-export function buyCreditPack(organizationId: string, packId: string): CreditTransaction {
+export function buyCreditPack(organizationId: string, packId: string, userId: string): CreditTransaction {
   const pack = creditPackPlatformAPI.list({ activeOnly: true }).find(p => p.id === packId);
   if (!pack) throw new Error(`Unknown or unavailable credit pack: ${packId}`);
-  return creditPlatformAPI.grant(organizationId, "ai", pack.credits, "purchased", `AI Credit Pack — $${pack.price}`);
+  const transaction = creditPlatformAPI.grant(organizationId, "ai", pack.credits, "purchased", `AI Credit Pack — $${pack.price}`);
+  entitlementService.invalidateOrganization(organizationId);
+  void auditService.recordEvent({
+    organizationId,
+    userId,
+    eventType: "entity_created",
+    resource: "credit-purchase",
+    resourceId: transaction.id,
+    description: `AI Credit Pack purchased: $${pack.price} → ${pack.credits.toLocaleString()} Credits`,
+    changes: { price: pack.price, credits: pack.credits },
+  });
+  return transaction;
 }
 
 export interface WalletBreakdown {
@@ -48,7 +64,7 @@ export interface WalletBreakdown {
 
 export function getWalletBreakdown(organizationId: string): WalletBreakdown {
   const subscription = subscriptionPlatformAPI.getOrDefault(organizationId);
-  const includedLimit = subscription.limits.aiCredits;
+  const includedLimit = subscriptionEngine.getCurrentLimits(organizationId).aiCredits;
   const totalAvailable = creditPlatformAPI.getBalance(organizationId, "ai").balance;
   const purchasedGranted = creditPlatformAPI
     .getHistory(organizationId, "ai")

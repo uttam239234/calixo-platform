@@ -13,6 +13,7 @@ import { platformGlobalSettingsPlatformAPI } from "@/core/platform/commercial";
 import type { PlatformGlobalSettings } from "@/core/platform/commercial";
 import { useInternalRole } from "../internalRole";
 import { commitPlanChange } from "../commitPlanChange";
+import { saveGlobalSettingsAction } from "@/core/platform/configStore/actions";
 
 export function useGlobalSettings() {
   const { role } = useInternalRole();
@@ -24,14 +25,16 @@ export function useGlobalSettings() {
   const update = useCallback(
     (patch: Partial<PlatformGlobalSettings>) => {
       const before = settings;
+      const description = "Updated global commercial settings";
       platformGlobalSettingsPlatformAPI.update(patch);
+      void saveGlobalSettingsAction(patch, description);
       void commitPlanChange({
         entityType: "platform-global-settings",
         entityId: "singleton",
         before,
         after: { ...before, ...patch },
         actor: role,
-        description: "Updated global commercial settings",
+        description,
       });
       refresh();
     },

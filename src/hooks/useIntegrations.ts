@@ -13,15 +13,14 @@ import { connectorPlatformAPI, synchronizationPlatformAPI } from "@/core/platfor
 import { connectorObservability } from "@/core/platform/observability";
 import type { ConnectorObservabilitySummary } from "@/core/platform/observability";
 import { tenantContextService } from "@/core/platform/tenant";
+import { entitlementPlatformAPI } from "@/core/platform/commercial";
 import { connectorRegistry } from "@/integrations/registry/ConnectorRegistry";
 import type { Connection, SyncDataType, SyncJob } from "@/integrations/types";
 import { getMarketplaceListings, type AppListing } from "@/features/settings/integrations/marketplace";
 import { getWorkspacesForConnection, grantWorkspaceAccess, revokeWorkspaceAccess } from "@/features/settings/integrations/workspaceVisibility";
 import { recordIntegrationActivity, getIntegrationActivity } from "@/features/settings/integrations/activityLog";
 import { iconForApp } from "@/features/settings/integrations/constants";
-
-/** No real login flow exists yet — same fallback convention every module uses locally. */
-const DEMO_ACTOR_ID = "user-current";
+import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 
 export interface ConnectedApp {
   connection: Connection;
@@ -55,6 +54,7 @@ function dataTypeFor(connection: Connection): SyncDataType {
 }
 
 export function useIntegrations(organizationId: string) {
+  const { identity } = useCalixoIdentity();
   const [apps, setApps] = useState<ConnectedApp[]>([]);
   const [marketplace, setMarketplace] = useState<AppListing[]>([]);
   const [syncJobsByConnection, setSyncJobsByConnection] = useState<Record<string, SyncJob[]>>({});
@@ -109,10 +109,15 @@ export function useIntegrations(organizationId: string) {
     })();
   }, [refresh]);
 
-  const withTenantContext = useCallback(() => tenantContextService.resolve({ organizationId, userId: DEMO_ACTOR_ID }), [organizationId]);
+  const withTenantContext = useCallback(() => tenantContextService.resolve({ organizationId, userId: identity?.userId ?? "" }), [organizationId, identity?.userId]);
 
   const install = useCallback(
     async (providerId: string, appName: string) => {
+      // Real plan-tier entitlement check — distinct from any permission/RBAC gate: an organization can be fully permitted to manage integrations and still be out of connector slots for its tier.
+      const entitlement = entitlementPlatformAPI.canUse({ organizationId, key: "connectorsUsed", requested: 1 });
+      if (!entitlement.allowed) {
+        throw new Error(entitlement.reason ?? "Upgrade required: your plan's connected-app limit has been reached.");
+      }
       const tenantContext = await withTenantContext();
       const connection = await connectorPlatformAPI.install(tenantContext, providerId, {});
       recordIntegrationActivity(organizationId, `${appName} connected`);

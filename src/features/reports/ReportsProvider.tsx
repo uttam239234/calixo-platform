@@ -7,21 +7,21 @@ import {
   reportRegistry,
   seedReportsPlatformMockData,
   registerReportSkills,
-  reportsPlatformAPI,
   recordReportsUsage,
   trackReportsAction,
   trackReportsTiming,
   logReportsError,
   REPORTS_ORGANIZATION_ID,
   REPORTS_WORKSPACE_ID,
-  REPORTS_CURRENT_USER_ID,
 } from "@/core/reports";
 import type { ReportDataset, ReportDefinition, ReportSourceId } from "@/core/reports";
-import { useUser } from "@/identity/hooks/useAuth";
+import { useUser } from "@clerk/nextjs";
+import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 import { useOrganizationId } from "@/organizations/hooks/useOrganization";
 import { authorizationPlatformAPI, permissionName } from "@/core/platform/access";
 import { initializePlatformFoundation } from "@/core/platform";
 import { ModuleEmptyState } from "@/components/enterprise/module";
+import { generateReportFromTemplateAction } from "./actions";
 
 /**
  * The brief's dotted permission names (report.view/create/export/manage) consolidate onto the
@@ -76,14 +76,15 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState("");
   const [permissions, setPermissions] = useState<string[] | null>(null);
 
-  const sessionUser = useUser();
+  const { identity } = useCalixoIdentity();
   const organizationId = useOrganizationId();
 
   const tenantContext = useMemo<ReportsTenantContext>(
-    () => ({ organizationId: organizationId ?? REPORTS_ORGANIZATION_ID, workspaceId: REPORTS_WORKSPACE_ID, userId: sessionUser?.id ?? REPORTS_CURRENT_USER_ID }),
-    [organizationId, sessionUser?.id]
+    () => ({ organizationId: organizationId ?? REPORTS_ORGANIZATION_ID, workspaceId: REPORTS_WORKSPACE_ID, userId: identity?.userId ?? "" }),
+    [organizationId, identity?.userId]
   );
-  const currentUserName = sessionUser?.name ?? "Aarav Mehta";
+  const { user: clerkUser } = useUser();
+  const currentUserName = clerkUser?.fullName ?? clerkUser?.firstName ?? "";
 
   useEffect(() => {
     if (reportRegistry.count() === 0) {
@@ -110,22 +111,22 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
     }
   }, [toast]);
 
-  /** `null` = no gating (unauthenticated demo default, unchanged behavior). */
+  /** `null` while identity resolution is still in flight — `middleware.ts` already blocks unauthenticated requests before this component ever renders. */
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!sessionUser) {
+      if (!identity) {
         if (!cancelled) setPermissions(null);
         return;
       }
       await initializePlatformFoundation();
-      const effective = await authorizationPlatformAPI.getEffectivePermissions(sessionUser.id, organizationId ?? undefined);
+      const effective = await authorizationPlatformAPI.getEffectivePermissions(identity.userId, organizationId ?? undefined);
       if (!cancelled) setPermissions(effective);
     })();
     return () => {
       cancelled = true;
     };
-  }, [sessionUser, organizationId]);
+  }, [identity, organizationId]);
 
   const hasPermission = useCallback((permission: string) => !permissions || permissions.includes(permission), [permissions]);
   const canRead = hasPermission(REPORT_ACTION_PERMISSIONS.read);
@@ -147,7 +148,14 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
       }
       const startedAt = Date.now();
       try {
-        const result = await reportsPlatformAPI.generateFromTemplate(sourceId, currentUserName);
+        // Real backend enforcement boundary — see `generateReportFromTemplateAction`'s
+        // doc comment. Never calls `reportsPlatformAPI.generateFromTemplate()` directly.
+        const actionResult = await generateReportFromTemplateAction(sourceId, currentUserName);
+        if (!actionResult.ok || !actionResult.report) {
+          showToast(actionResult.error ?? "Something went wrong generating that report.");
+          return undefined;
+        }
+        const result = { report: actionResult.report, dataset: actionResult.dataset };
         recordReportsUsage(tenantContext, "reports.reportCreated");
         recordReportsUsage(tenantContext, "reports.aiGenerated");
         trackReportsAction("generateFromTemplate");

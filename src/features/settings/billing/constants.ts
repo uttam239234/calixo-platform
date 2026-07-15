@@ -18,18 +18,14 @@ export const STATUS_LABELS: Record<SubscriptionStatus, string> = {
   expired: "Expired",
 };
 
-/** The brief's self-serve catalog — a curated subset of the real 8-tier backend (`free`/`education`/`agency`/`custom` also exist and are shown honestly if an organization is actually on one, just not offered here as an upgrade target). */
+/** Round 21: this is now the ENTIRE catalog, not a curated subset — `free`/`education`/`agency`/`custom` were removed outright (`core/platform/subscription/types.ts`), so every real `SubscriptionTier` is self-serve. Kept as a named export (rather than importing `SUBSCRIPTION_TIERS` everywhere) since the ~6 existing call sites already read it as "the plans customers can pick," which is still exactly true. */
 export const SELF_SERVE_TIERS: SubscriptionTier[] = ["trial", "starter", "growth", "enterprise"];
 
 export const TIER_RECOMMENDED_USE_CASE: Record<SubscriptionTier, string> = {
-  free: "Trying Calixo on your own, one workspace at a time.",
   trial: "Evaluating Calixo before committing — full features, 14 days.",
   starter: "Small teams running one brand out of a single workspace.",
   growth: "Growing marketing teams managing multiple brands and departments.",
   enterprise: "Large organizations that need advanced governance and dedicated support.",
-  education: "Accredited schools and universities — discounted pricing.",
-  agency: "Agencies managing marketing for many clients at once.",
-  custom: "Organizations with negotiated, bespoke requirements.",
 };
 
 /** Plain-language translations for the real module ids a tier unlocks (`SubscriptionLimits.modules`). */

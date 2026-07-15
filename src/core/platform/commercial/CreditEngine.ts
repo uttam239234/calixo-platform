@@ -10,12 +10,13 @@
  */
 import { generateId } from "@/shared/utils/string";
 import { platformEventBus } from "@/core/platform/events/PlatformEventBus";
-import type { CreditBalance, CreditSource, CreditTransaction, CreditType } from "./types";
+import type { CreditBalance, CreditReservation, CreditSource, CreditTransaction, CreditType } from "./types";
 
 export class CreditEngine {
   private balances = new Map<string, CreditBalance>();
   private transactions: CreditTransaction[] = [];
   private expiredTxIds = new Set<string>();
+  private reservations = new Map<string, CreditReservation>();
 
   private key(organizationId: string, creditType: CreditType): string {
     return `${organizationId}:${creditType}`;
@@ -51,6 +52,58 @@ export class CreditEngine {
     this.transactions.push(tx);
     void platformEventBus.publish({ type: "CreditConsumed", organizationId, payload: { creditType, amount, balance: balance.balance } });
     return tx;
+  }
+
+  /**
+   * Two-phase hold: debits `amount` from the balance immediately (so a
+   * second concurrent request can't also pass a balance check against
+   * credits this request already claimed) and records a `"reserved"`
+   * transaction. Throws on insufficient balance — same non-throwing
+   * pre-check contract as `consume()` (`getBalance()` first).
+   */
+  reserve(organizationId: string, creditType: CreditType, amount: number, reason: string): CreditReservation {
+    const balance = this.getOrCreateBalance(organizationId, creditType);
+    if (balance.balance < amount) throw new Error(`Insufficient ${creditType} credits: requested ${amount}, balance ${balance.balance}`);
+    balance.balance -= amount;
+    const reservation: CreditReservation = { id: generateId(16), organizationId, creditType, amount, reason, status: "reserved", createdAt: new Date().toISOString() };
+    this.reservations.set(reservation.id, reservation);
+    this.transactions.push({ id: generateId(16), organizationId, creditType, source: "plan_allowance", amount: -amount, balanceAfter: balance.balance, reason: `Reserved: ${reason}`, createdAt: reservation.createdAt });
+    return { ...reservation };
+  }
+
+  /** Finalizes a reservation at the real, post-execution cost (defaults to the full reserved amount). Any unused portion (`reserved - actualAmount`) is refunded back to the balance. Records the actual consumption as `lifetimeConsumed` and publishes `CreditConsumed`. */
+  commitReservation(reservationId: string, actualAmount?: number): CreditTransaction {
+    const reservation = this.mustGetReservation(reservationId);
+    const finalAmount = Math.min(actualAmount ?? reservation.amount, reservation.amount);
+    const refund = reservation.amount - finalAmount;
+    const balance = this.getOrCreateBalance(reservation.organizationId, reservation.creditType);
+
+    if (refund > 0) balance.balance += refund;
+    balance.lifetimeConsumed += finalAmount;
+    reservation.status = "committed";
+    reservation.resolvedAt = new Date().toISOString();
+
+    const tx: CreditTransaction = { id: generateId(16), organizationId: reservation.organizationId, creditType: reservation.creditType, source: "plan_allowance", amount: -finalAmount, balanceAfter: balance.balance, reason: reservation.reason, createdAt: reservation.resolvedAt };
+    this.transactions.push(tx);
+    void platformEventBus.publish({ type: "CreditConsumed", organizationId: reservation.organizationId, payload: { creditType: reservation.creditType, amount: finalAmount, balance: balance.balance } });
+    return tx;
+  }
+
+  /** Cancels a reservation without ever consuming it (the reserved action failed/was aborted) — fully refunds the held amount back to the balance. */
+  releaseReservation(reservationId: string): void {
+    const reservation = this.mustGetReservation(reservationId);
+    const balance = this.getOrCreateBalance(reservation.organizationId, reservation.creditType);
+    balance.balance += reservation.amount;
+    reservation.status = "released";
+    reservation.resolvedAt = new Date().toISOString();
+    this.transactions.push({ id: generateId(16), organizationId: reservation.organizationId, creditType: reservation.creditType, source: "plan_allowance", amount: reservation.amount, balanceAfter: balance.balance, reason: `Released: ${reservation.reason}`, createdAt: reservation.resolvedAt });
+  }
+
+  private mustGetReservation(reservationId: string): CreditReservation {
+    const reservation = this.reservations.get(reservationId);
+    if (!reservation) throw new Error(`Credit reservation ${reservationId} not found`);
+    if (reservation.status !== "reserved") throw new Error(`Credit reservation ${reservationId} already ${reservation.status}`);
+    return reservation;
   }
 
   getBalance(organizationId: string, creditType: CreditType): CreditBalance {

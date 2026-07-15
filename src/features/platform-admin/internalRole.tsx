@@ -3,42 +3,60 @@
 /**
  * Calixo Platform - Internal Plan Management Console: Access Model
  *
- * This app has no real login/session system anywhere (confirmed: no
- * middleware, no auth boundary — every Settings module's gate is simply
- * "always allow" since a real session never exists in this demo). That
- * convention would make this console's central requirement — "no customer
- * role may access this" — untestable, so instead of a decorative gate this
- * is a small, real, visible role simulator: it defaults to an internal role
- * so the console is usable, and switching to "Customer" produces a genuine
- * access-denied state. Deliberately independent of `src/access/` and
- * `AuthenticatedUser` — nothing there models "Calixo staff, no organization."
+ * Client-side context/provider only — all real role-derivation logic lives
+ * in `src/identity/platformRole.ts` (pure, environment-agnostic, imported
+ * from there rather than defined here so `core/platform/access` can also
+ * read it without a `core` → `features` layering violation) so this file
+ * and `resolvePlatformRole.server.ts` (the Server Component equivalent) can
+ * never independently drift. `useOrganization()`/`useUser()` are Clerk's own
+ * real client hooks; `derivePlatformRole()` is the identical function the
+ * server uses.
+ *
+ * This remains a SECOND, belt-and-suspenders layer, not the primary gate —
+ * `/platform-admin/layout.tsx` is now a Server Component that calls
+ * `resolvePlatformRoleServer()` and returns a real HTTP 403 (`forbidden()`)
+ * before any client code here even runs. Keeping this client check too
+ * means role changes mid-session (e.g. an admin's org membership revoked
+ * while a tab is open) still hide the console reactively without waiting
+ * for a hard navigation.
  */
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
+import { useOrganization, useUser } from "@clerk/nextjs";
+import { derivePlatformRole, INTERNAL_STAFF_ROLES, PLATFORM_ADMIN_ROUTE_ROLES, type InternalRole } from "@/identity/platformRole";
 
-export type InternalRole = "calixo_owner" | "platform_admin" | "developer" | "customer_demo";
-
-export const INTERNAL_ROLE_LABELS: Record<InternalRole, string> = {
-  calixo_owner: "Calixo Owner",
-  platform_admin: "Platform Admin",
-  developer: "Developer",
-  customer_demo: "Customer — Growth Plan",
-};
-
-export const INTERNAL_STAFF_ROLES: InternalRole[] = ["calixo_owner", "platform_admin", "developer"];
+export type { InternalRole };
+export { INTERNAL_ROLE_LABELS, INTERNAL_STAFF_ROLES, PLATFORM_ADMIN_ROUTE_ROLES, PLATFORM_BYPASS_ROLES, PLATFORM_OWNER_EMAILS, CALIXO_STAFF_ORG_SLUG } from "@/identity/platformRole";
 
 interface InternalRoleContextValue {
   role: InternalRole;
-  setRole: (role: InternalRole) => void;
+  /** Any real platform role (OWNER/ADMIN/SUPPORT/DEVELOPER) — broad "is this platform staff" check. */
   isInternalStaff: boolean;
+  /** The narrower OWNER/ADMIN-only check that actually gates `/platform-admin/*` and the staff sidebar section. */
+  hasPlatformAdminAccess: boolean;
+  loaded: boolean;
 }
 
 const InternalRoleContext = createContext<InternalRoleContextValue | null>(null);
 
 export function InternalRoleProvider({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<InternalRole>("platform_admin");
-  const isInternalStaff = INTERNAL_STAFF_ROLES.includes(role);
+  const { organization, membership, isLoaded: orgLoaded } = useOrganization();
+  const { user, isLoaded: userLoaded } = useUser();
 
-  return <InternalRoleContext.Provider value={{ role, setRole, isInternalStaff }}>{children}</InternalRoleContext.Provider>;
+  const role = derivePlatformRole({
+    email: user?.primaryEmailAddress?.emailAddress,
+    orgSlug: organization?.slug,
+    orgRole: membership?.role,
+    hasOrgMembership: !!membership,
+  });
+
+  const isInternalStaff = INTERNAL_STAFF_ROLES.includes(role);
+  const hasPlatformAdminAccess = PLATFORM_ADMIN_ROUTE_ROLES.includes(role);
+
+  return (
+    <InternalRoleContext.Provider value={{ role, isInternalStaff, hasPlatformAdminAccess, loaded: orgLoaded && userLoaded }}>
+      {children}
+    </InternalRoleContext.Provider>
+  );
 }
 
 export function useInternalRole(): InternalRoleContextValue {

@@ -41,3 +41,13 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# clerk configuration (can include secrets)
+/.clerk/
+
+# Platform Configuration Store — real, file-backed persistence for the
+# Internal Plan Management Console + Platform Secrets (Round 20). Local dev
+# data only, never shipped; includes encrypted secret ciphertext + its
+# AES keyring, so it must never be committed.
+/.data/
+

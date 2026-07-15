@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiGatewayPlatformAPI, initializePlatformFoundation } from "@/core/platform";
 import type { HttpMethod } from "@/core/platform/api/types";
+import { resolveIdentity } from "@/identity/bridge/resolveIdentity.server";
 
 function headersToObject(headers: Headers): Record<string, string> {
   const result: Record<string, string> = {};
@@ -40,6 +41,9 @@ async function handle(request: NextRequest, method: HttpMethod, params: { path?:
     }
   }
 
+  // A real Clerk session (if any) is verified server-side here, never trusted from a client-supplied header — see ApiGatewayEngine's `verifiedUserId`/`verifiedOrganizationId` doc comment. API-key/Bearer machine traffic is unaffected; `resolveIdentity()` simply returns `null` when there's no browser session.
+  const identity = await resolveIdentity();
+
   const result = await apiGatewayPlatformAPI.handle({
     method,
     version: "v1",
@@ -48,6 +52,8 @@ async function handle(request: NextRequest, method: HttpMethod, params: { path?:
     body,
     headers: headersToObject(request.headers),
     ip: request.headers.get("x-forwarded-for") ?? undefined,
+    verifiedUserId: identity?.userId,
+    verifiedOrganizationId: identity?.organizationId,
   });
 
   return NextResponse.json(result.body, { status: result.status, headers: result.headers });

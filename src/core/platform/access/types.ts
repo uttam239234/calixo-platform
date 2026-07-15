@@ -46,7 +46,8 @@ export type ResourceType =
   | "license"
   | "credit"
   | "contract"
-  | "role";
+  | "role"
+  | "audit";
 
 /**
  * The full conceptual resource order from the mandate's hierarchy diagram

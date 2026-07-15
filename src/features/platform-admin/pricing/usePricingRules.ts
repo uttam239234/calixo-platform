@@ -19,6 +19,7 @@ import { pricingPlatformAPI } from "@/core/platform/commercial";
 import type { PricingRuleDefinition } from "@/core/platform/commercial";
 import { useInternalRole } from "../internalRole";
 import { commitPlanChange, type CommitPlanChangeResult } from "../commitPlanChange";
+import { savePricingRuleAction } from "@/core/platform/configStore/actions";
 
 export interface PricingRow {
   tier: SubscriptionTier;
@@ -45,17 +46,20 @@ export function usePricingRules() {
       const rule = pricingPlatformAPI.listForTier(tier).find(r => r.model === "flat" || r.model === "hybrid");
       if (!rule) return {};
       const before = { monthlyPrice: rule.monthlyPrice ?? 0, annualPrice: rule.annualPrice ?? 0 };
+      const description = `Changed ${tier}'s pricing to $${monthlyPrice}/mo, $${annualPrice}/yr`;
       pricingPlatformAPI.registerRule({ ...rule, monthlyPrice, annualPrice });
+      void savePricingRuleAction({ ...rule, monthlyPrice, annualPrice }, description);
       const result = await commitPlanChange({
         entityType: "pricing-rule",
         entityId: rule.id,
         before,
         after: { monthlyPrice, annualPrice },
         actor: role,
-        description: `Changed ${tier}'s pricing to $${monthlyPrice}/mo, $${annualPrice}/yr`,
+        description,
         risky: "price_change",
         restore: prev => {
           pricingPlatformAPI.registerRule({ ...rule, monthlyPrice: prev.monthlyPrice, annualPrice: prev.annualPrice });
+          void savePricingRuleAction({ ...rule, monthlyPrice: prev.monthlyPrice, annualPrice: prev.annualPrice }, `Undo: ${description}`);
           refresh();
         },
       });

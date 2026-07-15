@@ -3,41 +3,61 @@ import { Check, Sparkles } from "lucide-react";
 import { Container } from "./shared/Container";
 import { SectionHeading } from "./shared/SectionHeading";
 import { Reveal } from "./shared/Reveal";
+import { initializeSubscriptionFoundation, subscriptionRegistry } from "@/core/platform/subscription";
+import type { SubscriptionTier } from "@/core/platform/subscription";
+import { initializeCommercialFoundation, pricingPlatformAPI } from "@/core/platform/commercial";
+import { hydrateFromDisk } from "@/core/platform/configStore/serverHydrate";
+import { MODULE_LABELS, FEATURE_GATE_LABELS } from "@/features/settings/billing/constants";
 
-const plans = [
-  {
-    name: "Starter",
-    description: "For small teams getting started with unified growth.",
-    price: "$49",
-    period: "/user / mo",
-    cta: "Get Started Free",
-    href: "/dashboard",
-    featured: false,
-    features: ["Dashboard & Analytics", "Up to 2 connected channels", "Core AI Copilot", "Email support"],
-  },
-  {
-    name: "Growth",
-    description: "For scaling marketing, sales, and ops teams.",
-    price: "$149",
-    period: "/user / mo",
-    cta: "Get Started Free",
-    href: "/dashboard",
-    featured: true,
-    features: ["Everything in Starter", "Unlimited integrations", "Full AI Copilot & AI Agents", "Workflow automation", "Priority support"],
-  },
-  {
-    name: "Enterprise",
-    description: "For organizations that need full control at scale.",
-    price: "Custom",
-    period: "",
-    cta: "Contact Sales",
-    href: "mailto:sales@calixo.io",
-    featured: false,
-    features: ["Everything in Growth", "Multi-tenant & role-based access", "Dedicated success manager", "Custom SLAs & security review", "API & connector platform"],
-  },
+/**
+ * Round 21: every figure here — price, period, plan copy driven off real
+ * limits — is read live from the same `subscriptionRegistry`/
+ * `pricingPlatformAPI` the Internal Plan Management Console writes to and
+ * `useBilling.ts` reads for Billing/Upgrade Center, not a hardcoded `plans`
+ * array. A Platform Admin changing Enterprise's price shows up here on the
+ * next request — `app/(marketing)/page.tsx` opts this route out of static
+ * generation (`export const dynamic = "force-dynamic"`) specifically so
+ * that's true without a rebuild.
+ *
+ * Trial is deliberately excluded — it's a temporary evaluation state, not a
+ * plan someone buys, matching this section's pre-existing 3-card design.
+ */
+const DISPLAYED_TIERS: { tier: SubscriptionTier; featured: boolean }[] = [
+  { tier: "starter", featured: false },
+  { tier: "growth", featured: true },
+  { tier: "enterprise", featured: false },
 ];
 
-export default function PricingPreview() {
+function planFeatures(tier: SubscriptionTier): string[] {
+  const definition = subscriptionRegistry.get(tier);
+  if (!definition) return [];
+  const moduleNames = definition.limits.modules.slice(0, 3).map(id => MODULE_LABELS[id] ?? id);
+  const gateNames = definition.limits.featureGates.slice(0, 2).map(id => FEATURE_GATE_LABELS[id] ?? id);
+  return [...moduleNames, ...gateNames, `${definition.limits.aiCredits.toLocaleString()} AI credits/month`].slice(0, 5);
+}
+
+export default async function PricingPreview() {
+  initializeSubscriptionFoundation();
+  await initializeCommercialFoundation();
+  hydrateFromDisk();
+
+  const plans = DISPLAYED_TIERS.map(({ tier, featured }) => {
+    const definition = subscriptionRegistry.get(tier);
+    const quote = pricingPlatformAPI.quote(tier, "monthly");
+    const isQuoteOnly = pricingPlatformAPI.listForTier(tier).some(r => r.model === "quote");
+    return {
+      tier,
+      name: definition?.label ?? tier,
+      description: definition?.description ?? "",
+      price: isQuoteOnly ? "Custom" : `$${quote.basePrice.toLocaleString()}`,
+      period: isQuoteOnly ? "" : "/mo",
+      cta: isQuoteOnly ? "Contact Sales" : "Get Started Free",
+      href: isQuoteOnly ? "mailto:sales@calixo.io" : "/dashboard",
+      featured,
+      features: planFeatures(tier),
+    };
+  });
+
   return (
     <section id="pricing" className="relative bg-background py-24 lg:py-32 scroll-mt-24">
       <Container>
@@ -45,7 +65,7 @@ export default function PricingPreview() {
 
         <div className="mt-16 grid gap-6 lg:grid-cols-3 lg:items-start">
           {plans.map((plan, i) => (
-            <Reveal key={plan.name} delay={i * 0.1}>
+            <Reveal key={plan.tier} delay={i * 0.1}>
               <div
                 className={`relative flex h-full flex-col rounded-3xl border p-8 ${
                   plan.featured

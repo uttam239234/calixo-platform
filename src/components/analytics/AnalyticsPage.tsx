@@ -41,14 +41,13 @@ import {
   ANALYTICS_WIDGET_CATALOG,
   ANALYTICS_WIDGET_GROUPS,
   ANALYTICS_ORGANIZATION_ID,
-  ANALYTICS_CURRENT_USER_ID,
   canUseAnalyticsFeature,
   recordAnalyticsUsage,
   trackAnalyticsAction,
   syncAnalyticsFactsFromConnectors,
 } from "@/core/analytics";
 import type { AnalyticsChannel, AnalyticsFilterState, AnalyticsPeriodComparison, AnalyticsRegion, AnalyticsSegment, AnalyticsWidgetConfig, AnalyticsWidgetKey } from "@/core/analytics";
-import { useUser } from "@/identity/hooks/useAuth";
+import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 import { useOrganizationId } from "@/organizations/hooks/useOrganization";
 import { authorizationPlatformAPI, permissionName } from "@/core/platform/access";
 import { initializePlatformFoundation } from "@/core/platform";
@@ -87,13 +86,12 @@ export function AnalyticsPage() {
   const [permissions, setPermissions] = useState<string[] | null>(null);
   const [periodComparison, setPeriodComparison] = useState<AnalyticsPeriodComparison | null>(null);
 
-  const sessionUser = useUser();
+  const { identity } = useCalixoIdentity();
   const organizationId = useOrganizationId();
 
-  /** Falls back to the demo tenant constants when no real session exists yet — same non-breaking pattern used across the rest of the app. */
   const tenantContext = useMemo(
-    () => ({ organizationId: organizationId ?? ANALYTICS_ORGANIZATION_ID, userId: sessionUser?.id ?? ANALYTICS_CURRENT_USER_ID }),
-    [organizationId, sessionUser?.id]
+    () => ({ organizationId: organizationId ?? ANALYTICS_ORGANIZATION_ID, userId: identity?.userId ?? "" }),
+    [organizationId, identity?.userId]
   );
 
   useEffect(() => {
@@ -111,22 +109,22 @@ export function AnalyticsPage() {
     recordAnalyticsUsage(tenantContext, "analytics.dashboardView");
   }, [tenantContext]);
 
-  /** `null` = no gating (unauthenticated demo default, unchanged behavior). Once a real session exists this becomes the user's real effective permission list. */
+  /** `null` while identity resolution is still in flight — `middleware.ts` already blocks unauthenticated requests before this component ever renders. */
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!sessionUser) {
+      if (!identity) {
         if (!cancelled) setPermissions(null);
         return;
       }
       await initializePlatformFoundation();
-      const effective = await authorizationPlatformAPI.getEffectivePermissions(sessionUser.id, organizationId ?? undefined);
+      const effective = await authorizationPlatformAPI.getEffectivePermissions(identity.userId, organizationId ?? undefined);
       if (!cancelled) setPermissions(effective);
     })();
     return () => {
       cancelled = true;
     };
-  }, [sessionUser, organizationId]);
+  }, [identity, organizationId]);
 
   const hasPermission = useCallback((permission: string) => !permissions || permissions.includes(permission), [permissions]);
   const canRead = hasPermission(ANALYTICS_ACTION_PERMISSIONS.read);

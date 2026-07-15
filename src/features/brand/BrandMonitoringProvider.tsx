@@ -5,7 +5,6 @@ import { CheckCircle2, Lock, X } from "lucide-react";
 import {
   ALERT_RULES_SEED,
   BRAND_REPORTS_SEED,
-  REPUTATION_CURRENT_USER_ID,
   REPUTATION_ORGANIZATION_ID,
   REPUTATION_SETTINGS_SEED,
   SHARE_OF_VOICE_TIMELINE_SEED,
@@ -22,7 +21,8 @@ import {
 import type { AlertRule, BrandMention, BrandReport, ReputationSettings } from "@/core/reputation";
 import { workflowPlatformAPI } from "@/core/workflow";
 import { generateId } from "@/shared/utils/string";
-import { useUser } from "@/identity/hooks/useAuth";
+import { useUser } from "@clerk/nextjs";
+import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 import { useOrganizationId } from "@/organizations/hooks/useOrganization";
 import { authorizationPlatformAPI, permissionName } from "@/core/platform/access";
 import { initializePlatformFoundation } from "@/core/platform";
@@ -128,14 +128,15 @@ export function BrandMonitoringProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState("");
   const [permissions, setPermissions] = useState<string[] | null>(null);
 
-  const sessionUser = useUser();
+  const { identity } = useCalixoIdentity();
+  const { user: clerkUser } = useUser();
   const organizationId = useOrganizationId();
 
   const tenantContext = useMemo<ReputationTenantContext>(
-    () => ({ organizationId: organizationId ?? REPUTATION_ORGANIZATION_ID, userId: sessionUser?.id ?? REPUTATION_CURRENT_USER_ID }),
-    [organizationId, sessionUser?.id]
+    () => ({ organizationId: organizationId ?? REPUTATION_ORGANIZATION_ID, userId: identity?.userId ?? "" }),
+    [organizationId, identity?.userId]
   );
-  const currentUserName = sessionUser?.name ?? "Aarav Mehta";
+  const currentUserName = clerkUser?.fullName ?? clerkUser?.firstName ?? "";
 
   useEffect(() => {
     initializeReputationFoundation();
@@ -172,22 +173,22 @@ export function BrandMonitoringProvider({ children }: { children: ReactNode }) {
     recordReputationUsage(tenantContext, "reputation.dashboardView");
   }, [tenantContext]);
 
-  /** `null` = no gating (unauthenticated demo default, unchanged behavior). */
+  /** `null` while identity resolution is still in flight — `middleware.ts` already blocks unauthenticated requests before this component ever renders. */
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!sessionUser) {
+      if (!identity) {
         if (!cancelled) setPermissions(null);
         return;
       }
       await initializePlatformFoundation();
-      const effective = await authorizationPlatformAPI.getEffectivePermissions(sessionUser.id, organizationId ?? undefined);
+      const effective = await authorizationPlatformAPI.getEffectivePermissions(identity.userId, organizationId ?? undefined);
       if (!cancelled) setPermissions(effective);
     })();
     return () => {
       cancelled = true;
     };
-  }, [sessionUser, organizationId]);
+  }, [identity, organizationId]);
 
   const hasPermission = useCallback((permission: string) => !permissions || permissions.includes(permission), [permissions]);
   const canRead = hasPermission(BRAND_ACTION_PERMISSIONS.read);

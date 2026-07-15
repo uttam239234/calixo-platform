@@ -236,13 +236,22 @@ export interface WebhookConfig {
   retryConfig: SyncRetryConfig;
   createdAt: string;
   updatedAt: string;
+  /** Human-facing automation name — added by API & Webhooks (Track 3 Phase 1); optional for backward compatibility with webhooks registered before it existed. */
+  name?: string;
+  /** Friendly "Send To" label (e.g. "Slack", "Salesforce") shown instead of the raw URL — added by API & Webhooks (Track 3 Phase 1). */
+  destinationLabel?: string;
+  /** Display-only organizational tag; the real engine has no workspace-scoped enforcement for webhooks — added by API & Webhooks (Track 3 Phase 1). */
+  workspaceId?: string;
 }
 
-export type WebhookEvent = 
+export type WebhookEvent =
   | 'campaign.updated' | 'campaign.created' | 'campaign.deleted'
   | 'lead.created' | 'lead.updated'
   | 'contact.created' | 'contact.updated'
-  | 'form.submitted';
+  | 'form.submitted'
+  // Platform events — added by API & Webhooks (Track 3 Phase 1) so developer-facing automations can subscribe to platform activity, not just connector/marketing events.
+  | 'report.completed'
+  | 'credits.low';
 
 export interface WebhookDelivery {
   id: string;

@@ -106,6 +106,20 @@ export interface CreditBalance {
   lifetimeConsumed: number;
 }
 
+export type CreditReservationStatus = "reserved" | "committed" | "released";
+
+/** A hold against a credit balance for the validate→reserve→execute→deduct flow (Entitlement Enforcement mandate) — the balance is debited at reserve time (so two concurrent requests can't both pass a balance check for credits that only exist once) and either partially refunded at commit (actual cost < estimate) or fully refunded on release (the action never executed). */
+export interface CreditReservation {
+  id: string;
+  organizationId: string;
+  creditType: CreditType;
+  amount: number;
+  reason: string;
+  status: CreditReservationStatus;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
 /**
  * A purchasable AI credit pack ($ price → credit amount), catalog-managed by
  * the Internal Plan Management Console. This is the single source of truth
@@ -172,7 +186,6 @@ export interface PricingRuleDefinition {
   usageTypeId?: string;
   usageUnitPrice?: number;
   currency: string;
-  isEducationDiscount?: boolean;
 }
 
 export interface PriceQuote {

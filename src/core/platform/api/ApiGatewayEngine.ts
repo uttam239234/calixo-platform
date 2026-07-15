@@ -15,10 +15,11 @@ import { tenantContextService } from "../tenant/TenantContextService";
 import { resourceAuthorizationAPI } from "../access/ResourceAuthorizationAPI";
 import { apiKeyService } from "./ApiKeyService";
 import { contractRegistry } from "./ContractRegistry";
-import { rateLimiter } from "./RateLimiter";
+import { rateLimiter, planQuotaIdentifier } from "./RateLimiter";
 import { schemaValidator } from "./SchemaValidator";
 import { apiAnalyticsEngine } from "./ApiAnalyticsEngine";
 import { platformEventBus } from "../events/PlatformEventBus";
+import { subscriptionEngine } from "../subscription/SubscriptionEngine";
 import type { AccessToken } from "@/identity/types";
 import type { ApiVersion, GatewayAuthMethod, GatewayErrorBody, GatewayRequestContext, GatewayResponse, HttpMethod } from "./types";
 
@@ -30,6 +31,16 @@ export interface RawGatewayRequest {
   body: unknown;
   headers: Record<string, string>;
   ip?: string;
+  /**
+   * A real, already-Clerk-verified identity for the calling browser session
+   * — set ONLY by the trusted Next.js route handler after it calls
+   * `resolveIdentity()` server-side (Round 18, production identity
+   * migration), never derived from a raw request header. Distinct from the
+   * API-key/Bearer paths below, which remain the real mechanism for
+   * machine/API clients.
+   */
+  verifiedUserId?: string;
+  verifiedOrganizationId?: string;
 }
 
 function errorResponse(status: number, code: string, message: string, details?: unknown): GatewayResponse {
@@ -65,18 +76,23 @@ export class ApiGatewayEngine {
     // --- Authentication ---
     const authResult = await this.authenticate(request.headers);
     if (authResult.error) return authResult.error;
-    ctx.userId = authResult.userId;
+
+    const hasVerifiedSession = !!request.verifiedUserId;
+    const isAuthenticated = authResult.method !== "none" || hasVerifiedSession;
+
+    ctx.userId = authResult.userId ?? request.verifiedUserId;
     ctx.apiKeyId = authResult.apiKeyId;
-    ctx.organizationId = authResult.organizationId ?? request.headers["x-organization-id"];
+    // Organization membership is only ever sourced from a verified API key or a real, already-Clerk-verified session (`request.verifiedOrganizationId`, set only by the trusted route handler) — never a raw client-supplied header. Closes a real gap: contracts with no `permission` field used to trust `X-Organization-Id` outright from any anonymous caller.
+    ctx.organizationId = authResult.organizationId ?? request.verifiedOrganizationId;
     ctx.workspaceId = request.headers["x-workspace-id"];
 
-    if (definition.visibility !== "public" && authResult.method === "none") {
-      return errorResponse(401, "unauthenticated", "This endpoint requires authentication (Bearer token or X-API-Key).");
+    if (definition.visibility !== "public" && !isAuthenticated) {
+      return errorResponse(401, "unauthenticated", "This endpoint requires authentication (a signed-in session, Bearer token, or X-API-Key).");
     }
 
     // --- Authorization ---
     if (definition.permission) {
-      if (!ctx.organizationId) return errorResponse(400, "missing_organization", "X-Organization-Id header is required for this endpoint.");
+      if (!ctx.organizationId) return errorResponse(400, "missing_organization", "This endpoint requires an organization — sign in, or authenticate with an API key scoped to one.");
       if (authResult.apiKeyDefinition && !apiKeyService.hasScope(authResult.apiKeyDefinition, `${definition.permission.resourceType}:${definition.permission.action}`) && !authResult.apiKeyDefinition.scopes.includes("*")) {
         return errorResponse(403, "insufficient_scope", `API key does not have the required scope: ${definition.permission.resourceType}:${definition.permission.action}`);
       }
@@ -106,6 +122,27 @@ export class ApiGatewayEngine {
     if (!rateLimitResult.allowed) {
       await platformEventBus.publish({ type: "RateLimitExceeded", organizationId: ctx.organizationId, userId: ctx.userId, payload: { contractId: definition.id, scope: rateLimitResult.rule?.scope } });
       return errorResponse(429, "rate_limited", `Rate limit exceeded for scope '${rateLimitResult.rule?.scope}'. Try again later.`);
+    }
+
+    // --- Subscription-tier daily API limit ---
+    // Additive on top of the contract's own static `rateLimits` above: those
+    // are flat, plan-unrelated per-endpoint protections (e.g. "100 req/min
+    // from one IP"), never tied to `SubscriptionLimits.apiRequests` — a Trial
+    // org and an Enterprise org hit the identical static ceiling today. This
+    // is the real per-tier gate, resolved fresh on every request (never
+    // hardcoded) from whatever the org's tier's `apiRequests` limit currently
+    // is in Platform Admin. Uses `planQuotaIdentifier()` to keep its own
+    // bucket distinct from any contract's static `scope:"organization"` rule
+    // (see that helper's doc comment) — `entitlementService.canCallAPI()`'s
+    // read-only peek uses the identical identifier, so it always reflects
+    // the exact same live window this check maintains.
+    if (ctx.organizationId) {
+      const tierLimit = subscriptionEngine.getCurrentLimits(ctx.organizationId).apiRequests;
+      const tierRateLimit = rateLimiter.check([{ scope: "organization", limit: tierLimit, windowMs: 24 * 60 * 60 * 1000 }], { organization: planQuotaIdentifier(ctx.organizationId) });
+      if (!tierRateLimit.allowed) {
+        await platformEventBus.publish({ type: "RateLimitExceeded", organizationId: ctx.organizationId, userId: ctx.userId, payload: { contractId: definition.id, scope: "organization" } });
+        return errorResponse(429, "plan_api_limit_exceeded", `This organization's plan allows ${tierLimit.toLocaleString()} API requests per day. Upgrade for a higher limit.`);
+      }
     }
 
     // --- Execute ---

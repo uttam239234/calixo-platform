@@ -2,7 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { CheckCircle2, Lock, X } from "lucide-react";
-import { useUser } from "@/identity/hooks/useAuth";
+import { useUser } from "@clerk/nextjs";
+import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 import { useOrganization, useOrganizationId } from "@/organizations/hooks/useOrganization";
 import { organizationPlatformAPI } from "@/core/platform/organizations";
 import type { Organization, OrganizationMemberRole, UpdateOrganizationInput } from "@/core/platform/organizations";
@@ -58,8 +59,19 @@ const BILLING_ACTION_PERMISSIONS = {
   manage: permissionName("billing", "manage"),
 } as const;
 
-/** Same "no real login flow yet" fallback every module uses locally — matches `TenantProviders.tsx`'s `DEMO_CURRENT_USER_ID`. */
-const SETTINGS_CURRENT_USER_ID = "user-current";
+/** Audit Logs is the first Settings module to need a brand-new `"audit"` resource type — confirmed nothing else in the codebase used that name, added additively to `ResourceType`. */
+const AUDIT_ACTION_PERMISSIONS = {
+  read: permissionName("audit", "read"),
+  update: permissionName("audit", "update"),
+  manage: permissionName("audit", "manage"),
+} as const;
+
+/** API & Webhooks reuses the real `"api"` resource — already a valid `ResourceType`, no new type needed. */
+const API_ACTION_PERMISSIONS = {
+  read: permissionName("api", "read"),
+  update: permissionName("api", "update"),
+  manage: permissionName("api", "manage"),
+} as const;
 
 interface SettingsTenantContext {
   organizationId: string;
@@ -91,6 +103,12 @@ interface SettingsContextValue {
   canReadBilling: boolean;
   canUpdateBilling: boolean;
   canManageBilling: boolean;
+  canReadAudit: boolean;
+  canUpdateAudit: boolean;
+  canManageAudit: boolean;
+  canReadApi: boolean;
+  canUpdateApi: boolean;
+  canManageApi: boolean;
   updateOrganization: (input: UpdateOrganizationInput) => Promise<Organization | undefined>;
   archiveOrganization: () => Promise<void>;
   refresh: () => void;
@@ -115,12 +133,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [myRole, setMyRole] = useState<OrganizationMemberRole | null>(null);
 
-  const sessionUser = useUser();
+  const { user: clerkUser } = useUser();
+  const { identity } = useCalixoIdentity();
   const organizationId = useOrganizationId();
   const { refreshOrganizations } = useOrganization();
 
-  const userId = sessionUser?.id ?? SETTINGS_CURRENT_USER_ID;
-  const currentUserName = sessionUser?.name ?? "Uttam Das";
+  const userId = identity?.userId ?? "";
+  const currentUserName = clerkUser?.fullName ?? clerkUser?.firstName ?? "";
 
   const tenantContext = useMemo<SettingsTenantContext>(() => ({ organizationId: organizationId ?? "", userId }), [organizationId, userId]);
 
@@ -157,22 +176,22 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
   }, [toast]);
 
-  /** `null` = no gating (unauthenticated demo default, unchanged behavior). */
+  /** `null` while identity resolution is still in flight — `middleware.ts` already blocks unauthenticated requests before this component ever renders, so this is a brief loading state, not a permissive "no session" fallback. */
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!sessionUser) {
+      if (!identity) {
         if (!cancelled) setPermissions(null);
         return;
       }
       await initializePlatformFoundation();
-      const effective = await authorizationPlatformAPI.getEffectivePermissions(sessionUser.id, organizationId ?? undefined);
+      const effective = await authorizationPlatformAPI.getEffectivePermissions(identity.userId, organizationId ?? undefined);
       if (!cancelled) setPermissions(effective);
     })();
     return () => {
       cancelled = true;
     };
-  }, [sessionUser, organizationId]);
+  }, [identity, organizationId]);
 
   const hasPermission = useCallback((permission: string) => !permissions || permissions.includes(permission), [permissions]);
   const canRead = hasPermission(SETTINGS_ACTION_PERMISSIONS.read);
@@ -193,6 +212,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const canReadBilling = hasPermission(BILLING_ACTION_PERMISSIONS.read);
   const canUpdateBilling = hasPermission(BILLING_ACTION_PERMISSIONS.update);
   const canManageBilling = hasPermission(BILLING_ACTION_PERMISSIONS.manage);
+  const canReadAudit = hasPermission(AUDIT_ACTION_PERMISSIONS.read);
+  const canUpdateAudit = hasPermission(AUDIT_ACTION_PERMISSIONS.update);
+  const canManageAudit = hasPermission(AUDIT_ACTION_PERMISSIONS.manage);
+  const canReadApi = hasPermission(API_ACTION_PERMISSIONS.read);
+  const canUpdateApi = hasPermission(API_ACTION_PERMISSIONS.update);
+  const canManageApi = hasPermission(API_ACTION_PERMISSIONS.manage);
 
   const showToast = useCallback((message: string) => setToast(message), []);
 
@@ -264,6 +289,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       canReadBilling,
       canUpdateBilling,
       canManageBilling,
+      canReadAudit,
+      canUpdateAudit,
+      canManageAudit,
+      canReadApi,
+      canUpdateApi,
+      canManageApi,
       updateOrganization,
       archiveOrganization,
       refresh: loadOrganization,
@@ -293,6 +324,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       canReadBilling,
       canUpdateBilling,
       canManageBilling,
+      canReadAudit,
+      canUpdateAudit,
+      canManageAudit,
+      canReadApi,
+      canUpdateApi,
+      canManageApi,
       updateOrganization,
       archiveOrganization,
       loadOrganization,
@@ -300,7 +337,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  if (hydrated && !canRead && !canReadUsers && !canReadRoles && !canReadWorkspaces && !canReadIntegrations && !canReadBilling) {
+  if (hydrated && !canRead && !canReadUsers && !canReadRoles && !canReadWorkspaces && !canReadIntegrations && !canReadBilling && !canReadAudit && !canReadApi) {
     return (
       <div className="flex items-center justify-center py-24">
         <ModuleEmptyState icon={<Lock size={32} />} title="You don't have access to Settings" description="Ask an administrator to grant access to Organization, Users & Teams, Roles & Permissions, Workspaces, Integrations, or Billing." />

@@ -10,6 +10,20 @@
  */
 import type { RateLimitRule } from "./types";
 
+/**
+ * The identifier used for the subscription-tier daily API quota (`ApiGatewayEngine`'s
+ * post-authorization check, `EntitlementService.canCallAPI()`'s read-only peek). Deliberately
+ * NOT the bare `organizationId` — several registered contracts already carry their own static
+ * `scope:"organization"` rule (`DEFAULT_RATE_LIMITS`), and `RateLimiter`'s key is
+ * `${scope}:${identifier}` only (rule `limit`/`windowMs` are never part of the key) — reusing the
+ * bare org id would silently share ONE counter between two independent rules with different
+ * windows, double-counting every request against both. This suffix keeps the plan-tier quota in
+ * its own bucket.
+ */
+export function planQuotaIdentifier(organizationId: string): string {
+  return `${organizationId}:plan-quota`;
+}
+
 export interface RateLimitCheckResult {
   allowed: boolean;
   rule?: RateLimitRule;
@@ -52,6 +66,19 @@ export class RateLimiter {
     }
 
     return { allowed: true };
+  }
+
+  /** Read-only view of current standing against a rule — never records a hit, so simply displaying usage never pollutes the real counter `check()` maintains. */
+  peek(rule: RateLimitRule, identifier: string): RateLimitCheckResult {
+    const now = Date.now();
+    const timestamps = (this.windows.get(this.key(rule, identifier)) ?? []).filter(t => now - t < rule.windowMs);
+    const remaining = Math.max(0, rule.limit - timestamps.length);
+    return {
+      allowed: remaining > 0,
+      rule,
+      remaining,
+      resetAt: timestamps.length > 0 ? timestamps[0] + rule.windowMs : now,
+    };
   }
 
   reset(scope: RateLimitRule["scope"], identifier: string): void {

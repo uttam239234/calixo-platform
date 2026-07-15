@@ -165,11 +165,30 @@ export class SubscriptionEngine {
     return subscription;
   }
 
+  /**
+   * The live tier definition, not the organization's own frozen `limits`
+   * snapshot (`assign()` copies `{ ...definition.limits }` once, at
+   * assignment time — a real, found-via-live-testing gap: a Platform Admin
+   * edit to a tier's limits/modules/feature-gates never reached any
+   * organization already subscribed to it, contradicting the "propagates
+   * immediately, no redeployment" mandate every prior round claimed. Public
+   * — `ApiGatewayEngine`'s daily API quota and `EntitlementService`'s
+   * count-based checks (`organizations`/`reports`/`scheduledReports`) read
+   * this directly rather than each re-deriving the same fix. Falls back to
+   * the org's own snapshot only if its tier has somehow been deleted from
+   * the registry entirely — never expected in practice, but safer than
+   * throwing mid-request.
+   */
+  getCurrentLimits(organizationId: string) {
+    const subscription = this.getOrAssignDefault(organizationId);
+    return subscriptionRegistry.get(subscription.tier)?.limits ?? subscription.limits;
+  }
+
   /** The reusable gate every module should call before consuming a limited resource (a seat, an AI credit, a connector slot, ...). */
   checkLimit(organizationId: string, key: SubscriptionUsageKey, requested = 1): LimitCheckResult {
     const subscription = this.getOrAssignDefault(organizationId);
     const limitKey = USAGE_TO_LIMIT_KEY[key];
-    const limit = subscription.limits[limitKey] as number;
+    const limit = this.getCurrentLimits(organizationId)[limitKey] as number;
     const used = subscription.usage[key];
     const remaining = Math.max(0, limit - used);
     const allowed = used + requested <= limit;
@@ -183,14 +202,13 @@ export class SubscriptionEngine {
 
   /** Whether a feature-gated capability (e.g. "custom-kpi-builder") is unlocked for this organization's tier. */
   hasFeatureGate(organizationId: string, featureId: string): boolean {
-    const subscription = this.getOrAssignDefault(organizationId);
-    return subscription.limits.featureGates.includes(featureId);
+    return this.getCurrentLimits(organizationId).featureGates.includes(featureId);
   }
 
   /** Whether a module id is enabled for this organization's tier ("*" unlocks every module). */
   hasModule(organizationId: string, moduleId: string): boolean {
-    const subscription = this.getOrAssignDefault(organizationId);
-    return subscription.limits.modules.includes("*") || subscription.limits.modules.includes(moduleId);
+    const modules = this.getCurrentLimits(organizationId).modules;
+    return modules.includes("*") || modules.includes(moduleId);
   }
 
   count(): number {

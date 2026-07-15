@@ -8,9 +8,10 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { conversationEngine, copilotPlatformAPI } from "@/core/copilot";
+import { conversationEngine } from "@/core/copilot";
 import type { ConversationMessage, ExecutionPlan, ExecutionStep, SendMessageOutcome } from "@/core/copilot";
 import type { CopilotAttachment, CopilotMessageView, MessageReaction } from "@/components/copilot/types";
+import { sendCopilotMessageAction } from "@/features/copilot/actions";
 
 export function useCopilotConversation(sessionId: string | null, conversationId: string | null) {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
@@ -35,9 +36,13 @@ export function useCopilotConversation(sessionId: string | null, conversationId:
   const runPipeline = useCallback(
     async (request: string): Promise<SendMessageOutcome> => {
       if (!sessionId) throw new Error("No active session");
-      const result = await copilotPlatformAPI.sendMessage(sessionId, request);
-      setLastResult(result);
-      return result;
+      // Real backend enforcement boundary — see `sendCopilotMessageAction`'s
+      // doc comment. Never calls `copilotPlatformAPI.sendMessage()` directly
+      // from client code.
+      const actionResult = await sendCopilotMessageAction(sessionId, request);
+      if (!actionResult.ok || !actionResult.outcome) throw new Error(actionResult.error ?? "Something went wrong sending that message.");
+      setLastResult(actionResult.outcome);
+      return actionResult.outcome;
     },
     [sessionId]
   );

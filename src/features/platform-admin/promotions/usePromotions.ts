@@ -12,6 +12,7 @@ import { promotionPlatformAPI } from "@/core/platform/commercial";
 import type { PromotionDefinition, DiscountKind } from "@/core/platform/commercial";
 import { useInternalRole } from "../internalRole";
 import { commitPlanChange } from "../commitPlanChange";
+import { createPromotionAction, setPromotionActiveAction } from "@/core/platform/configStore/actions";
 
 export interface NewPromotionInput {
   code: string;
@@ -29,24 +30,30 @@ export function usePromotions() {
   const promotions = promotionPlatformAPI.list();
 
   const create = useCallback(
-    (input: NewPromotionInput) => {
-      const promotion = promotionPlatformAPI.create({
+    async (input: NewPromotionInput) => {
+      const description = `Created promotion ${input.code}`;
+      const newPromotion = {
         code: input.code,
-        kind: "coupon",
+        kind: "coupon" as const,
         discountKind: input.discountKind,
         discountValue: input.discountValue,
         maxRedemptions: input.maxRedemptions,
         validFrom: new Date().toISOString(),
         validUntil: input.validUntil,
         isActive: true,
-      });
+      };
+      // Server-authoritative: the real id is minted once, server-side (`generateId()` inside `PromotionEngine.create()`) — this realm's own copy is reconciled from that response via `restoreAll()` rather than separately minting a second, different id by ALSO calling `.create()` locally.
+      const result = await createPromotionAction(newPromotion, description);
+      if (!result.ok) return;
+      promotionPlatformAPI.restoreAll(result.data);
+      const created = result.data.find(p => p.code === input.code);
       void commitPlanChange({
         entityType: "promotion",
-        entityId: promotion.id,
+        entityId: created?.id ?? input.code,
         before: null,
-        after: promotion,
+        after: created,
         actor: role,
-        description: `Created promotion ${promotion.code}`,
+        description,
       });
       refresh();
     },
@@ -55,14 +62,16 @@ export function usePromotions() {
 
   const setActive = useCallback(
     (promotion: PromotionDefinition, isActive: boolean) => {
+      const description = `${isActive ? "Enabled" : "Disabled"} promotion ${promotion.code}`;
       promotionPlatformAPI.setActive(promotion.code, isActive);
+      void setPromotionActiveAction(promotion.code, isActive, description);
       void commitPlanChange({
         entityType: "promotion",
         entityId: promotion.id,
         before: !isActive,
         after: isActive,
         actor: role,
-        description: `${isActive ? "Enabled" : "Disabled"} promotion ${promotion.code}`,
+        description,
       });
       refresh();
     },

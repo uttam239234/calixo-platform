@@ -12,6 +12,11 @@ export class PlatformGlobalSettingsPlatformAPI {
   update(patch: Partial<PlatformGlobalSettings>): PlatformGlobalSettings {
     return platformGlobalSettingsEngine.update(patch);
   }
+
+  /** Raw restore for hydration — see `PlatformGlobalSettingsEngine.restore()`. */
+  restore(settings: PlatformGlobalSettings): void {
+    platformGlobalSettingsEngine.restore(settings);
+  }
 }
 
 export const platformGlobalSettingsPlatformAPI = new PlatformGlobalSettingsPlatformAPI();

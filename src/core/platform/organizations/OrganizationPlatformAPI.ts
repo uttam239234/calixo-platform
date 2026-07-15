@@ -14,8 +14,10 @@ import { organizationRegistry, type OrganizationListParams } from "./Organizatio
 import type {
   CreateOrganizationInput,
   Organization,
+  OrganizationAuditEntry,
   OrganizationInvitation,
   OrganizationInvitationStatus,
+  OrganizationLifecycleEvent,
   OrganizationMember,
   OrganizationMemberRole,
   UpdateOrganizationInput,
@@ -85,6 +87,15 @@ export class OrganizationPlatformAPI {
 
   count(): number {
     return organizationRegistry.count();
+  }
+
+  /** Added for the Audit Logs module — the engine has always recorded these (org create/update/tier-change/suspend/restore/archive/member changes/invitations); this is the first read path exposing them outside the raw engine. */
+  getAuditTrail(organizationId: string): OrganizationAuditEntry[] {
+    return organizationEngine.getAuditTrail(organizationId);
+  }
+
+  getLifecycle(organizationId: string): OrganizationLifecycleEvent[] {
+    return organizationEngine.getLifecycle(organizationId);
   }
 }
 

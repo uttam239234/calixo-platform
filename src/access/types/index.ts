@@ -70,7 +70,38 @@ export type AuditEventType =
   | 'entity_restored'
   | 'entity_version_created'
   | 'transaction_committed'
-  | 'transaction_rolled_back';
+  | 'transaction_rolled_back'
+  // Additive — production identity migration (Round 18). Real Clerk session
+  // lifecycle events, forwarded via a verified Clerk webhook
+  // (`src/app/api/webhooks/clerk/route.ts`) rather than simulated.
+  | 'session_created'
+  | 'session_ended'
+  | 'organization_switched'
+  // Additive — Internal Platform Secrets Console. Every write against a
+  // platform-level secret (never the plaintext itself — see
+  // `core/platform/secrets/PlatformSecretsEngine.ts`).
+  | 'secret_added'
+  | 'secret_updated'
+  | 'secret_rotated'
+  | 'secret_validated'
+  | 'secret_connection_tested'
+  // Additive — Platform Owner bootstrap access control. Real login/role/
+  // access-attempt events for the platform role model (see
+  // identity/platformRole.ts).
+  | 'platform_admin_login'
+  | 'platform_role_assigned'
+  | 'platform_access_granted'
+  | 'platform_access_denied'
+  // Additive — Entitlement Enforcement (backend, not UI-hiding). Every real
+  // decision `EntitlementService` makes, whether granted or denied — see
+  // `core/platform/access/EntitlementService.ts`.
+  | 'module_denied'
+  | 'ai_credit_denied'
+  | 'ai_credit_consumed'
+  | 'credits_purchased'
+  | 'limit_exceeded'
+  | 'upgrade_triggered'
+  | 'plan_changed';
 
 // ============================================================================
 // Team

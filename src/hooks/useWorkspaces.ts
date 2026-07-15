@@ -17,9 +17,7 @@ import type { Workspace } from "@/core/platform/workspaces";
 import { teamRegistry, userRegistry } from "@/core/users";
 import type { Team } from "@/core/users";
 import { getConnectionsForWorkspace } from "@/features/settings/integrations/workspaceVisibility";
-
-/** No real login flow exists yet — same fallback convention every module uses locally. */
-const DEMO_ACTOR_ID = "user-current";
+import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 
 export interface WorkspaceCard {
   workspace: Workspace;
@@ -62,6 +60,8 @@ function buildCard(workspace: Workspace): WorkspaceCard {
 }
 
 export function useWorkspaces(organizationId: string) {
+  const { identity } = useCalixoIdentity();
+  const actorId = identity?.userId ?? "";
   const [cards, setCards] = useState<WorkspaceCard[]>([]);
 
   const refresh = useCallback(() => {
@@ -80,7 +80,7 @@ export function useWorkspaces(organizationId: string) {
   /** Create Department = one real Workspace + its paired real Team, in a single action. */
   const createDepartment = useCallback(
     (input: CreateWorkspaceInput) => {
-      const workspace = workspacePlatformAPI.create({ organizationId, name: input.name, description: input.description, type: "team" }, DEMO_ACTOR_ID);
+      const workspace = workspacePlatformAPI.create({ organizationId, name: input.name, description: input.description, type: "team" }, actorId);
       const team: Team = {
         id: `team-${workspace.id}`,
         name: input.name,
@@ -101,12 +101,12 @@ export function useWorkspaces(organizationId: string) {
       refresh();
       return workspace;
     },
-    [organizationId, refresh]
+    [organizationId, refresh, actorId]
   );
 
   const updateDepartment = useCallback(
     (workspaceId: string, input: { name?: string; description?: string }) => {
-      const updated = workspacePlatformAPI.update(workspaceId, { name: input.name, description: input.description }, DEMO_ACTOR_ID);
+      const updated = workspacePlatformAPI.update(workspaceId, { name: input.name, description: input.description }, actorId);
       const team = teamRegistry.list({ organizationId }).find(t => t.workspaceId === workspaceId);
       if (team) {
         if (input.name) team.name = input.name;
@@ -116,18 +116,18 @@ export function useWorkspaces(organizationId: string) {
       refresh();
       return updated;
     },
-    [organizationId, refresh]
+    [organizationId, refresh, actorId]
   );
 
   const archiveDepartment = useCallback(
     (workspaceId: string) => {
-      const archived = workspacePlatformAPI.archive(workspaceId, DEMO_ACTOR_ID);
+      const archived = workspacePlatformAPI.archive(workspaceId, actorId);
       const team = teamRegistry.list({ organizationId }).find(t => t.workspaceId === workspaceId);
       if (team) teamRegistry.archive(team.id);
       refresh();
       return archived;
     },
-    [organizationId, refresh]
+    [organizationId, refresh, actorId]
   );
 
   /** Moves a person into this workspace (and its paired team) — the drag-and-drop assignment target on the Members page. Leaves them on any other teams they hold; only their primary `workspaceId` and this team's roster change. */

@@ -39,6 +39,13 @@ interface KeyringEntry {
   createdAt: string;
 }
 
+/** JSON-safe (base64) mirror of the vault's live state — `exportState()`/`importState()`'s wire format, used by `PlatformSecretsRegistry` (Round 20) to survive a process restart. AES-GCM keys are generated `extractable: true` specifically so this round-trip is possible. */
+export interface VaultExportState {
+  keys: { id: string; keyBase64: string; createdAt: string }[];
+  activeKeyId: string | null;
+  entries: { reference: string; ciphertextBase64: string; ivBase64: string; keyId: string }[];
+}
+
 function getSubtle(): SubtleCrypto {
   const cryptoObj = globalThis.crypto;
   if (!cryptoObj?.subtle) {
@@ -51,6 +58,20 @@ function randomId(): string {
   return Array.from(globalThis.crypto.getRandomValues(new Uint8Array(16)))
     .map(b => b.toString(16).padStart(2, "0"))
     .join("");
+}
+
+/** `btoa`/`atob` (not Node's `Buffer`) — both are real globals in Node AND the browser, keeping this file's existing "safe to import from client-reachable code" property. */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 }
 
 export class SecretVault {
@@ -114,6 +135,42 @@ export class SecretVault {
 
   isReference(value: string): boolean {
     return value.startsWith("vault:");
+  }
+
+  /**
+   * Serializes the live keyring + sealed entries to a JSON-safe shape —
+   * `PlatformSecretsRegistry` (Round 20) writes this to disk after every
+   * change so `reveal()` still works after a real process restart, not just
+   * the metadata (Configured/Missing/Last Updated) around it. Exporting a
+   * raw AES key to a local JSON file is a genuine, disclosed limitation —
+   * this environment has no real KMS/HSM to hold it instead, same posture
+   * already accepted for other locally-simulated secrets this session.
+   */
+  async exportState(): Promise<VaultExportState> {
+    await this.keyReady;
+    const subtle = getSubtle();
+    const keys = await Promise.all(
+      this.keyring.map(async k => ({ id: k.id, keyBase64: bytesToBase64(new Uint8Array(await subtle.exportKey("raw", k.key))), createdAt: k.createdAt }))
+    );
+    const entries = Array.from(this.entries.entries()).map(([reference, entry]) => ({
+      reference,
+      ciphertextBase64: bytesToBase64(new Uint8Array(entry.ciphertext)),
+      ivBase64: bytesToBase64(entry.iv),
+      keyId: entry.keyId,
+    }));
+    return { keys, activeKeyId: this.activeKeyId, entries };
+  }
+
+  /** Replaces the live keyring/entries with a previously-exported state. Awaits the constructor's own initial key generation first so that ephemeral key is cleanly discarded rather than racing this import. */
+  async importState(state: VaultExportState): Promise<void> {
+    await this.keyReady;
+    const subtle = getSubtle();
+    this.keyring = await Promise.all(
+      state.keys.map(async k => ({ id: k.id, key: await subtle.importKey("raw", base64ToBytes(k.keyBase64) as BufferSource, { name: "AES-GCM" }, true, ["encrypt", "decrypt"]), createdAt: k.createdAt }))
+    );
+    this.activeKeyId = state.activeKeyId;
+    this.entries = new Map(state.entries.map(e => [e.reference, { ciphertext: base64ToBytes(e.ciphertextBase64).buffer as ArrayBuffer, iv: base64ToBytes(e.ivBase64), keyId: e.keyId }]));
+    this.keyReady = Promise.resolve();
   }
 
   keyCount(): number {

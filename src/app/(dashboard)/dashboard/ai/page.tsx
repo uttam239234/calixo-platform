@@ -88,9 +88,15 @@ export default function CopilotPage() {
     const sentAttachments = attachments;
     setAttachments([]);
     const startedAt = Date.now();
-    const result = await conversation.sendMessage(text, sentAttachments);
-    if (result) recordMessageOutcome(text, result, Date.now() - startedAt);
-    await workspaceContext.pushRecentChat(text.slice(0, 60));
+    try {
+      const result = await conversation.sendMessage(text, sentAttachments);
+      if (result) recordMessageOutcome(text, result, Date.now() - startedAt);
+      await workspaceContext.pushRecentChat(text.slice(0, 60));
+    } catch (error) {
+      // Real denials from `sendCopilotMessageAction` (out of AI credits, plan
+      // doesn't include AI Copilot) surface here, not a generic error.
+      showToast(error instanceof Error ? error.message : "Something went wrong sending that message.");
+    }
   }, [input, attachments, canExecute, conversation, workspaceContext, recordMessageOutcome, showToast]);
 
   const handleRegenerate = useCallback(
@@ -98,11 +104,13 @@ export default function CopilotPage() {
       setRegeneratingId(messageId);
       try {
         await conversation.regenerate(messageId);
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : "Something went wrong regenerating that response.");
       } finally {
         setRegeneratingId(null);
       }
     },
-    [conversation]
+    [conversation, showToast]
   );
 
   const handleRunPlan = useCallback(() => {

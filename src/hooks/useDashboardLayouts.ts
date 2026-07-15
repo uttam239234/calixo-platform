@@ -6,17 +6,17 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { dashboardLayoutRegistry, dashboardActivityLog, initializeDashboardFoundation, personaForRole } from "@/core/dashboard";
+import { dashboardLayoutRegistry, dashboardActivityLog, initializeDashboardFoundation } from "@/core/dashboard";
 import type { DashboardLayout, DashboardWidgetConfig } from "@/core/dashboard";
-import { useUser } from "@/identity/hooks/useAuth";
+import { useUser } from "@clerk/nextjs";
 import { useDashboardPreferences } from "./useDashboardPreferences";
 
 const FALLBACK_USER = "You";
 
 export function useDashboardLayouts() {
   const prefs = useDashboardPreferences();
-  const sessionUser = useUser();
-  const CURRENT_USER = sessionUser?.name ?? FALLBACK_USER;
+  const { user: sessionUser } = useUser();
+  const CURRENT_USER = sessionUser?.fullName ?? sessionUser?.firstName ?? FALLBACK_USER;
   const [layouts, setLayouts] = useState<DashboardLayout[]>([]);
   const [activeId, setActiveId] = useState<string>("layout-personal");
 
@@ -38,22 +38,20 @@ export function useDashboardLayouts() {
   }, [refresh]);
 
   /**
-   * On a genuine first visit (no explicit `landingLayoutId` ever saved),
-   * prefer the system template whose persona matches the session user's
-   * role over the hook's own "layout-personal" fallback default — once
-   * the user has switched/saved a preference themselves, that always wins.
+   * On a genuine first visit (no explicit `landingLayoutId` ever saved), the
+   * hook's own "layout-personal" default is used. Persona-based matching
+   * (picking a template by job role) relied on the dead demo auth system's
+   * fabricated `role` field — Clerk's real `User` has no such concept, and
+   * inventing one wasn't in scope for this migration — so this is now a
+   * plain default rather than a persona guess.
    */
   useEffect(() => {
     (async () => {
-      if (prefs.hasExplicitLandingLayout) {
-        if (dashboardLayoutRegistry.lookup(prefs.landingLayoutId)) setActiveId(prefs.landingLayoutId);
-        return;
+      if (prefs.hasExplicitLandingLayout && dashboardLayoutRegistry.lookup(prefs.landingLayoutId)) {
+        setActiveId(prefs.landingLayoutId);
       }
-      const persona = personaForRole(sessionUser?.role);
-      const match = persona ? layouts.find(l => l.isTemplate && l.persona === persona) : null;
-      if (match) setActiveId(match.id);
     })();
-  }, [prefs.landingLayoutId, prefs.hasExplicitLandingLayout, sessionUser?.role, layouts]);
+  }, [prefs.landingLayoutId, prefs.hasExplicitLandingLayout]);
 
   const active = layouts.find(l => l.id === activeId) ?? layouts[0];
 

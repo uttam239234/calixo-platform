@@ -1,16 +1,20 @@
 /**
  * Calixo Platform - Subscription Foundation Types
  *
- * Extended by the Enterprise Commercial Platform (Track 1 Phase 9) —
- * additively, per this codebase's established convention: existing tiers/
- * statuses are never renamed, only appended, so the 16 existing call sites
- * (OrganizationEngine, TenantContextService, WorkspaceEngine, ...) keep
- * working unchanged.
+ * Round 21: the catalog was cut from 8 tiers to the 4 Calixo actually sells
+ * — `free`/`education`/`agency`/`custom` are removed outright, not just
+ * hidden, per an explicit "delete entirely from Subscription Plans, Usage
+ * Limits, Pricing Rules, Billing, Upgrade Center, Entitlement Engine"
+ * mandate. `SubscriptionTier` narrowing to a 4-value union is deliberate:
+ * every remaining reference to a removed tier literal becomes a real
+ * compile error, which is what actually found every call site this round
+ * touched (mock seed data, the landing page, Contract-seeding logic) rather
+ * than relying on grep alone.
  */
 
-export type SubscriptionTier = "free" | "trial" | "starter" | "growth" | "enterprise" | "education" | "agency" | "custom";
+export type SubscriptionTier = "trial" | "starter" | "growth" | "enterprise";
 
-export const SUBSCRIPTION_TIERS: SubscriptionTier[] = ["free", "trial", "starter", "growth", "enterprise", "education", "agency", "custom"];
+export const SUBSCRIPTION_TIERS: SubscriptionTier[] = ["trial", "starter", "growth", "enterprise"];
 
 export type SubscriptionStatus = "trialing" | "active" | "past_due" | "paused" | "canceled" | "expired";
 

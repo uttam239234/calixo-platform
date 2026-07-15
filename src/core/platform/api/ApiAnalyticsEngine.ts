@@ -37,6 +37,14 @@ export class ApiAnalyticsEngine {
     return this.summarize(this.records.filter(r => r.organizationId === organizationId), organizationId);
   }
 
+  /** Raw, org-scoped request records (most recent first) — added by API & Webhooks (Track 3 Phase 1) for the Developer Mode "Request Logs" panel; every other accessor here only returns an aggregated summary. */
+  forOrganizationRecords(organizationId: string, limit = 50): ApiRequestRecord[] {
+    return this.records
+      .filter(r => r.organizationId === organizationId)
+      .slice(-limit)
+      .reverse();
+  }
+
   forVersion(version: string): EndpointAnalyticsSummary {
     return this.summarize(this.records.filter(r => r.version === version), version);
   }

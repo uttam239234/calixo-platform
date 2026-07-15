@@ -26,12 +26,23 @@ export class FeatureFlagRegistry {
     definitions.forEach(d => this.register(d));
   }
 
+  /**
+   * Overrides win: an `extra` entry for a `FLAG_REGISTRY` id is a real edit
+   * (e.g. Experiments' `rolloutPercent`) that must actually be visible to
+   * evaluation. Previously checked `FLAG_REGISTRY` first, so `register()`ing
+   * an override for any static flag was silently never read by
+   * `FeatureFlagEngine.evaluate()` — a real, found-during-persistence-work
+   * bug (see the Round 20 investigation report), not a hypothetical one.
+   */
   get(id: string): FeatureFlagDefinition | undefined {
-    return FLAG_REGISTRY.find(f => f.id === id) ?? this.extra.get(id);
+    return this.extra.get(id) ?? FLAG_REGISTRY.find(f => f.id === id);
   }
 
+  /** Merges `extra` overrides over their `FLAG_REGISTRY` counterpart by id instead of concatenating — concatenating duplicated every edited static flag. */
   list(): FeatureFlagDefinition[] {
-    return [...FLAG_REGISTRY, ...this.extra.values()];
+    const merged = FLAG_REGISTRY.map(f => this.extra.get(f.id) ?? f);
+    const additions = Array.from(this.extra.values()).filter(f => !FLAG_REGISTRY.some(sf => sf.id === f.id));
+    return [...merged, ...additions];
   }
 
   count(): number {

@@ -15,6 +15,7 @@ import { NotFoundError } from '@/errors';
 import { organizationPlatformAPI } from '@/core/platform/organizations/OrganizationPlatformAPI';
 import type { Organization, OrganizationStatus } from '@/core/platform/organizations/types';
 import type { SubscriptionTier } from '@/core/platform/subscription/types';
+import { entitlementService } from '@/core/platform/access';
 import type {
   OrganizationProfile,
   CreateOrganizationRequest,
@@ -22,23 +23,21 @@ import type {
   OrganizationPlan,
 } from '@/organizations/types';
 
+/** Round 21: `SubscriptionTier` shrank to trial/starter/growth/enterprise — `OrganizationPlan` (this module's own pre-existing, legacy display-only vocabulary, unrelated to real billing) is untouched, so this mapping just drops the removed tier keys. */
 const TIER_TO_PLAN: Record<SubscriptionTier, OrganizationPlan> = {
-  free: 'free',
   trial: 'free',
   starter: 'starter',
   growth: 'professional',
   enterprise: 'enterprise',
-  education: 'enterprise',
-  agency: 'agency',
-  custom: 'enterprise',
 };
 
+/** `'agency'` has no surviving equivalent tier — mapped to `'growth'`, the closest remaining paid tier below Enterprise. */
 const PLAN_TO_TIER: Record<OrganizationPlan, SubscriptionTier> = {
-  free: 'free',
+  free: 'trial',
   starter: 'starter',
   professional: 'growth',
   enterprise: 'enterprise',
-  agency: 'agency',
+  agency: 'growth',
 };
 
 const STRENGTH_TO_PASSWORD_POLICY: Record<Organization['settings']['security']['passwordPolicyStrength'], OrganizationProfile['settings']['security']['passwordPolicy']> = {
@@ -80,7 +79,7 @@ function toProfile(org: Organization, viewerId?: string): OrganizationProfile {
         allowMultipleWorkspaces: true,
         allowGuestAccess: true,
         allowApiAccess: true,
-        allowWhiteLabel: org.tier === "enterprise" || org.tier === "custom",
+        allowWhiteLabel: org.tier === "enterprise",
       },
     },
     branding: {
@@ -119,6 +118,9 @@ function toProfile(org: Organization, viewerId?: string): OrganizationProfile {
 
 export class OrganizationService {
   async createOrganization(userId: string, request: CreateOrganizationRequest): Promise<OrganizationProfile> {
+    const entitlement = await entitlementService.canCreateOrganization(userId);
+    if (!entitlement.allowed) throw new Error(entitlement.message ?? 'Organization limit reached for your current plan.');
+
     const org = organizationPlatformAPI.create({
       name: request.name,
       slug: request.slug,

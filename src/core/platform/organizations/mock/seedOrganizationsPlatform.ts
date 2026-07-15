@@ -32,7 +32,7 @@ export function seedOrganizationsPlatformMockData(): OrganizationsMockSeedResult
   const royalGlobal = organizationEngine.create({
     name: "Royal Global University",
     ownerId: CURRENT_USER_ID,
-    tier: "education",
+    tier: "trial",
     profile: { email: "info@royalglobal.edu", website: "https://royalglobal.edu", industry: "Higher Education", companySize: "1,000-5,000" },
   });
   const calixoTech = organizationEngine.create({

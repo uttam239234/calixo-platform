@@ -15,6 +15,7 @@ import { subscriptionRegistry, SUBSCRIPTION_TIERS } from "@/core/platform/subscr
 import type { SubscriptionTier, SubscriptionLimits } from "@/core/platform/subscription";
 import { useInternalRole } from "../internalRole";
 import { commitPlanChange, type CommitPlanChangeResult } from "../commitPlanChange";
+import { saveSubscriptionTierAction } from "@/core/platform/configStore/actions";
 
 export type NumericLimitKey = Exclude<keyof SubscriptionLimits, "modules" | "featureGates">;
 
@@ -54,7 +55,10 @@ export function useLimits() {
         if ((patch[key] as number) < currentValue) anyReduced = true;
       }
       const nextLimits: SubscriptionLimits = { ...definition.limits, ...patch };
-      subscriptionRegistry.register({ ...definition, limits: nextLimits });
+      const description = `Changed ${tier}'s usage limits`;
+      const nextDefinition = { ...definition, limits: nextLimits };
+      subscriptionRegistry.register(nextDefinition);
+      void saveSubscriptionTierAction(nextDefinition, description);
       const risky = anyReduced ? "credit_reduction" : undefined;
       const result = await commitPlanChange({
         entityType: "subscription-tier-limits",
@@ -62,12 +66,14 @@ export function useLimits() {
         before,
         after: patch,
         actor: role,
-        description: `Changed ${tier}'s usage limits`,
+        description,
         risky,
         restore: risky
           ? prev => {
               const d = subscriptionRegistry.get(tier)!;
-              subscriptionRegistry.register({ ...d, limits: { ...d.limits, ...prev } });
+              const restored = { ...d, limits: { ...d.limits, ...prev } };
+              subscriptionRegistry.register(restored);
+              void saveSubscriptionTierAction(restored, `Undo: ${description}`);
               refresh();
             }
           : undefined,

@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Building2, Check, ChevronDown, Plus, Search } from 'lucide-react';
 import { useOrganization } from '@/organizations/hooks/useOrganization';
-import { useAuth } from '@/identity/hooks/useAuth';
+import { useCalixoIdentity } from '@/identity/bridge/useCalixoIdentity';
 import { ORGANIZATION_ROLE_LABELS, type OrganizationSwitcherProps } from '@/organizations/types';
 
 export function OrganizationSwitcher({
@@ -13,7 +13,7 @@ export function OrganizationSwitcher({
   onSwitch,
 }: OrganizationSwitcherProps) {
   const { organization, organizations, switchOrganization, createOrganization, refreshOrganizations } = useOrganization();
-  const { user } = useAuth();
+  const { identity } = useCalixoIdentity();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -21,10 +21,10 @@ export function OrganizationSwitcher({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (user) {
+    if (identity) {
       refreshOrganizations();
     }
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [identity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -58,7 +58,7 @@ export function OrganizationSwitcher({
   };
 
   const handleCreate = async () => {
-    if (!newOrgName.trim() || !user) return;
+    if (!newOrgName.trim() || !identity) return;
     try {
       await createOrganization({ name: newOrgName.trim() });
       setNewOrgName('');

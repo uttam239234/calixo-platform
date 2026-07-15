@@ -21,6 +21,8 @@ export interface ApiKeyDefinition {
   createdAt: string;
   lastUsedAt?: string;
   expiresAt?: string;
+  /** Stamped by `ApiClientRegistry.revokeApiKey()` — added by API & Webhooks (Track 3 Phase 1) so revocation is a real, timestamped Activity entry, not just a boolean flip. */
+  revokedAt?: string;
 }
 
 export interface ServiceAccount {

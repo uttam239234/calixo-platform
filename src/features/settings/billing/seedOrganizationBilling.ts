@@ -18,21 +18,18 @@
  * arithmetic, and their status transitions are all genuine API calls; only
  * the dates are backdated for realistic seed data, disclosed here plainly.
  *
- * A second liberty: quote-only tiers (Enterprise/Custom) have no flat
- * `PricingEngine` rule (`quote().basePrice` is honestly `0` — "requires a
- * quote," not "free"), so a real negotiated `ContractPlatformAPI` agreement
- * is seeded instead and invoices are priced from *that* real contract value
- * — an authored, plausible negotiated rate (the same category of decision
- * as this codebase's other seed constants), not a fabricated invoice number.
+ * Round 21: every remaining tier (Trial/Starter/Growth/Enterprise) has a
+ * real flat `PricingEngine` rule — Enterprise is no longer `model: "quote"`
+ * — so every invoice here is priced from the real `pricingPlatformAPI.quote()`
+ * path. The `ContractPlatformAPI`-backed negotiated-value branch this used
+ * to need for quote-only tiers is gone; `ContractEngine` itself is untouched
+ * and still real, just no longer exercised by this seed.
  */
 import { organizationRegistry } from "@/core/platform/organizations";
-import { subscriptionPlatformAPI, pricingPlatformAPI, invoicePlatformAPI, creditPlatformAPI, contractPlatformAPI } from "@/core/platform/commercial";
+import { subscriptionPlatformAPI, pricingPlatformAPI, invoicePlatformAPI, creditPlatformAPI } from "@/core/platform/commercial";
 import { subscriptionRegistry } from "@/core/platform/subscription";
 import { ensureMonthlyCreditsGranted } from "./aiCredits";
 import { addPaymentMethod, listPaymentMethods } from "./paymentMethods";
-
-/** A plausible negotiated annual value for organizations on a quote-only tier — authored seed data, not a computed price. */
-const NEGOTIATED_ANNUAL_CONTRACT_VALUE = 17_988;
 
 let seeded = false;
 
@@ -58,33 +55,11 @@ export async function seedOrganizationBilling(): Promise<void> {
     if (invoicePlatformAPI.listForOrganization(organization.id).length === 0) {
       const subscription = subscriptionPlatformAPI.getOrDefault(organization.id);
       const tierLabel = subscriptionRegistry.get(subscription.tier)?.label ?? subscription.tier;
-      const isQuoteOnly = pricingPlatformAPI.listForTier(subscription.tier).some(rule => rule.model === "quote");
 
-      let monthlyAmount: number;
-      let currency: string;
-      let description: string;
-
-      if (isQuoteOnly) {
-        const contract = contractPlatformAPI.create({
-          organizationId: organization.id,
-          kind: "enterprise_agreement",
-          name: `${tierLabel} Plan — Enterprise Agreement`,
-          value: NEGOTIATED_ANNUAL_CONTRACT_VALUE,
-          currency: "USD",
-          startsAt: new Date().toISOString(),
-          autoRenews: true,
-        });
-        contractPlatformAPI.submitForApproval(contract.id);
-        contractPlatformAPI.approve(contract.id, "system");
-        monthlyAmount = Math.round((contract.value / 12) * 100) / 100;
-        currency = contract.currency;
-        description = `${tierLabel} Plan — Enterprise Agreement`;
-      } else {
-        const quote = pricingPlatformAPI.quote(subscription.tier, subscription.billingCycle);
-        monthlyAmount = quote.basePrice;
-        currency = quote.currency;
-        description = `${tierLabel} Plan — ${subscription.billingCycle === "annual" ? "Annual" : "Monthly"}`;
-      }
+      const quote = pricingPlatformAPI.quote(subscription.tier, subscription.billingCycle);
+      const monthlyAmount = quote.basePrice;
+      const currency = quote.currency;
+      const description = `${tierLabel} Plan — ${subscription.billingCycle === "annual" ? "Annual" : "Monthly"}`;
 
       if (monthlyAmount > 0) {
         for (const monthsAgo of [2, 1, 0]) {

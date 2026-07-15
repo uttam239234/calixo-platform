@@ -39,23 +39,30 @@ export default function InvitationsPage() {
   const [accessLevel, setAccessLevel] = useState<PeopleAccessLevel>("member");
   const [statusFilter, setStatusFilter] = useState<InvitationStatus | "">("");
   const [sentJustNow, setSentJustNow] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const filtered = useMemo(() => (statusFilter ? invitations.byStatus(statusFilter) : invitations.invitations), [invitations, statusFilter]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!email.trim()) return;
-    invitations.create({
-      email: email.trim().toLowerCase(),
-      workspaceId: "workspace-growth-engine",
-      teamId: teamId || undefined,
-      accessLevel,
-      invitedBy: tenantContext.userId,
-    });
-    setEmail("");
-    setTeamId("");
-    setAccessLevel("member");
-    setSentJustNow(true);
-    setTimeout(() => setSentJustNow(false), 3000);
+    setSendError(null);
+    try {
+      await invitations.create({
+        email: email.trim().toLowerCase(),
+        workspaceId: "workspace-growth-engine",
+        teamId: teamId || undefined,
+        accessLevel,
+        invitedBy: tenantContext.userId,
+      });
+      setEmail("");
+      setTeamId("");
+      setAccessLevel("member");
+      setSentJustNow(true);
+      setTimeout(() => setSentJustNow(false), 3000);
+    } catch (error) {
+      // Real denials from `EntitlementService.canInviteUser` (seat limit reached) surface here.
+      setSendError(error instanceof Error ? error.message : "Something went wrong sending that invitation.");
+    }
   };
 
   return (
@@ -98,6 +105,7 @@ export default function InvitationsPage() {
             </Button>
             {sentJustNow && <span className="text-sm text-success">Invitation sent.</span>}
           </div>
+          {sendError && <p className="mt-2 text-sm text-destructive">{sendError}</p>}
         </div>
       )}
 

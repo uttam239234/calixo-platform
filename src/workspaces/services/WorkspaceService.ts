@@ -21,9 +21,6 @@ import type {
   UpdateWorkspaceRequest,
 } from '@/workspaces/types';
 
-/** No real login flow exists yet — same fallback convention every module uses locally. */
-const DEMO_ACTOR_ID = 'user-current';
-
 function toProfile(workspace: Workspace): WorkspaceProfile {
   return {
     id: workspace.id,
@@ -62,10 +59,10 @@ function toProfile(workspace: Workspace): WorkspaceProfile {
 }
 
 export class WorkspaceService {
-  async createWorkspace(request: CreateWorkspaceRequest): Promise<WorkspaceProfile> {
+  async createWorkspace(request: CreateWorkspaceRequest, actorId: string): Promise<WorkspaceProfile> {
     const workspace = workspacePlatformAPI.create(
       { organizationId: request.organizationId, name: request.name, slug: request.slug, description: request.description, type: request.type, settings: request.settings },
-      DEMO_ACTOR_ID
+      actorId
     );
     return toProfile(workspace);
   }
@@ -87,14 +84,14 @@ export class WorkspaceService {
       });
   }
 
-  async updateWorkspace(wsId: string, data: UpdateWorkspaceRequest): Promise<WorkspaceProfile> {
-    const updated = workspacePlatformAPI.update(wsId, { name: data.name, description: data.description, settings: data.settings, branding: data.branding }, DEMO_ACTOR_ID);
+  async updateWorkspace(wsId: string, data: UpdateWorkspaceRequest, actorId: string): Promise<WorkspaceProfile> {
+    const updated = workspacePlatformAPI.update(wsId, { name: data.name, description: data.description, settings: data.settings, branding: data.branding }, actorId);
     if (!updated) throw new NotFoundError('Workspace');
     return toProfile(updated);
   }
 
-  async archiveWorkspace(wsId: string): Promise<void> {
-    const archived = workspacePlatformAPI.archive(wsId, DEMO_ACTOR_ID);
+  async archiveWorkspace(wsId: string, actorId: string): Promise<void> {
+    const archived = workspacePlatformAPI.archive(wsId, actorId);
     if (!archived) throw new NotFoundError('Workspace');
   }
 

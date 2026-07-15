@@ -8,13 +8,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { analyticsAnnotationRegistry } from "@/core/analytics";
 import type { AnalyticsAnnotation } from "@/core/analytics";
-import { useUser } from "@/identity/hooks/useAuth";
+import { useUser } from "@clerk/nextjs";
 
 const FALLBACK_AUTHOR = "You";
 
 export function useAnalyticsAnnotations(chartId: string) {
-  const sessionUser = useUser();
-  const author = sessionUser?.name ?? FALLBACK_AUTHOR;
+  const { user: sessionUser } = useUser();
+  const author = sessionUser?.fullName ?? sessionUser?.firstName ?? FALLBACK_AUTHOR;
   const [annotations, setAnnotations] = useState<AnalyticsAnnotation[]>([]);
 
   const refresh = useCallback(() => {

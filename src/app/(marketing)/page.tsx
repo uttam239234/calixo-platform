@@ -13,6 +13,12 @@ import SocialProof from "@/components/landing/SocialProof";
 import PricingPreview from "@/components/landing/PricingPreview";
 import FinalCTA from "@/components/landing/FinalCTA";
 
+// PricingPreview reads live Platform Admin pricing config (Round 21) — this
+// route must not be statically prerendered, or a Platform Admin's price
+// change would only ever reach the landing page on the next `next build`,
+// contradicting "no redeploy required."
+export const dynamic = "force-dynamic";
+
 const title = "Calixo | The Enterprise AI Growth Operating System";
 const description =
   "Calixo unifies marketing, sales, CRM, analytics, reporting, automation, and AI into one intelligent platform. Replace 15 disconnected tools with one enterprise growth operating system.";

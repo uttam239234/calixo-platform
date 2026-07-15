@@ -18,6 +18,7 @@ export class ApiClientRegistry {
     const key = this.apiKeys.get(id);
     if (!key) return false;
     key.isActive = false;
+    key.revokedAt = new Date().toISOString();
     return true;
   }
 

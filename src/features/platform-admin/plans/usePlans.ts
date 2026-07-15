@@ -21,6 +21,7 @@ import { pricingPlatformAPI } from "@/core/platform/commercial";
 import type { PricingRuleDefinition } from "@/core/platform/commercial";
 import { useInternalRole } from "../internalRole";
 import { commitPlanChange, type CommitPlanChangeResult } from "../commitPlanChange";
+import { saveSubscriptionTierAction, savePricingRuleAction } from "@/core/platform/configStore/actions";
 
 export interface PlanRow {
   tier: SubscriptionTier;
@@ -49,17 +50,20 @@ export function usePlans() {
       if (!rule) return {};
       const before = { monthlyPrice: rule.monthlyPrice ?? 0, annualPrice: rule.annualPrice ?? 0 };
       const after = { monthlyPrice, annualPrice };
+      const description = `Changed ${tier}'s price to $${monthlyPrice}/mo, $${annualPrice}/yr`;
       pricingPlatformAPI.registerRule({ ...rule, monthlyPrice, annualPrice });
+      void savePricingRuleAction({ ...rule, monthlyPrice, annualPrice }, description);
       const result = await commitPlanChange({
         entityType: "pricing-rule",
         entityId: rule.id,
         before,
         after,
         actor: role,
-        description: `Changed ${tier}'s price to $${monthlyPrice}/mo, $${annualPrice}/yr`,
+        description,
         risky: "price_change",
         restore: prev => {
           pricingPlatformAPI.registerRule({ ...rule, monthlyPrice: prev.monthlyPrice, annualPrice: prev.annualPrice });
+          void savePricingRuleAction({ ...rule, monthlyPrice: prev.monthlyPrice, annualPrice: prev.annualPrice }, `Undo: ${description}`);
           refresh();
         },
       });
@@ -74,7 +78,10 @@ export function usePlans() {
       const definition = subscriptionRegistry.get(tier);
       if (!definition) return {};
       const before = definition.limits.aiCredits;
-      subscriptionRegistry.register({ ...definition, limits: { ...definition.limits, aiCredits } });
+      const description = `Changed ${tier}'s included AI credits from ${before.toLocaleString()} to ${aiCredits.toLocaleString()}`;
+      const nextDefinition = { ...definition, limits: { ...definition.limits, aiCredits } };
+      subscriptionRegistry.register(nextDefinition);
+      void saveSubscriptionTierAction(nextDefinition, description);
       const risky = aiCredits < before ? "credit_reduction" : undefined;
       const result = await commitPlanChange({
         entityType: "subscription-tier-credits",
@@ -82,12 +89,14 @@ export function usePlans() {
         before,
         after: aiCredits,
         actor: role,
-        description: `Changed ${tier}'s included AI credits from ${before.toLocaleString()} to ${aiCredits.toLocaleString()}`,
+        description,
         risky,
         restore: risky
           ? prev => {
               const d = subscriptionRegistry.get(tier)!;
-              subscriptionRegistry.register({ ...d, limits: { ...d.limits, aiCredits: prev } });
+              const restored = { ...d, limits: { ...d.limits, aiCredits: prev } };
+              subscriptionRegistry.register(restored);
+              void saveSubscriptionTierAction(restored, `Undo: ${description}`);
               refresh();
             }
           : undefined,
@@ -103,7 +112,10 @@ export function usePlans() {
       const definition = subscriptionRegistry.get(tier);
       if (!definition) return {};
       const before = definition.isActive;
-      subscriptionRegistry.register({ ...definition, isActive });
+      const description = `${isActive ? "Enabled" : "Disabled"} the ${tier} plan`;
+      const nextDefinition = { ...definition, isActive };
+      subscriptionRegistry.register(nextDefinition);
+      void saveSubscriptionTierAction(nextDefinition, description);
       const risky = !isActive ? "plan_deletion" : undefined;
       const result = await commitPlanChange({
         entityType: "subscription-tier-active",
@@ -111,12 +123,14 @@ export function usePlans() {
         before,
         after: isActive,
         actor: role,
-        description: `${isActive ? "Enabled" : "Disabled"} the ${tier} plan`,
+        description,
         risky,
         restore: risky
           ? prev => {
               const d = subscriptionRegistry.get(tier)!;
-              subscriptionRegistry.register({ ...d, isActive: prev });
+              const restored = { ...d, isActive: prev };
+              subscriptionRegistry.register(restored);
+              void saveSubscriptionTierAction(restored, `Undo: ${description}`);
               refresh();
             }
           : undefined,
@@ -131,10 +145,15 @@ export function usePlans() {
     async (sourceTier: SubscriptionTier, destinationTier: SubscriptionTier) => {
       const source = subscriptionRegistry.get(sourceTier);
       if (!source) return;
-      subscriptionRegistry.register({ ...source, tier: destinationTier, label: `${source.label} (Copy)`, isActive: true });
+      const description = `Duplicated the ${sourceTier} plan into the ${destinationTier} plan slot`;
+      const duplicated = { ...source, tier: destinationTier, label: `${source.label} (Copy)`, isActive: true };
+      subscriptionRegistry.register(duplicated);
+      void saveSubscriptionTierAction(duplicated, description);
       const sourceRule = flatRuleFor(sourceTier);
       if (sourceRule) {
-        pricingPlatformAPI.registerRule({ ...sourceRule, id: `price-${destinationTier}`, tier: destinationTier });
+        const duplicatedRule = { ...sourceRule, id: `price-${destinationTier}`, tier: destinationTier };
+        pricingPlatformAPI.registerRule(duplicatedRule);
+        void savePricingRuleAction(duplicatedRule, description);
       }
       await commitPlanChange({
         entityType: "subscription-tier",
@@ -142,7 +161,7 @@ export function usePlans() {
         before: null,
         after: source,
         actor: role,
-        description: `Duplicated the ${sourceTier} plan into the ${destinationTier} plan slot`,
+        description,
       });
       refresh();
     },

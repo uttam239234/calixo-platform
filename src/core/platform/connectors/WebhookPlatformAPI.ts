@@ -22,6 +22,23 @@ export class WebhookPlatformAPI {
     return integrationWebhookService.unregister(webhookId);
   }
 
+  /** Backs Edit and Pause/Resume (a `{enabled}` patch) in API & Webhooks (Track 3 Phase 1) — not previously exposed on this facade. */
+  update(webhookId: string, patch: Partial<WebhookConfig>): Promise<WebhookConfig> {
+    return integrationWebhookService.updateWebhook(webhookId, patch);
+  }
+
+  /**
+   * Fires a real outbound delivery directly — the "Run Now" action in API &
+   * Webhooks (Track 3 Phase 1). Deliberately bypasses `receive()`'s
+   * signature verification: that method models an inbound signed callback,
+   * the wrong direction for "Calixo, send this now." Delivery status is
+   * simulated by the wrapped engine exactly as it already was for every
+   * other caller — this does not make it any more or less real.
+   */
+  trigger(webhookId: string, event: WebhookEvent, payload: unknown): Promise<WebhookDelivery> {
+    return integrationWebhookService.handleDelivery(webhookId, event, payload);
+  }
+
   getWebhooks(connectionId: ConnectionId): Promise<WebhookConfig[]> {
     return integrationWebhookService.getWebhooks(connectionId);
   }

@@ -113,6 +113,8 @@ export interface Organization {
   name: string;
   slug: string;
   ownerId: string;
+  /** The real Clerk Organization this record is bridged to — added for production identity (Round 18). Absent for organizations that predate the Clerk migration until first touched by a real sign-in. */
+  clerkOrgId?: string;
   status: OrganizationStatus;
   tier: SubscriptionTier;
   profile: OrganizationProfileInfo;
@@ -132,6 +134,7 @@ export interface CreateOrganizationInput {
   name: string;
   slug?: string;
   ownerId: string;
+  clerkOrgId?: string;
   tier?: SubscriptionTier;
   profile?: Partial<OrganizationProfileInfo>;
   settings?: Partial<OrganizationSettings>;

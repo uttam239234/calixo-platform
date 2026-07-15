@@ -1,148 +1,39 @@
-"use client";
-
 /**
- * Calixo Platform - Internal Plan Management Console
+ * Calixo Platform - Internal Plan Management Console: Route Gate
  *
- * Deliberately outside `(dashboard)` — never linked from any customer
- * sidebar/nav, not part of the Settings shell. Sits directly under the root
- * layout (`src/app/layout.tsx`), so it inherits `ThemeProvider`/fonts/globals
- * for free without needing its own copy.
+ * A real Server Component (no "use client") — this is what makes
+ * `/platform-admin/*` protection genuine server-side enforcement instead of
+ * a client-rendered "Access Denied" message sitting under an HTTP 200.
+ * `resolvePlatformRoleServer()` re-derives the platform role from Clerk's
+ * real server-side session (never trusts anything the client sent), and
+ * `forbidden()` (next/navigation, enabled via `experimental.authInterrupts`
+ * in next.config.ts) returns a REAL HTTP 403, caught by the root
+ * `src/app/forbidden.tsx` boundary.
  *
- * Bootstraps only the platform-wide registries this console reads/writes
- * (subscription tiers, the Commercial Platform, feature flags) — unlike the
- * dashboard's `TenantProviders`, nothing here is organization-scoped: this
- * console edits plan/pricing/pack/flag definitions that apply across every
- * organization at once.
+ * Only PLATFORM_OWNER and PLATFORM_ADMIN pass — PLATFORM_SUPPORT and
+ * PLATFORM_DEVELOPER are real platform staff (see `src/identity/platformRole.ts`)
+ * but do not get console access per this round's brief.
+ *
+ * Every entry is audited, granted or denied — `proxy.ts`'s coarse
+ * "must be signed in" redirect happens before this ever runs, so by the
+ * time this executes there is always a real Clerk session; the interesting
+ * case this layer adds is "signed in, but not an authorized platform role."
  */
-import { useEffect, useState, type ReactNode } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { InternalRoleProvider, useInternalRole, INTERNAL_ROLE_LABELS, type InternalRole } from "@/features/platform-admin/internalRole";
-import { AccessDenied } from "@/features/platform-admin/AccessDenied";
-import { initializeSubscriptionFoundation } from "@/core/platform/subscription";
-import { initializeCommercialFoundation } from "@/core/platform/commercial";
-import { initializeFeatureFlagsFoundation } from "@/core/platform/featureFlags";
+import type { ReactNode } from "react";
+import { forbidden } from "next/navigation";
+import { resolvePlatformRoleServer } from "@/features/platform-admin/resolvePlatformRole.server";
+import { recordPlatformAccess } from "@/features/platform-admin/platformAccessAudit.server";
+import { PlatformAdminShell } from "./PlatformAdminShell";
 
-const NAV_ITEMS = [
-  { href: "/platform-admin/plans", label: "Subscription Plans" },
-  { href: "/platform-admin/credit-packs", label: "AI Credit Packs" },
-  { href: "/platform-admin/features", label: "Features & Modules" },
-  { href: "/platform-admin/limits", label: "Usage Limits" },
-  { href: "/platform-admin/pricing", label: "Pricing Rules" },
-  { href: "/platform-admin/promotions", label: "Promotions" },
-  { href: "/platform-admin/experiments", label: "Experiments" },
-  { href: "/platform-admin/settings", label: "Global Settings" },
-];
+export default async function PlatformAdminLayout({ children }: { children: ReactNode }) {
+  const { role, hasPlatformAdminAccess, calixoUserId } = await resolvePlatformRoleServer();
 
-let bootstrapped = false;
-
-/**
- * Every section reads mutable, module-level registries (`subscriptionRegistry`,
- * `pricingEngine`, `featureFlagRegistry`, ...) directly at render time rather
- * than behind a `useEffect`-populated loading state — so `children` must not
- * mount until this bootstrap effect has actually run. `"use client"` pages
- * are still server-rendered once before hydration, and effects never fire
- * during SSR, so without this gate the very first render would read empty
- * registries and crash. Gating on a `ready` state (not just skipping the
- * init calls) also survives a hot-reload where `bootstrapped` is already
- * `true` from an earlier mount — `ready` still needs to flip on this mount.
- */
-function PlatformAdminBootstrap({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      if (!bootstrapped) {
-        bootstrapped = true;
-        initializeSubscriptionFoundation();
-        initializeCommercialFoundation();
-        initializeFeatureFlagsFoundation();
-      }
-      setReady(true);
-    })();
-  }, []);
-
-  if (!ready) {
-    return <div className="mx-auto max-w-6xl px-6 py-8 text-sm text-muted-foreground">Loading Plan Management Console…</div>;
+  if (!hasPlatformAdminAccess) {
+    await recordPlatformAccess({ calixoUserId, role, granted: false, resource: "the Platform Admin console" });
+    forbidden();
   }
 
-  return <>{children}</>;
-}
+  await recordPlatformAccess({ calixoUserId, role, granted: true, resource: "the Platform Admin console" });
 
-function RoleSwitcher() {
-  const { role, setRole } = useInternalRole();
-
-  return (
-    <label className="flex items-center gap-2 text-sm text-muted-foreground">
-      Signed in as
-      <select
-        value={role}
-        onChange={e => setRole(e.target.value as InternalRole)}
-        className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm font-semibold text-foreground"
-      >
-        {Object.entries(INTERNAL_ROLE_LABELS).map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function PlatformAdminNav() {
-  const pathname = usePathname();
-
-  return (
-    <nav className="flex flex-wrap gap-1 border-b border-border pb-3">
-      {NAV_ITEMS.map(item => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={cn(
-            "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-            pathname === item.href ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
-          )}
-        >
-          {item.label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
-
-function ConsoleShell({ children }: { children: ReactNode }) {
-  const { isInternalStaff } = useInternalRole();
-
-  return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Internal Only — Calixo Staff</p>
-          <h1 className="mt-1 text-2xl font-bold text-foreground">Plan Management Console</h1>
-        </div>
-        <RoleSwitcher />
-      </div>
-
-      {isInternalStaff ? (
-        <>
-          <PlatformAdminNav />
-          <div className="mt-6">{children}</div>
-        </>
-      ) : (
-        <AccessDenied />
-      )}
-    </div>
-  );
-}
-
-export default function PlatformAdminLayout({ children }: { children: ReactNode }) {
-  return (
-    <InternalRoleProvider>
-      <PlatformAdminBootstrap>
-        <ConsoleShell>{children}</ConsoleShell>
-      </PlatformAdminBootstrap>
-    </InternalRoleProvider>
-  );
+  return <PlatformAdminShell>{children}</PlatformAdminShell>;
 }

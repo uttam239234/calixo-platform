@@ -29,6 +29,16 @@ export class PromotionEngine {
     return this.promotions.get(code);
   }
 
+  /** Raw upsert of an already-complete `PromotionDefinition` (real id, real `redemptionCount`) — for replaying persisted state back into a freshly-booted realm. Unlike `create()`, never mints a new id or resets redemption tracking. */
+  restore(promotion: PromotionDefinition): void {
+    this.promotions.set(promotion.code, promotion);
+  }
+
+  /** Bulk `restore()` — reconciles this realm's copy with a server-authoritative list (e.g. after a Server Action mints the real id for a new promotion, the calling browser tab's own registry needs that SAME id, not the one its own earlier `create()` call would have minted). */
+  restoreAll(promotions: PromotionDefinition[]): void {
+    promotions.forEach(p => this.restore(p));
+  }
+
   list(): PromotionDefinition[] {
     return Array.from(this.promotions.values());
   }

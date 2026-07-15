@@ -4,6 +4,7 @@ import { roleService } from "@/access/services/RoleService";
 import type { Permission } from "@/access/types";
 import { permissionCache } from "./PermissionCache";
 import { permissionRegistry } from "./PermissionRegistry";
+import { hasPlatformBypass } from "./AuthorizationPlatformAPI";
 
 export class PermissionPlatformAPI {
   async getAllPermissions(): Promise<Permission[]> {
@@ -20,6 +21,8 @@ export class PermissionPlatformAPI {
   }
 
   async getEffectivePermissions(userId: string, organizationId?: string): Promise<string[]> {
+    if (hasPlatformBypass(userId)) return permissionRegistry.getAll();
+
     const cached = permissionCache.get(userId, organizationId);
     if (cached) return cached;
     const permissions = await roleService.getUserPermissions(userId, organizationId);

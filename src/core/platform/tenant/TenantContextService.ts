@@ -16,6 +16,7 @@ import { organizationRegistry } from "../organizations/OrganizationRegistry";
 import { workspaceRegistry } from "../workspaces/WorkspaceRegistry";
 import { subscriptionEngine } from "../subscription/SubscriptionEngine";
 import { featureFlagEngine } from "../featureFlags/FeatureFlagEngine";
+import { authorizationPlatformAPI, hasPlatformBypass } from "../access/AuthorizationPlatformAPI";
 import type { ResolveTenantContextInput, TenantContext } from "./types";
 
 const authorizationEngine = new AuthorizationEngine();
@@ -29,8 +30,13 @@ export class TenantContextService {
     const workspace = input.workspaceId ? workspaceRegistry.lookup(input.workspaceId) : undefined;
     const subscription = subscriptionEngine.getOrAssignDefault(input.organizationId);
 
+    // Delegates to `authorizationPlatformAPI.getEffectivePermissions()` (not `roleService` directly,
+    // as this previously did) — the ONE place the PLATFORM_OWNER/PLATFORM_ADMIN full-access bypass is
+    // implemented. Calling `roleService` directly here bypassed that bypass: any module reading
+    // `tenantContext.permissions` (rather than going through `resourceAuthorizationAPI`) would still
+    // have seen an empty permission list for platform staff.
     const [permissions, roles] = await Promise.all([
-      roleService.getUserPermissions(input.userId, input.organizationId),
+      authorizationPlatformAPI.getEffectivePermissions(input.userId, input.organizationId),
       roleService.getUserRoles(input.userId, input.organizationId).then(assignments => assignments.map(a => a.roleId)),
     ]);
 
@@ -43,6 +49,7 @@ export class TenantContextService {
         permissions,
         hasPermission: (permission: string) => permissions.includes(permission),
         authorize: async (permission: string, resource?: string) => {
+          if (hasPlatformBypass(input.userId)) return true;
           const result = await authorizationEngine.authorize({ userId: input.userId, organizationId: input.organizationId, workspaceId: input.workspaceId, permission, resource });
           return result.authorized;
         },

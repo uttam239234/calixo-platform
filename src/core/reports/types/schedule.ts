@@ -36,6 +36,8 @@ export interface ReportRecipient {
 export interface ReportSchedule {
   id: string;
   reportId: string;
+  /** Additive — Entitlement Enforcement. Absent on schedules seeded before this field existed; the scheduler tick treats a missing value as "can't check, run as before" rather than blocking a legacy record with no real owner to check against. */
+  organizationId?: string;
   frequency: ScheduleFrequency;
   active: boolean;
   recipients: ReportRecipient[];

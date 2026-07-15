@@ -9,10 +9,12 @@ export interface OrganizationListParams {
 export class OrganizationRegistry {
   private organizations = new Map<string, Organization>();
   private slugIndex = new Map<string, string>();
+  private clerkOrgIndex = new Map<string, string>();
 
   register(organization: Organization): void {
     this.organizations.set(organization.id, organization);
     this.slugIndex.set(organization.slug, organization.id);
+    if (organization.clerkOrgId) this.clerkOrgIndex.set(organization.clerkOrgId, organization.id);
   }
 
   lookup(id: string): Organization | undefined {
@@ -22,6 +24,20 @@ export class OrganizationRegistry {
   lookupBySlug(slug: string): Organization | undefined {
     const id = this.slugIndex.get(slug);
     return id ? this.organizations.get(id) : undefined;
+  }
+
+  /** Reverse lookup for the real Clerk migration (Round 18) — resolves a Calixo Organization from a verified Clerk session's `orgId`. */
+  lookupByClerkOrgId(clerkOrgId: string): Organization | undefined {
+    const id = this.clerkOrgIndex.get(clerkOrgId);
+    return id ? this.organizations.get(id) : undefined;
+  }
+
+  /** Stamps a Clerk org id onto an already-registered organization (e.g. a pre-seeded demo org matched by name on first real sign-in) and keeps the reverse index in sync. */
+  linkClerkOrg(organizationId: string, clerkOrgId: string): void {
+    const organization = this.organizations.get(organizationId);
+    if (!organization) return;
+    organization.clerkOrgId = clerkOrgId;
+    this.clerkOrgIndex.set(clerkOrgId, organizationId);
   }
 
   list(params: OrganizationListParams = {}): Organization[] {

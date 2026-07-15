@@ -28,6 +28,7 @@ import { reportScheduler, reportEngine, exportEngine } from "@/core/reports";
 import { knowledgeEngine } from "@/aios";
 import { executionRegistry } from "../ExecutionRegistry";
 import { schedulerPlatformAPI } from "../SchedulerPlatformAPI";
+import { entitlementPlatformAPI } from "@/core/platform/commercial";
 import type { ExecutionTypeDefinition } from "../types";
 
 let registered = false;
@@ -77,13 +78,35 @@ function registerNotificationWorker(): void {
   executionRegistry.register({ id: "notification.deliver", name: "Deliver Notification", description: "Sends a notification to its configured channel.", kind: "immediate", worker: "notification", defaultPriority: "high", defaultTimeoutMs: 30_000, defaultMaxRetries: 3, tags: ["notification"], owner: "platform-team", isReal: true });
 }
 
-/** Recurring tick (5-minute default cadence — `custom` frequency) that finally makes `ReportScheduler`'s stored `nextRunAt` real: generates due reports, requests their export, advances the schedule, and fires the already-defined-but-never-published `report.generated` event that Communication's `report_notifier` handler has been waiting on since it was registered. */
+/**
+ * Recurring tick (5-minute default cadence — `custom` frequency) that finally makes `ReportScheduler`'s stored `nextRunAt` real: generates due reports, requests their export, advances the schedule, and fires the already-defined-but-never-published `report.generated` event that Communication's `report_notifier` handler has been waiting on since it was registered.
+ *
+ * Entitlement Enforcement: this was the highest-impact gap the audit found —
+ * a genuinely live, unattended cron job with zero entitlement check, so an
+ * org downgraded (or an admin disabled Reports for its tier) after creating
+ * a schedule would keep having it silently run forever. Checks the module's
+ * still-unlocked-for-this-tier state directly (`entitlementPlatformAPI`, the
+ * tier-only check — NOT the RBAC-bundled `entitlementService.canAccessModule`,
+ * since there's no real signed-in user to hold a permission for a
+ * system-initiated job; the schedule's creator's permission was already
+ * verified once, at creation time, `createReportScheduleAction`). A schedule
+ * with no `organizationId` (seeded before this field existed) can't be
+ * checked and runs as before — a disclosed, narrow legacy-data gap, not a
+ * new one.
+ */
 function registerReportSchedulerTick(): void {
   const handler: WorkerHandler = async () => {
     const now = new Date().toISOString();
     const due = reportScheduler.list({ active: true }).filter(s => s.nextRunAt && s.nextRunAt <= now);
+    let blocked = 0;
 
     for (const schedule of due) {
+      if (schedule.organizationId && !entitlementPlatformAPI.canAccess(schedule.organizationId, "module", "reports").allowed) {
+        blocked += 1;
+        reportScheduler.pause(schedule.id);
+        continue;
+      }
+
       const { record } = await reportEngine.execute(schedule.reportId);
       if (record.status === "completed") {
         exportEngine.requestExport({ reportId: schedule.reportId, format: schedule.exportFormat, requestedBy: "system:report-scheduler" });
@@ -93,7 +116,7 @@ function registerReportSchedulerTick(): void {
       reportScheduler.update(schedule.id, { frequency: schedule.frequency });
     }
 
-    return { success: true, data: { checked: due.length } };
+    return { success: true, data: { checked: due.length, blocked } };
   };
 
   workerRegistry.register(

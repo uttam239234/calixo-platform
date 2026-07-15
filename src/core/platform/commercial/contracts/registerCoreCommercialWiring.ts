@@ -91,15 +91,20 @@ function registerDefaultQuotas(): void {
   quotaEngine.register({ id: "connector-syncs-default", usageTypeId: "connector_syncs", scope: "organization", kind: "soft", limit: 1000, period: "daily", warningThresholdPercent: 90, graceUsagePercent: 0 });
 }
 
+/**
+ * Round 21: Enterprise is a real, self-serve flat-priced tier — NOT
+ * `model: "quote"` — so it's editable from the Platform Admin Console
+ * exactly like Starter/Growth (`app/platform-admin/pricing`), and Billing/
+ * Upgrade Center/Checkout/`SubscriptionEngine` all read it through the same
+ * generic `pricingPlatformAPI.quote()` path, no tier-specific branch. These
+ * are seed defaults only — every real price a customer ever sees comes from
+ * whatever a Platform Admin has saved into this same registry since.
+ */
 function registerDefaultPricing(): void {
-  pricingEngine.registerRule({ id: "price-free", tier: "free", model: "flat", monthlyPrice: 0, annualPrice: 0, currency: "USD" });
   pricingEngine.registerRule({ id: "price-trial", tier: "trial", model: "flat", monthlyPrice: 0, annualPrice: 0, currency: "USD" });
   pricingEngine.registerRule({ id: "price-starter", tier: "starter", model: "flat", monthlyPrice: 49, annualPrice: 490, currency: "USD" });
   pricingEngine.registerRule({ id: "price-growth", tier: "growth", model: "flat", monthlyPrice: 199, annualPrice: 1990, currency: "USD" });
-  pricingEngine.registerRule({ id: "price-education", tier: "education", model: "flat", monthlyPrice: 99, annualPrice: 990, currency: "USD", isEducationDiscount: true });
-  pricingEngine.registerRule({ id: "price-agency", tier: "agency", model: "flat", monthlyPrice: 299, annualPrice: 2990, currency: "USD" });
-  pricingEngine.registerRule({ id: "price-enterprise", tier: "enterprise", model: "quote", currency: "USD" });
-  pricingEngine.registerRule({ id: "price-custom", tier: "custom", model: "quote", currency: "USD" });
+  pricingEngine.registerRule({ id: "price-enterprise", tier: "enterprise", model: "flat", monthlyPrice: 999, annualPrice: 9990, currency: "USD" });
 }
 
 /** The 5 locked AI credit packs — the Internal Plan Management Console's Section 2 catalog, and the single source of truth `BuyCreditsDialog`/checkout read from. */

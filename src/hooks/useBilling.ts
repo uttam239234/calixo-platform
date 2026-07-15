@@ -28,9 +28,7 @@ import {
 } from "@/features/settings/billing/paymentMethods";
 import { downloadInvoiceReceipt } from "@/features/settings/billing/receipt";
 import { SELF_SERVE_TIERS } from "@/features/settings/billing/constants";
-
-/** No real login flow exists yet — same fallback convention every module uses locally. */
-const DEMO_ACTOR_ID = "user-current";
+import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 
 export interface UsageStat {
   id: string;
@@ -60,6 +58,7 @@ function priceFor(tier: SubscriptionTier): PriceInfo {
 }
 
 export function useBilling(organizationId: string) {
+  const { identity } = useCalixoIdentity();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [wallet, setWallet] = useState<WalletBreakdown | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -95,10 +94,10 @@ export function useBilling(organizationId: string) {
 
   const upgradePlan = useCallback(
     (tier: SubscriptionTier) => {
-      organizationPlatformAPI.changeTier(organizationId, tier, DEMO_ACTOR_ID);
+      organizationPlatformAPI.changeTier(organizationId, tier, identity?.userId ?? "");
       void refresh();
     },
-    [organizationId, refresh]
+    [organizationId, refresh, identity?.userId]
   );
 
   const changeBillingCycle = useCallback(
@@ -111,10 +110,10 @@ export function useBilling(organizationId: string) {
 
   const buyCredits = useCallback(
     (packId: string) => {
-      buyCreditPack(organizationId, packId);
+      buyCreditPack(organizationId, packId, identity?.userId ?? "");
       void refresh();
     },
-    [organizationId, refresh]
+    [organizationId, refresh, identity?.userId]
   );
 
   const addPaymentMethod = useCallback(

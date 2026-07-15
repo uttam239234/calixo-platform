@@ -9,14 +9,13 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { dashboardEngine, initializeDashboardFoundation, DASHBOARD_CURRENT_USER_ID } from "@/core/dashboard";
-import { useUser } from "@/identity/hooks/useAuth";
+import { dashboardEngine, initializeDashboardFoundation } from "@/core/dashboard";
+import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 import type { DashboardNotificationEntry } from "@/core/dashboard";
 
-/** Prefers the real session user (once `AuthProvider` has one) and falls back to the demo constant when unauthenticated. */
 export function useNotifications(userId?: string) {
-  const sessionUser = useUser();
-  const resolvedUserId = userId ?? sessionUser?.id ?? DASHBOARD_CURRENT_USER_ID;
+  const { identity } = useCalixoIdentity();
+  const resolvedUserId = userId ?? identity?.userId ?? "";
   const [notifications, setNotifications] = useState<DashboardNotificationEntry[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
