@@ -101,7 +101,20 @@ export type AuditEventType =
   | 'credits_purchased'
   | 'limit_exceeded'
   | 'upgrade_triggered'
-  | 'plan_changed';
+  | 'plan_changed'
+  // Additive — Adaptive Workspace OS (widget/layout enforcement). Real
+  // layout mutations against `DashboardLayoutRegistry`, one event per
+  // detected change — see `core/platform/dashboardBuilder/serverActions.ts`.
+  | 'widget_moved'
+  | 'widget_resized'
+  | 'widget_hidden'
+  | 'widget_shown'
+  | 'widget_pinned'
+  | 'widget_duplicated'
+  | 'widget_removed'
+  | 'layout_reset'
+  | 'layout_created'
+  | 'template_applied';
 
 // ============================================================================
 // Team

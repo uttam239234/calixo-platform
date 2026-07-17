@@ -27,7 +27,7 @@ function Panel({ icon, title, description, children }: { icon: ReactNode; title:
   );
 }
 
-function DeliveryRow({ delivery, onRedeliver }: { delivery: WebhookDelivery; onRedeliver: () => void }) {
+function DeliveryRow({ delivery, busy, onRedeliver }: { delivery: WebhookDelivery; busy: boolean; onRedeliver: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg bg-accent/30 px-3 py-2 text-xs">
       <div className="min-w-0">
@@ -36,7 +36,7 @@ function DeliveryRow({ delivery, onRedeliver }: { delivery: WebhookDelivery; onR
         </p>
         <p className="text-muted-foreground">{new Date(delivery.createdAt).toLocaleString()} · attempt {delivery.attemptCount}</p>
       </div>
-      <Button size="sm" variant="outline" icon={<RotateCw size={12} />} onClick={onRedeliver}>
+      <Button size="sm" variant="outline" icon={<RotateCw size={12} />} loading={busy} onClick={onRedeliver}>
         Retry
       </Button>
     </div>
@@ -134,6 +134,7 @@ export default function DeveloperModePage() {
                   <DeliveryRow
                     key={delivery.id}
                     delivery={delivery}
+                    busy={dev.redeliverBusyId === delivery.id}
                     onRedeliver={async () => {
                       await dev.redeliver(delivery.id);
                       await loadDeliveries(selectedWebhookId);
@@ -142,6 +143,7 @@ export default function DeveloperModePage() {
                 ))
               )}
             </div>
+            {dev.redeliverError && <p className="mt-2 text-xs text-destructive">{dev.redeliverError}</p>}
           </Panel>
 
           <Panel icon={<ScrollText size={16} />} title="Request Logs" description="Real requests the API Gateway has processed for your organization.">
@@ -169,6 +171,7 @@ export default function DeveloperModePage() {
                 </Button>
               ))}
             </div>
+            {dev.tryItError && <p className="mt-3 text-xs text-destructive">{dev.tryItError}</p>}
             {dev.tryItResult && <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-accent/30 p-3 text-[11px] text-foreground">{JSON.stringify(dev.tryItResult, null, 2)}</pre>}
           </Panel>
         </div>

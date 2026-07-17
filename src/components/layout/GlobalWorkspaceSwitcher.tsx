@@ -15,8 +15,8 @@ import { cn } from "@/lib/utils";
  * fix). Switching either dimension never requires a re-login.
  */
 export function GlobalWorkspaceSwitcher() {
-  const { organization, organizations, switchOrganization } = useOrganization();
-  const { workspace, workspaces, switchWorkspace, isSwitching } = useWorkspace();
+  const { organization, organizations, switchOrganization, isSwitching: isSwitchingOrg, error: orgError } = useOrganization();
+  const { workspace, workspaces, switchWorkspace, isSwitching, error: wsError } = useWorkspace();
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -58,10 +58,15 @@ export function GlobalWorkspaceSwitcher() {
                 <button
                   key={org.id}
                   type="button"
+                  disabled={isSwitchingOrg}
                   onClick={async () => {
-                    await switchOrganization(org.id);
+                    try {
+                      await switchOrganization(org.id);
+                    } catch {
+                      // error surfaced via `orgError` below
+                    }
                   }}
-                  className={cn("flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm hover:bg-accent", org.id === organization.id && "bg-primary/10")}
+                  className={cn("flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm hover:bg-accent disabled:opacity-50", org.id === organization.id && "bg-primary/10")}
                 >
                   <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white" style={{ backgroundColor: org.branding.colors.primary }}>
                     {org.name.charAt(0).toUpperCase()}
@@ -71,6 +76,7 @@ export function GlobalWorkspaceSwitcher() {
                 </button>
               ))}
             </div>
+            {orgError && <p className="px-2 pt-1.5 text-[11px] text-red-500">{orgError}</p>}
           </div>
 
           <div className="p-2">
@@ -87,8 +93,12 @@ export function GlobalWorkspaceSwitcher() {
                     type="button"
                     disabled={isSwitching}
                     onClick={async () => {
-                      await switchWorkspace(ws.id);
-                      setIsOpen(false);
+                      try {
+                        await switchWorkspace(ws.id);
+                        setIsOpen(false);
+                      } catch {
+                        // error surfaced via `wsError` below
+                      }
                     }}
                     className={cn("flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm hover:bg-accent disabled:opacity-50", ws.id === workspace?.id && "bg-primary/10")}
                   >
@@ -101,6 +111,7 @@ export function GlobalWorkspaceSwitcher() {
                 ))
               )}
             </div>
+            {wsError && <p className="px-2 pt-1.5 text-[11px] text-red-500">{wsError}</p>}
           </div>
         </div>
       )}

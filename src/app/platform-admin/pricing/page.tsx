@@ -54,8 +54,10 @@ export default function PricingPage() {
           onClose={() => setEditing(null)}
           onSave={async (monthlyPrice, annualPrice) => {
             const result = await updateRule(editing.tier, monthlyPrice, annualPrice);
+            if (result.error) return { error: result.error };
             if (result.undoToken) setUndo({ token: result.undoToken, message: `${editing.label}'s pricing updated.`, windowMs: result.undoWindowMs ?? 0 });
             setEditing(null);
+            return {};
           }}
         />
       )}
@@ -65,9 +67,27 @@ export default function PricingPage() {
   );
 }
 
-function EditPricingDialog({ row, onClose, onSave }: { row: PricingRow; onClose: () => void; onSave: (monthlyPrice: number, annualPrice: number) => void }) {
+function EditPricingDialog({
+  row,
+  onClose,
+  onSave,
+}: {
+  row: PricingRow;
+  onClose: () => void;
+  onSave: (monthlyPrice: number, annualPrice: number) => Promise<{ error?: string }>;
+}) {
   const [monthlyPrice, setMonthlyPrice] = useState(String(row.rule?.monthlyPrice ?? 0));
   const [annualPrice, setAnnualPrice] = useState(String(row.rule?.annualPrice ?? 0));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    const result = await onSave(Number(monthlyPrice) || 0, Number(annualPrice) || 0);
+    setSaving(false);
+    if (result.error) setError(result.error);
+  }
 
   return (
     <SimpleDialog title={`Edit ${row.label} Pricing`} description="Confirm to apply — this changes what customers are charged." onClose={onClose}>
@@ -75,11 +95,14 @@ function EditPricingDialog({ row, onClose, onSave }: { row: PricingRow; onClose:
         <Input label="Monthly Price ($)" type="number" min={0} value={monthlyPrice} onChange={e => setMonthlyPrice(e.target.value)} />
         <Input label="Yearly Price ($)" type="number" min={0} value={annualPrice} onChange={e => setAnnualPrice(e.target.value)} />
       </div>
+      {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} disabled={saving}>
           Cancel
         </Button>
-        <Button onClick={() => onSave(Number(monthlyPrice) || 0, Number(annualPrice) || 0)}>Confirm Price Change</Button>
+        <Button disabled={saving} loading={saving} onClick={handleSave}>
+          Confirm Price Change
+        </Button>
       </div>
     </SimpleDialog>
   );

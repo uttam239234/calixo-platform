@@ -356,9 +356,17 @@ export function BrandMonitoringProvider({ children }: { children: ReactNode }) {
     (id: string) => {
       if (!canExport || !canUseReputationFeature(tenantContext, "reputation.export")) return;
       const report = reports.find(r => r.id === id);
+      if (!report) return;
       recordReputationUsage(tenantContext, "reputation.export");
       trackReputationAction("reportDownloaded");
-      if (report) showToast(`Downloading "${report.name}" (${report.format})…`);
+      const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${report.name.replace(/\s+/g, "_")}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast(`Downloaded "${report.name}".`);
     },
     [canExport, tenantContext, reports, showToast]
   );

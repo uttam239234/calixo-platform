@@ -51,8 +51,8 @@ export function ConnectAppDialog({ wizard, workspaces }: ConnectAppDialogProps) 
       {step === "authenticate" && (
         <div className="space-y-4 text-center">
           <Loader2 className="mx-auto text-primary" size={32} />
-          <p className="text-sm text-foreground">Sign in to {app.name} to continue.</p>
-          <p className="text-xs text-muted-foreground">You&apos;ll be asked to approve access — nothing connects until you confirm.</p>
+          <p className="text-sm text-foreground">Simulating connection to {app.name} (demo mode).</p>
+          <p className="text-xs text-muted-foreground">No real account access is requested — nothing connects until you confirm.</p>
         </div>
       )}
 

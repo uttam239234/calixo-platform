@@ -3,17 +3,22 @@
  *
  * Nine persona-oriented starting points, each a real, distinct widget
  * arrangement (not just a renamed copy of the others). All are
- * `isTemplate: true` so users can clone them into their own Custom
- * dashboards via `dashboardLayoutRegistry.clone()`.
+ * `isTemplate: true`, `scope: "system"`, `organizationId: "system"` so
+ * they're visible to every organization as read-only clone sources —
+ * users can `clone()` them into their own Custom dashboards, and any
+ * drag/resize/hide against one while it's active auto-forks
+ * (`materializeUserLayout`) into a real personal copy rather than
+ * mutating the shared template.
  */
 
 import type { DashboardLayout, DashboardWidgetConfig, DashboardWidgetKey } from "./types";
-import { dashboardLayoutRegistry, DashboardLayoutRegistry } from "./DashboardLayoutRegistry";
+import { dashboardLayoutRegistry, DashboardLayoutRegistry, defaultDashboardWidgetSet } from "./DashboardLayoutRegistry";
 
 const TEMPLATE_OWNER = "system";
 
 function widgets(order: DashboardWidgetKey[], hidden: DashboardWidgetKey[] = [], pinned: DashboardWidgetKey[] = []): DashboardWidgetConfig[] {
-  return order.map((key, index) => ({ key, visible: !hidden.includes(key), pinned: pinned.includes(key), order: index }));
+  const base = defaultDashboardWidgetSet(order);
+  return base.map(w => ({ ...w, visible: !hidden.includes(w.key), pinned: pinned.includes(w.key) }));
 }
 
 const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
@@ -23,12 +28,15 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     description: "Your own KPIs, tasks, and AI recommendations",
     persona: "personal",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: true,
     isFavorite: true,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
-      ["kpi-grid", "upcoming-tasks", "ai-recommendations", "recent-activity", "quick-actions", "pending-approvals", "action-center", "goals-scorecard", "health-score", "marketing-performance", "channel-overview", "connected-platforms", "subscription-summary", "reports-panel"],
+      ["kpi-grid", "ai-credits", "upcoming-tasks", "ai-recommendations", "recent-activity", "quick-actions", "pending-approvals", "action-center", "goals-scorecard", "health-score", "marketing-performance", "channel-overview", "connected-platforms", "subscription-summary", "reports-panel"],
       ["marketing-performance", "channel-overview", "connected-platforms", "subscription-summary"]
     ),
   },
@@ -38,9 +46,12 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     description: "Health score, goals, approvals, and top-line KPIs for leadership",
     persona: "executive",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: false,
     isFavorite: false,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
       ["goals-scorecard", "health-score", "kpi-grid", "pending-approvals", "action-center", "ai-recommendations", "recent-activity", "marketing-performance", "channel-overview", "upcoming-tasks", "quick-actions", "connected-platforms", "subscription-summary", "reports-panel"],
@@ -54,9 +65,12 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     description: "Revenue trend, channel mix, and campaign KPIs",
     persona: "marketing",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: false,
     isFavorite: false,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
       ["kpi-grid", "marketing-performance", "channel-overview", "ai-recommendations", "goals-scorecard", "health-score", "pending-approvals", "action-center", "recent-activity", "upcoming-tasks", "quick-actions", "connected-platforms", "subscription-summary", "reports-panel"],
@@ -67,12 +81,15 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
   {
     id: "layout-performance",
     name: "Performance",
-    description: "Channel ROAS/CPA and marketing trend, no operational noise",
+    description: "Channel ROAS/CPA and marketing trend, no operational noise — Calixo's Analyst starting point",
     persona: "performance",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: false,
     isFavorite: false,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
       ["channel-overview", "marketing-performance", "kpi-grid", "goals-scorecard", "health-score", "ai-recommendations", "pending-approvals", "action-center", "recent-activity", "upcoming-tasks", "quick-actions", "connected-platforms", "subscription-summary", "reports-panel"],
@@ -86,9 +103,12 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     description: "Channel mix and AI recommendations for social-first teams",
     persona: "social",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: false,
     isFavorite: false,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
       ["channel-overview", "ai-recommendations", "kpi-grid", "recent-activity", "upcoming-tasks", "quick-actions", "goals-scorecard", "health-score", "marketing-performance", "pending-approvals", "action-center", "connected-platforms", "subscription-summary", "reports-panel"],
@@ -101,9 +121,12 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     description: "Approvals, upcoming tasks, and recent activity for content teams",
     persona: "content",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: false,
     isFavorite: false,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
       ["pending-approvals", "action-center", "upcoming-tasks", "recent-activity", "quick-actions", "ai-recommendations", "kpi-grid", "goals-scorecard", "health-score", "marketing-performance", "channel-overview", "connected-platforms", "subscription-summary", "reports-panel"],
@@ -114,27 +137,34 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
   {
     id: "layout-brand",
     name: "Brand",
-    description: "Approvals and activity for brand governance",
+    description: "Sentiment, approvals, and activity for brand governance",
     persona: "brand",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: false,
     isFavorite: false,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
-      ["pending-approvals", "action-center", "recent-activity", "ai-recommendations", "kpi-grid", "quick-actions", "goals-scorecard", "health-score", "marketing-performance", "channel-overview", "upcoming-tasks", "connected-platforms", "subscription-summary", "reports-panel"],
-      ["goals-scorecard", "marketing-performance", "channel-overview", "connected-platforms", "health-score", "subscription-summary"]
+      ["brand-sentiment", "pending-approvals", "action-center", "recent-activity", "ai-recommendations", "kpi-grid", "quick-actions", "goals-scorecard", "health-score", "marketing-performance", "channel-overview", "upcoming-tasks", "connected-platforms", "subscription-summary", "reports-panel"],
+      ["goals-scorecard", "marketing-performance", "channel-overview", "connected-platforms", "health-score", "subscription-summary"],
+      ["brand-sentiment"]
     ),
   },
   {
     id: "layout-team",
     name: "Team",
-    description: "Shared operational view: approvals, tasks, and activity",
+    description: "Shared operational view: approvals, tasks, and activity — Calixo's Sales/Agency starting point",
     persona: "team",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: false,
     isFavorite: false,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
       ["pending-approvals", "action-center", "upcoming-tasks", "recent-activity", "quick-actions", "kpi-grid", "ai-recommendations", "goals-scorecard", "health-score", "marketing-performance", "channel-overview", "connected-platforms", "subscription-summary", "reports-panel"],
@@ -147,9 +177,12 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
     description: "Everything — the full widget set for workspace admins",
     persona: "workspace",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: false,
     isFavorite: false,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets([
       "kpi-grid",
@@ -166,13 +199,14 @@ const TEMPLATES: Omit<DashboardLayout, "createdAt" | "updatedAt">[] = [
       "connected-platforms",
       "subscription-summary",
       "reports-panel",
+      "ai-credits",
     ]),
   },
 ];
 
 let seeded = false;
 
-/** Safe to call more than once — registers the 9 default templates exactly once. */
+/** Safe to call more than once — registers the 9 default templates exactly once per process (and, since the registry persists to disk, `register()` itself is also a no-op for any id already present from a prior boot's saved file). */
 export function seedDashboardLayouts(registry: DashboardLayoutRegistry = dashboardLayoutRegistry): void {
   if (seeded) return;
   const now = new Date().toISOString();

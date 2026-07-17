@@ -25,6 +25,7 @@ import ChannelEfficiencyScatter from "./ChannelEfficiencyScatter";
 import GoalsScorecard from "@/components/platform/goals/GoalsScorecard";
 import DashboardSwitcher from "@/components/platform/dashboardBuilder/DashboardSwitcher";
 import WidgetLibraryPanel from "@/components/platform/dashboardBuilder/WidgetLibraryPanel";
+import WidgetGrid from "@/components/platform/dashboardBuilder/WidgetGrid";
 import { Button } from "@/components/ui/button";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useAnalyticsDashboards } from "@/hooks/useAnalyticsDashboards";
@@ -38,7 +39,6 @@ import { useAnalyticsAnnotations } from "@/hooks/useAnalyticsAnnotations";
 import {
   initializeAnalyticsFoundation,
   registerAnalyticsSkills,
-  ANALYTICS_WIDGET_CATALOG,
   ANALYTICS_WIDGET_GROUPS,
   ANALYTICS_ORGANIZATION_ID,
   canUseAnalyticsFeature,
@@ -46,7 +46,7 @@ import {
   trackAnalyticsAction,
   syncAnalyticsFactsFromConnectors,
 } from "@/core/analytics";
-import type { AnalyticsChannel, AnalyticsFilterState, AnalyticsPeriodComparison, AnalyticsRegion, AnalyticsSegment, AnalyticsWidgetConfig, AnalyticsWidgetKey } from "@/core/analytics";
+import type { AnalyticsChannel, AnalyticsFilterState, AnalyticsPeriodComparison, AnalyticsRegion, AnalyticsSegment, AnalyticsWidgetConfig } from "@/core/analytics";
 import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 import { useOrganizationId } from "@/organizations/hooks/useOrganization";
 import { authorizationPlatformAPI, permissionName } from "@/core/platform/access";
@@ -175,22 +175,26 @@ export function AnalyticsPage() {
   );
 
   const handleCreateDashboard = useCallback(
-    (name: string, description: string, templateId?: string) => {
+    async (name: string, description: string, templateId?: string) => {
       if (!canCreate) return undefined;
-      const layout = dashboards.create(name, description, templateId);
-      recordAnalyticsUsage(tenantContext, "analytics.dashboardCreated");
-      trackAnalyticsAction("dashboard_created");
+      const layout = await dashboards.create(name, description, templateId);
+      if (layout) {
+        recordAnalyticsUsage(tenantContext, "analytics.dashboardCreated");
+        trackAnalyticsAction("dashboard_created");
+      }
       return layout;
     },
     [dashboards, canCreate, tenantContext]
   );
 
   const handleCloneDashboard = useCallback(
-    (id: string, name: string) => {
+    async (id: string, name: string) => {
       if (!canCreate) return undefined;
-      const layout = dashboards.clone(id, name);
-      recordAnalyticsUsage(tenantContext, "analytics.dashboardCreated");
-      trackAnalyticsAction("dashboard_created");
+      const layout = await dashboards.clone(id, name);
+      if (layout) {
+        recordAnalyticsUsage(tenantContext, "analytics.dashboardCreated");
+        trackAnalyticsAction("dashboard_created");
+      }
       return layout;
     },
     [dashboards, canCreate, tenantContext]
@@ -199,7 +203,7 @@ export function AnalyticsPage() {
   const handleUpdateWidgets = useCallback(
     (widgets: AnalyticsWidgetConfig[]) => {
       if (!dashboards.active) return;
-      dashboards.updateWidgets(dashboards.active.id, widgets);
+      dashboards.updateWidgets(widgets);
       recordAnalyticsUsage(tenantContext, "analytics.widgetCreated");
     },
     [dashboards, tenantContext]
@@ -282,12 +286,68 @@ export function AnalyticsPage() {
     return () => window.removeEventListener("keydown", handleKeydown);
   }, [openPalette]);
 
-  const visibleWidgets = useMemo(() => {
+  const renderableWidgets = useMemo(() => {
     const widgets = dashboards.active?.widgets ?? [];
-    return [...widgets].filter(w => w.visible).sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || a.order - b.order);
-  }, [dashboards.active]);
+    return widgets.filter(w => dashboards.renderableIds.has(w.instanceId));
+  }, [dashboards.active, dashboards.renderableIds]);
 
-  const isVisible = useCallback((key: AnalyticsWidgetKey) => visibleWidgets.some(w => w.key === key), [visibleWidgets]);
+  const renderAnalyticsWidget = useCallback(
+    (config: AnalyticsWidgetConfig): React.ReactNode => {
+      switch (config.key) {
+        case "executive-summary":
+          return <ExecutiveSummary metrics={analytics.snapshot.summaryMetrics} />;
+        case "health-score":
+          return <AnalyticsHealthScoreCard health={analytics.healthScore} loading={analytics.loading} />;
+        case "goals-scorecard":
+          return <GoalsScorecard goals={goals.scorecard} loading={goals.loading} />;
+        case "revenue-chart":
+          return (
+            <RevenueChart
+              data={analytics.snapshot.revenueSeries}
+              range={analytics.range}
+              onExport={() => handleExport("pdf")}
+              annotations={revenueAnnotations.annotations}
+              onAddAnnotation={canCreate ? revenueAnnotations.addAnnotation : undefined}
+              onRemoveAnnotation={revenueAnnotations.removeAnnotation}
+            />
+          );
+        case "traffic-analytics":
+          return <TrafficAnalytics metrics={analytics.snapshot.trafficMetrics} />;
+        case "channel-performance":
+          return (
+            <div className="flex h-full flex-col gap-4 overflow-auto">
+              <RevenueBridgeChart channels={analytics.snapshot.channelPerformance} />
+              <ChannelEfficiencyScatter channels={analytics.snapshot.channelPerformance} onSelectChannel={channel => handleChartInteraction("channel", channel as AnalyticsChannel)} />
+              <ChannelPerformance rows={analytics.snapshot.channelPerformance} activeChannel={analytics.filters.channel} onSelectChannel={channel => handleChartInteraction("channel", channel as AnalyticsChannel)} />
+            </div>
+          );
+        case "campaign-performance":
+          return <CampaignPerformance rows={analytics.snapshot.campaignPerformance} activeCampaign={analytics.filters.campaign} onSelectCampaign={campaign => handleChartInteraction("campaign", campaign)} />;
+        case "conversion-funnel":
+          return <ConversionFunnel stages={analytics.snapshot.conversionFunnel} />;
+        case "audience-insights":
+          return <AudienceInsights items={analytics.snapshot.audienceInsights} />;
+        case "geo-performance":
+          return (
+            <GeoPerformance
+              rows={analytics.snapshot.geoPerformance}
+              regionCount={analytics.snapshot.regionCount}
+              activeRegion={analytics.filters.region}
+              onSelectRegion={region => handleChartInteraction("region", region as AnalyticsRegion)}
+            />
+          );
+        case "ai-insights":
+          return <AIInsights insights={analytics.insights} onApply={handleApplyInsight} onDismiss={analytics.dismissInsight} />;
+        case "insight-action-center":
+          return <AnalyticsInsightActionCenter items={analytics.actionCenterItems} loading={analytics.loading} onScrollToWidget={scrollToWidget} />;
+        case "reports-panel":
+          return <ReportsPanel reports={analyticsReports} exports={recentExports} schedules={analyticsSchedules} reportNameById={reportNameById} onToggleSchedule={handleToggleSchedule} />;
+        default:
+          return null;
+      }
+    },
+    [analytics, goals.scorecard, goals.loading, handleExport, revenueAnnotations, canCreate, handleChartInteraction, handleApplyInsight, scrollToWidget, analyticsReports, recentExports, analyticsSchedules, reportNameById, handleToggleSchedule]
+  );
 
   if (!canRead) {
     return (
@@ -312,6 +372,7 @@ export function AnalyticsPage() {
             onToggleFavorite={dashboards.toggleFavorite}
             onSetDefault={dashboards.setAsDefault}
             onResetToTemplate={dashboards.resetToTemplate}
+            onSaveAsTemplate={dashboards.saveAsTemplate}
           />
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="gap-1.5" onClick={openPalette}>
@@ -344,10 +405,11 @@ export function AnalyticsPage() {
         <motion.div variants={sectionVariants} initial="hidden" animate="visible">
           <WidgetLibraryPanel
             widgets={dashboards.active.widgets}
-            catalog={ANALYTICS_WIDGET_CATALOG}
+            catalog={dashboards.catalog}
             groups={ANALYTICS_WIDGET_GROUPS}
             readOnly={!canCreate}
             onChange={handleUpdateWidgets}
+            onAdd={dashboards.addWidget}
             onClose={() => setLibraryOpen(false)}
           />
         </motion.div>
@@ -392,115 +454,21 @@ export function AnalyticsPage() {
         />
       </motion.div>
 
-      {(isVisible("executive-summary") || isVisible("health-score")) && (
-        <motion.div variants={sectionVariants} initial="hidden" animate="visible" className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-          {isVisible("executive-summary") && (
-            <div id="widget-executive-summary">
-              <ExecutiveSummary metrics={analytics.snapshot.summaryMetrics} />
-            </div>
-          )}
-          {isVisible("health-score") && (
-            <div id="widget-health-score">
-              <AnalyticsHealthScoreCard health={analytics.healthScore} loading={analytics.loading} />
-            </div>
-          )}
-        </motion.div>
-      )}
-
       <motion.div id="widget-custom-kpi-builder" variants={sectionVariants} initial="hidden" animate="visible">
         <CustomKpiBuilder computed={customMetrics.computed} onCreate={handleCreateMetric} onRemove={customMetrics.removeMetric} />
       </motion.div>
 
-      {isVisible("goals-scorecard") && (
-        <motion.div id="widget-goals-scorecard" variants={sectionVariants} initial="hidden" animate="visible">
-          <GoalsScorecard goals={goals.scorecard} loading={goals.loading} />
-        </motion.div>
-      )}
-
-      {(isVisible("revenue-chart") || isVisible("traffic-analytics")) && (
-        <motion.div variants={sectionVariants} initial="hidden" animate="visible" className="grid gap-6 xl:grid-cols-[1.7fr_0.9fr]">
-          {isVisible("revenue-chart") && (
-            <div id="widget-revenue-chart">
-              <RevenueChart
-                data={analytics.snapshot.revenueSeries}
-                range={analytics.range}
-                onExport={() => handleExport("pdf")}
-                annotations={revenueAnnotations.annotations}
-                onAddAnnotation={canCreate ? revenueAnnotations.addAnnotation : undefined}
-                onRemoveAnnotation={revenueAnnotations.removeAnnotation}
-              />
-            </div>
-          )}
-          {isVisible("traffic-analytics") && (
-            <div id="widget-traffic-analytics">
-              <TrafficAnalytics metrics={analytics.snapshot.trafficMetrics} />
-            </div>
-          )}
-        </motion.div>
-      )}
-
-      {isVisible("channel-performance") && (
-        <motion.div variants={sectionVariants} initial="hidden" animate="visible" className="grid gap-6 xl:grid-cols-2">
-          <RevenueBridgeChart channels={analytics.snapshot.channelPerformance} />
-          <ChannelEfficiencyScatter channels={analytics.snapshot.channelPerformance} onSelectChannel={channel => handleChartInteraction("channel", channel as AnalyticsChannel)} />
-        </motion.div>
-      )}
-
-      {(isVisible("channel-performance") || isVisible("campaign-performance")) && (
-        <motion.div variants={sectionVariants} initial="hidden" animate="visible" className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          {isVisible("channel-performance") && (
-            <div id="widget-channel-performance">
-              <ChannelPerformance rows={analytics.snapshot.channelPerformance} activeChannel={analytics.filters.channel} onSelectChannel={channel => handleChartInteraction("channel", channel as AnalyticsChannel)} />
-            </div>
-          )}
-          {isVisible("campaign-performance") && (
-            <div id="widget-campaign-performance">
-              <CampaignPerformance rows={analytics.snapshot.campaignPerformance} activeCampaign={analytics.filters.campaign} onSelectCampaign={campaign => handleChartInteraction("campaign", campaign)} />
-            </div>
-          )}
-        </motion.div>
-      )}
-
-      {(isVisible("conversion-funnel") || isVisible("audience-insights")) && (
-        <motion.div variants={sectionVariants} initial="hidden" animate="visible" className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          {isVisible("conversion-funnel") && (
-            <div id="widget-conversion-funnel">
-              <ConversionFunnel stages={analytics.snapshot.conversionFunnel} />
-            </div>
-          )}
-          {isVisible("audience-insights") && (
-            <div id="widget-audience-insights">
-              <AudienceInsights items={analytics.snapshot.audienceInsights} />
-            </div>
-          )}
-        </motion.div>
-      )}
-
-      {(isVisible("geo-performance") || isVisible("ai-insights")) && (
-        <motion.div variants={sectionVariants} initial="hidden" animate="visible" className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          {isVisible("geo-performance") && (
-            <div id="widget-geo-performance">
-              <GeoPerformance rows={analytics.snapshot.geoPerformance} regionCount={analytics.snapshot.regionCount} activeRegion={analytics.filters.region} onSelectRegion={region => handleChartInteraction("region", region as AnalyticsRegion)} />
-            </div>
-          )}
-          {isVisible("ai-insights") && (
-            <div id="widget-ai-insights">
-              <AIInsights insights={analytics.insights} onApply={handleApplyInsight} onDismiss={analytics.dismissInsight} />
-            </div>
-          )}
-        </motion.div>
-      )}
-
-      {isVisible("insight-action-center") && (
-        <motion.div id="widget-insight-action-center" variants={sectionVariants} initial="hidden" animate="visible">
-          <AnalyticsInsightActionCenter items={analytics.actionCenterItems} loading={analytics.loading} onScrollToWidget={scrollToWidget} />
-        </motion.div>
-      )}
-
-      {isVisible("reports-panel") && (
-        <motion.div id="widget-reports-panel" variants={sectionVariants} initial="hidden" animate="visible">
-          <ReportsPanel reports={analyticsReports} exports={recentExports} schedules={analyticsSchedules} reportNameById={reportNameById} onToggleSchedule={handleToggleSchedule} />
-        </motion.div>
+      {dashboards.loaded && (
+        <WidgetGrid
+          widgets={renderableWidgets}
+          catalog={dashboards.catalog}
+          readOnly={!canCreate}
+          renderWidget={renderAnalyticsWidget}
+          onWidgetsChange={dashboards.updateWidgets}
+          onDuplicateWidget={dashboards.duplicateWidget}
+          onRemoveWidget={dashboards.removeWidget}
+          onResetWidget={dashboards.resetWidget}
+        />
       )}
 
       <motion.div variants={sectionVariants} initial="hidden" animate="visible">

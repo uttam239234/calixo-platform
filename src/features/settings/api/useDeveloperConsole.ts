@@ -22,6 +22,9 @@ export function useDeveloperConsole(organizationId: string) {
   const [requestLogs, setRequestLogs] = useState<ApiRequestRecord[]>([]);
   const [tryItResult, setTryItResult] = useState<GatewayResponse | null>(null);
   const [tryItLoading, setTryItLoading] = useState(false);
+  const [tryItError, setTryItError] = useState<string | null>(null);
+  const [redeliverBusyId, setRedeliverBusyId] = useState<string | null>(null);
+  const [redeliverError, setRedeliverError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     if (!organizationId) return;
@@ -40,17 +43,23 @@ export function useDeveloperConsole(organizationId: string) {
   const tryIt = useCallback(
     async (path: TryItPath) => {
       setTryItLoading(true);
-      const response = await apiGatewayPlatformAPI.handle({
-        method: "GET",
-        version: "v1",
-        path,
-        query: {},
-        body: null,
-        headers: { "x-organization-id": organizationId },
-      });
-      setTryItResult(response);
-      setTryItLoading(false);
-      refresh();
+      setTryItError(null);
+      try {
+        const response = await apiGatewayPlatformAPI.handle({
+          method: "GET",
+          version: "v1",
+          path,
+          query: {},
+          body: null,
+          headers: { "x-organization-id": organizationId },
+        });
+        setTryItResult(response);
+        refresh();
+      } catch (error) {
+        setTryItError(error instanceof Error ? error.message : "Something went wrong calling the Gateway.");
+      } finally {
+        setTryItLoading(false);
+      }
     },
     [organizationId, refresh]
   );
@@ -64,14 +73,37 @@ export function useDeveloperConsole(organizationId: string) {
 
   const redeliver = useCallback(
     async (deliveryId: string) => {
-      const result = await webhookPlatformAPI.redeliver(deliveryId);
-      refresh();
-      return result;
+      setRedeliverBusyId(deliveryId);
+      setRedeliverError(null);
+      try {
+        const result = await webhookPlatformAPI.redeliver(deliveryId);
+        refresh();
+        return result;
+      } catch (error) {
+        setRedeliverError(error instanceof Error ? error.message : "Something went wrong retrying that delivery.");
+        return null;
+      } finally {
+        setRedeliverBusyId(null);
+      }
     },
     [refresh]
   );
 
-  return { contracts, requestLogs, tryItResult, tryItLoading, openApiSpec, tryIt, previewPayload, retryHistory, redeliver, refresh };
+  return {
+    contracts,
+    requestLogs,
+    tryItResult,
+    tryItLoading,
+    tryItError,
+    openApiSpec,
+    tryIt,
+    previewPayload,
+    retryHistory,
+    redeliver,
+    redeliverBusyId,
+    redeliverError,
+    refresh,
+  };
 }
 
 export type UseDeveloperConsoleResult = ReturnType<typeof useDeveloperConsole>;

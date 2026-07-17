@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,8 @@ const PRIORITY_COLORS: Record<WorkflowPriority, string> = {
 const selectCls = "h-8 rounded-lg border border-slate-700/60 bg-slate-900/70 px-2 text-[11px] text-slate-300 outline-none";
 
 export default function WorkflowsPage() {
+  const { user } = useUser();
+  const currentUserName = user?.fullName || user?.firstName || user?.primaryEmailAddress?.emailAddress || "Current User";
   const [activeTab, setActiveTab] = useState<Tab>("All");
   const [search, setSearch] = useState("");
   const [selectedWfId, setSelectedWfId] = useState<string | null>(null);
@@ -42,11 +45,12 @@ export default function WorkflowsPage() {
   const [rejectReason, setRejectReason] = useState("");
   const [showReject, setShowReject] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const kpis = useMemo(() => WorkflowEngine.getKPIs(), []);
-  const allWorkflows = useMemo(() => WorkflowEngine.getAll(), []);
-  const selectedWf = useMemo(() => selectedWfId ? WorkflowEngine.get(selectedWfId) : undefined, [selectedWfId]);
-  const activity = useMemo(() => WorkflowEngine.getActivity(), []);
+  const kpis = useMemo(() => WorkflowEngine.getKPIs(), [refreshKey]);
+  const allWorkflows = useMemo(() => WorkflowEngine.getAll(), [refreshKey]);
+  const selectedWf = useMemo(() => selectedWfId ? WorkflowEngine.get(selectedWfId) : undefined, [selectedWfId, refreshKey]);
+  const activity = useMemo(() => WorkflowEngine.getActivity(), [refreshKey]);
 
   const filtered = useMemo(() => {
     let wfs = allWorkflows;
@@ -63,18 +67,21 @@ export default function WorkflowsPage() {
   }, [allWorkflows, search, activeTab]);
 
   const handleApprove = useCallback((id: string) => {
-    WorkflowEngine.approve(id, "Current User");
+    WorkflowEngine.approve(id, currentUserName);
+    setRefreshKey(k => k + 1);
     setSelectedWfId(null); setCopied(false);
-  }, []);
+  }, [currentUserName]);
   const handleReject = useCallback((id: string) => {
-    WorkflowEngine.reject(id, "Current User", rejectReason || "Changes requested");
+    WorkflowEngine.reject(id, currentUserName, rejectReason || "Changes requested");
+    setRefreshKey(k => k + 1);
     setShowReject(false); setRejectReason(""); setSelectedWfId(null);
-  }, [rejectReason]);
+  }, [rejectReason, currentUserName]);
   const handleAddComment = useCallback((id: string) => {
     if (!commentText.trim()) return;
-    WorkflowEngine.addComment(id, "Current User", commentText);
+    WorkflowEngine.addComment(id, currentUserName, commentText);
+    setRefreshKey(k => k + 1);
     setCommentText("");
-  }, [commentText]);
+  }, [commentText, currentUserName]);
 
   const handleSelect = useCallback((id: string) => { setSelectedWfId(id); setShowActions(false); setShowReject(false); }, []);
 

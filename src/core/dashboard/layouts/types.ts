@@ -2,11 +2,12 @@
  * Calixo Platform - Dashboard Layout Types
  *
  * A "layout" is a named, persona-oriented arrangement of the landing
- * page's own widgets (which sections show, in what order, hidden/pinned).
- * This is a distinct concept from Reports' `ReportDashboard` (a named
- * collection of full BI reports) — that registry's own docs say as much
- * ("Dashboards are named arrangements of existing reports"). Nothing here
- * duplicates that registry; it models a different domain object.
+ * page's own widgets (which sections show, in what order, hidden/pinned,
+ * and — Round 23 — at what grid position/size). This is a distinct concept
+ * from Reports' `ReportDashboard` (a named collection of full BI reports)
+ * — that registry's own docs say as much ("Dashboards are named
+ * arrangements of existing reports"). Nothing here duplicates that
+ * registry; it models a different domain object.
  *
  * The registry/widget-config/layout shapes themselves come from the
  * shared `core/platform/dashboardBuilder` SDK — this file only declares
@@ -31,7 +32,9 @@ export type DashboardWidgetKey =
   | "ai-recommendations"
   | "connected-platforms"
   | "subscription-summary"
-  | "reports-panel";
+  | "reports-panel"
+  | "ai-credits"
+  | "brand-sentiment";
 
 export type DashboardWidgetConfig = GenericWidgetConfig<DashboardWidgetKey>;
 
@@ -58,7 +61,9 @@ export interface DashboardWidgetCatalogEntry extends GenericWidgetCatalogEntry<D
  * `read` permission (via the canonical `permissionName()` matrix) to be
  * visible — widgets with no clear single-resource mapping (KPI grid,
  * goals, quick actions, activity feed, AI recommendations) stay ungated.
- * Checked in `DashboardShell.isVisible()` alongside layout visibility.
+ * Carried onto each catalog entry's `requiresPermission` and enforced
+ * server-side by the layout controller's `filterWidget` hook (Round 23) —
+ * previously only checked client-side in `DashboardShell.isVisible()`.
  */
 export const DASHBOARD_WIDGET_PERMISSIONS: Partial<Record<DashboardWidgetKey, string>> = {
   "marketing-performance": permissionName("analytics", "read"),
@@ -91,18 +96,22 @@ export function personaForRole(role: string | undefined | null): DashboardLayout
 }
 
 export const DASHBOARD_WIDGET_CATALOG: DashboardWidgetCatalogEntry[] = [
-  { key: "kpi-grid", label: "KPI Grid", description: "Core marketing KPIs with trend sparklines", group: "Overview" },
-  { key: "goals-scorecard", label: "Goals & Scorecard", description: "Targets, progress, and benchmark comparison", group: "Overview" },
-  { key: "health-score", label: "Health Score", description: "Weighted organization health across revenue, connectors, goals, and workflow", group: "Overview" },
-  { key: "marketing-performance", label: "Marketing Performance", description: "Revenue and spend trend chart", group: "Performance" },
-  { key: "channel-overview", label: "Channel Overview", description: "Per-channel spend, ROAS, and CPA", group: "Performance" },
-  { key: "quick-actions", label: "Quick Actions", description: "Shortcuts to common tasks", group: "Operations" },
-  { key: "pending-approvals", label: "Pending Approvals", description: "Workflow items awaiting review", group: "Operations" },
-  { key: "action-center", label: "Action Center", description: "Approvals, connector issues, and alerts that need a decision", group: "Operations" },
-  { key: "recent-activity", label: "Recent Activity", description: "Live feed across workflow, assets, and layout changes", group: "Operations" },
-  { key: "upcoming-tasks", label: "Upcoming Tasks", description: "Workflow items with due dates", group: "Operations" },
-  { key: "ai-recommendations", label: "AI Recommendations", description: "Prioritized, actionable insights", group: "AI" },
-  { key: "connected-platforms", label: "Connected Platforms", description: "Integration connection status", group: "Integrations" },
-  { key: "subscription-summary", label: "Subscription", description: "Plan, seats, AI credits, storage, and connector usage", group: "Integrations" },
-  { key: "reports-panel", label: "Reports & Exports", description: "Saved reports, schedules, and recent exports", group: "Integrations" },
+  { key: "kpi-grid", label: "KPI Grid", description: "Core marketing KPIs with trend sparklines", group: "Overview", defaultSize: { w: 12, h: 4 }, minSize: { w: 4, h: 3 } },
+  { key: "goals-scorecard", label: "Goals & Scorecard", description: "Targets, progress, and benchmark comparison", group: "Overview", defaultSize: { w: 6, h: 6 }, minSize: { w: 3, h: 4 } },
+  { key: "health-score", label: "Health Score", description: "Weighted organization health across revenue, connectors, goals, and workflow", group: "Overview", defaultSize: { w: 6, h: 6 }, minSize: { w: 3, h: 4 } },
+  { key: "marketing-performance", label: "Marketing Performance", description: "Revenue and spend trend chart", group: "Performance", defaultSize: { w: 6, h: 7 }, minSize: { w: 4, h: 5 }, requiresPermission: DASHBOARD_WIDGET_PERMISSIONS["marketing-performance"] },
+  { key: "channel-overview", label: "Channel Overview", description: "Per-channel spend, ROAS, and CPA", group: "Performance", defaultSize: { w: 6, h: 7 }, minSize: { w: 4, h: 5 }, requiresPermission: DASHBOARD_WIDGET_PERMISSIONS["channel-overview"] },
+  { key: "quick-actions", label: "Quick Actions", description: "Shortcuts to common tasks", group: "Operations", defaultSize: { w: 4, h: 4 }, minSize: { w: 3, h: 3 } },
+  { key: "pending-approvals", label: "Pending Approvals", description: "Workflow items awaiting review", group: "Operations", defaultSize: { w: 6, h: 6 }, minSize: { w: 3, h: 4 }, requiresPermission: DASHBOARD_WIDGET_PERMISSIONS["pending-approvals"] },
+  { key: "action-center", label: "Action Center", description: "Approvals, connector issues, and alerts that need a decision", group: "Operations", defaultSize: { w: 6, h: 6 }, minSize: { w: 3, h: 4 } },
+  { key: "recent-activity", label: "Recent Activity", description: "Live feed across workflow, assets, and layout changes", group: "Operations", defaultSize: { w: 6, h: 6 }, minSize: { w: 3, h: 4 } },
+  { key: "upcoming-tasks", label: "Upcoming Tasks", description: "Workflow items with due dates", group: "Operations", defaultSize: { w: 6, h: 6 }, minSize: { w: 3, h: 4 }, requiresPermission: DASHBOARD_WIDGET_PERMISSIONS["upcoming-tasks"] },
+  { key: "ai-recommendations", label: "AI Recommendations", description: "Prioritized, actionable insights", group: "AI", defaultSize: { w: 6, h: 6 }, minSize: { w: 3, h: 4 } },
+  { key: "connected-platforms", label: "Connected Platforms", description: "Integration connection status", group: "Integrations", defaultSize: { w: 6, h: 5 }, minSize: { w: 3, h: 3 }, requiresPermission: DASHBOARD_WIDGET_PERMISSIONS["connected-platforms"] },
+  { key: "subscription-summary", label: "Subscription", description: "Plan, seats, AI credits, storage, and connector usage", group: "Integrations", defaultSize: { w: 6, h: 5 }, minSize: { w: 3, h: 3 }, requiresPermission: DASHBOARD_WIDGET_PERMISSIONS["subscription-summary"] },
+  { key: "reports-panel", label: "Reports & Exports", description: "Saved reports, schedules, and recent exports", group: "Integrations", defaultSize: { w: 6, h: 6 }, minSize: { w: 3, h: 4 }, requiresPermission: DASHBOARD_WIDGET_PERMISSIONS["reports-panel"] },
+  { key: "ai-credits", label: "AI Credits", description: "Included vs. purchased AI credit balance and monthly reset", group: "AI", defaultSize: { w: 4, h: 4 }, minSize: { w: 3, h: 3 }, alwaysAvailable: true },
+  { key: "brand-sentiment", label: "Brand Sentiment", description: "Live mention sentiment split from Brand Monitoring", group: "AI", defaultSize: { w: 4, h: 4 }, minSize: { w: 3, h: 3 }, requiresModule: "brand" },
 ];
+
+export const DASHBOARD_WIDGET_GROUPS = ["Overview", "Performance", "Operations", "AI", "Integrations"] as const;

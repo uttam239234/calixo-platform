@@ -108,7 +108,23 @@ function RevealKeyDialog({ name, plaintextKey, onClose }: { name: string; plaint
   );
 }
 
-function KeyCard({ apiKey, onDisable, onRotate, onDelete, canUpdate, canManage }: { apiKey: ApiKeyDefinition; onDisable: () => void; onRotate: () => void; onDelete: () => void; canUpdate: boolean; canManage: boolean }) {
+function KeyCard({
+  apiKey,
+  onDisable,
+  onRotate,
+  onDelete,
+  canUpdate,
+  canManage,
+  busy,
+}: {
+  apiKey: ApiKeyDefinition;
+  onDisable: () => void;
+  onRotate: () => void;
+  onDelete: () => void;
+  canUpdate: boolean;
+  canManage: boolean;
+  busy: boolean;
+}) {
   return (
     <Card className="space-y-3">
       <div className="flex items-start justify-between gap-3">
@@ -140,16 +156,16 @@ function KeyCard({ apiKey, onDisable, onRotate, onDelete, canUpdate, canManage }
       <div className="flex flex-wrap gap-1.5 pt-1">
         {apiKey.isActive && canUpdate && (
           <>
-            <Button size="sm" variant="outline" icon={<Ban size={13} />} onClick={onDisable}>
+            <Button size="sm" variant="outline" icon={<Ban size={13} />} disabled={busy} onClick={onDisable}>
               Disable
             </Button>
-            <Button size="sm" variant="outline" icon={<RotateCw size={13} />} onClick={onRotate}>
+            <Button size="sm" variant="outline" icon={<RotateCw size={13} />} loading={busy} onClick={onRotate}>
               Rotate
             </Button>
           </>
         )}
         {canManage && (
-          <Button size="sm" variant="outline" icon={<Trash2 size={13} />} onClick={onDelete}>
+          <Button size="sm" variant="outline" icon={<Trash2 size={13} />} disabled={busy} onClick={onDelete}>
             Delete
           </Button>
         )}
@@ -164,6 +180,8 @@ export default function ApiKeysPage() {
   const now = useNow();
   const [createOpen, setCreateOpen] = useState(false);
   const [deleting, setDeleting] = useState<ApiKeyDefinition | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   return (
     <div className="space-y-6">
@@ -194,6 +212,8 @@ export default function ApiKeysPage() {
         <ModuleEmptyState icon={<KeyIcon size={28} />} title="No API keys yet" description="Create a key to let your own tools connect to Calixo." />
       )}
 
+      {actionError && <p className="text-sm text-destructive">{actionError}</p>}
+
       <div className="grid gap-4 sm:grid-cols-2">
         {keys.keys.map(apiKey => (
           <KeyCard
@@ -201,8 +221,29 @@ export default function ApiKeysPage() {
             apiKey={apiKey}
             canUpdate={canUpdateApi}
             canManage={canManageApi}
-            onDisable={() => keys.disable(apiKey.id)}
-            onRotate={() => keys.rotate(apiKey)}
+            busy={busyId === apiKey.id}
+            onDisable={async () => {
+              setBusyId(apiKey.id);
+              setActionError(null);
+              try {
+                await keys.disable(apiKey.id);
+              } catch (error) {
+                setActionError(error instanceof Error ? error.message : `Couldn't disable "${apiKey.name}". Please try again.`);
+              } finally {
+                setBusyId(null);
+              }
+            }}
+            onRotate={async () => {
+              setBusyId(apiKey.id);
+              setActionError(null);
+              try {
+                await keys.rotate(apiKey);
+              } catch (error) {
+                setActionError(error instanceof Error ? error.message : `Couldn't rotate "${apiKey.name}". Please try again.`);
+              } finally {
+                setBusyId(null);
+              }
+            }}
             onDelete={() => setDeleting(apiKey)}
           />
         ))}

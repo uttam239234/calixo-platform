@@ -12,12 +12,13 @@ export function OrganizationSwitcher({
   showCreateButton = true,
   onSwitch,
 }: OrganizationSwitcherProps) {
-  const { organization, organizations, switchOrganization, createOrganization, refreshOrganizations } = useOrganization();
+  const { organization, organizations, switchOrganization, createOrganization, refreshOrganizations, isSwitching, error } = useOrganization();
   const { identity } = useCalixoIdentity();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
+  const [createError, setCreateError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,21 +52,27 @@ export function OrganizationSwitcher({
   );
 
   const handleSelect = async (orgId: string) => {
-    await switchOrganization(orgId);
-    setIsOpen(false);
-    setSearch('');
-    onSwitch?.(orgId);
+    try {
+      await switchOrganization(orgId);
+      setIsOpen(false);
+      setSearch('');
+      onSwitch?.(orgId);
+    } catch {
+      // error surfaced via `error` from context, rendered below
+    }
   };
 
   const handleCreate = async () => {
     if (!newOrgName.trim() || !identity) return;
+    setCreateError(null);
     try {
       await createOrganization({ name: newOrgName.trim() });
       setNewOrgName('');
       setIsCreating(false);
       setIsOpen(false);
-    } catch {
-      // Error handled by context
+    } catch (err) {
+      // createOrganization doesn't route through context's `error` state (only switchOrganization/refreshOrganizations do), so track it locally to actually surface the failure
+      setCreateError(err instanceof Error ? err.message : 'Failed to create organization');
     }
   };
 
@@ -118,8 +125,9 @@ export function OrganizationSwitcher({
               filtered.map(org => (
                 <button
                   key={org.id}
+                  disabled={isSwitching}
                   onClick={() => handleSelect(org.id)}
-                  className={`flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-accent transition-colors ${
+                  className={`flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-accent transition-colors disabled:opacity-50 ${
                     org.id === organization.id ? 'bg-primary/10' : ''
                   }`}
                 >
@@ -140,34 +148,38 @@ export function OrganizationSwitcher({
               ))
             )}
           </div>
+          {error && <p className="px-4 py-2 text-xs text-red-500 border-t border-border">{error}</p>}
 
           {/* Create button */}
           {showCreateButton && (
             <div className="border-t border-border p-2">
               {isCreating ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={newOrgName}
-                    onChange={e => setNewOrgName(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleCreate()}
-                    placeholder="Organization name..."
-                    className="flex-1 px-2 py-1.5 text-sm border border-border rounded-md bg-transparent text-foreground outline-none focus:border-primary"
-                    autoFocus
-                  />
-                  <button
-                    onClick={handleCreate}
-                    disabled={!newOrgName.trim()}
-                    className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50"
-                  >
-                    Create
-                  </button>
-                  <button
-                    onClick={() => { setIsCreating(false); setNewOrgName(''); }}
-                    className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    Cancel
-                  </button>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={newOrgName}
+                      onChange={e => setNewOrgName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleCreate()}
+                      placeholder="Organization name..."
+                      className="flex-1 px-2 py-1.5 text-sm border border-border rounded-md bg-transparent text-foreground outline-none focus:border-primary"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleCreate}
+                      disabled={!newOrgName.trim()}
+                      className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50"
+                    >
+                      Create
+                    </button>
+                    <button
+                      onClick={() => { setIsCreating(false); setNewOrgName(''); setCreateError(null); }}
+                      className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {createError && <p className="mt-1.5 px-1 text-xs text-red-500">{createError}</p>}
                 </div>
               ) : (
                 <button

@@ -30,11 +30,14 @@ export function useNotifications(userId?: string) {
    * it from every instance is cheap and race-free.
    */
   const refresh = useCallback(async () => {
-    await initializeDashboardFoundation();
-    const [items, count] = await Promise.all([dashboardEngine.getNotifications(resolvedUserId, 10), dashboardEngine.getUnreadNotificationCount(resolvedUserId)]);
-    setNotifications(items);
-    setUnreadCount(count);
-    setLoading(false);
+    try {
+      await initializeDashboardFoundation();
+      const [items, count] = await Promise.all([dashboardEngine.getNotifications(resolvedUserId, 10), dashboardEngine.getUnreadNotificationCount(resolvedUserId)]);
+      setNotifications(items);
+      setUnreadCount(count);
+    } finally {
+      setLoading(false);
+    }
   }, [resolvedUserId]);
 
   useEffect(() => {

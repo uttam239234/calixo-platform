@@ -22,6 +22,11 @@ export interface NewPromotionInput {
   maxRedemptions?: number;
 }
 
+export interface CreatePromotionResult {
+  ok: boolean;
+  error?: string;
+}
+
 export function usePromotions() {
   const { role } = useInternalRole();
   const [, setVersion] = useState(0);
@@ -30,7 +35,7 @@ export function usePromotions() {
   const promotions = promotionPlatformAPI.list();
 
   const create = useCallback(
-    async (input: NewPromotionInput) => {
+    async (input: NewPromotionInput): Promise<CreatePromotionResult> => {
       const description = `Created promotion ${input.code}`;
       const newPromotion = {
         code: input.code,
@@ -44,7 +49,7 @@ export function usePromotions() {
       };
       // Server-authoritative: the real id is minted once, server-side (`generateId()` inside `PromotionEngine.create()`) — this realm's own copy is reconciled from that response via `restoreAll()` rather than separately minting a second, different id by ALSO calling `.create()` locally.
       const result = await createPromotionAction(newPromotion, description);
-      if (!result.ok) return;
+      if (!result.ok) return { ok: false, error: result.error };
       promotionPlatformAPI.restoreAll(result.data);
       const created = result.data.find(p => p.code === input.code);
       void commitPlanChange({
@@ -56,6 +61,7 @@ export function usePromotions() {
         description,
       });
       refresh();
+      return { ok: true };
     },
     [role, refresh]
   );

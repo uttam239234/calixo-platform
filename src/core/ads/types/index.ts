@@ -35,6 +35,9 @@ export interface Campaign {
   creatives: number;
   /** Tenant scoping, added for the enterprise certification pass — see `AdsTenantDefaults.ts`. */
   organizationId: string;
+  /** Per-campaign automation preferences from the Settings modal (Performance Alerts / Approval Workflow). Optional — existing campaigns predating this field fall back to `true` at the read site instead of every mock/seed literal needing an update. */
+  alertsEnabled?: boolean;
+  approvalWorkflowEnabled?: boolean;
 }
 
 /** Static per-provider identity only (name/color/branding) — every numeric field is computed live by `AdsEngine.getPlatforms()`, never hand-authored. */

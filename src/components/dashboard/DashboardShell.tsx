@@ -22,6 +22,9 @@ import EnterpriseOperationsBanner from "./EnterpriseOperationsBanner";
 import DashboardReportsPanel from "./DashboardReportsPanel";
 import DashboardSwitcher from "@/components/platform/dashboardBuilder/DashboardSwitcher";
 import WidgetLibraryPanel from "@/components/platform/dashboardBuilder/WidgetLibraryPanel";
+import WidgetGrid from "@/components/platform/dashboardBuilder/WidgetGrid";
+import AiCreditsWidget from "./AiCreditsWidget";
+import BrandSentimentWidget from "./BrandSentimentWidget";
 import CommandPalette from "./CommandPalette";
 import { motion, type Variants } from "framer-motion";
 import { useDashboard } from "@/hooks/useDashboard";
@@ -35,8 +38,7 @@ import {
   initializeDashboardFoundation,
   registerDashboardSkills,
   registerDashboardReports,
-  DASHBOARD_WIDGET_CATALOG,
-  DASHBOARD_WIDGET_PERMISSIONS,
+  DASHBOARD_WIDGET_GROUPS,
   DASHBOARD_ORGANIZATION_ID,
   dashboardActivityLog,
   canUseDashboardFeature,
@@ -52,8 +54,6 @@ import { authorizationPlatformAPI, permissionName } from "@/core/platform/access
 import { Button } from "@/components/ui/button";
 import { Maximize2, Minimize2, LayoutGrid, Lock, Unlock } from "lucide-react";
 import type { DashboardWidgetKey, DashboardWidgetConfig, DashboardTenantContext } from "@/core/dashboard";
-
-const DASHBOARD_WIDGET_GROUPS = ["Overview", "Performance", "Operations", "AI", "Integrations"] as const;
 
 const NUDGE_CANDIDATES: { key: DashboardWidgetKey; label: string; usageTypeId: string; reason: string }[] = [
   { key: "ai-recommendations", label: "AI Recommendations", usageTypeId: "dashboard.aiRecommendationApplied", reason: "You've applied several AI recommendations." },
@@ -242,7 +242,7 @@ export default function DashboardShell() {
   const handleUpdateWidgets = useCallback(
     (widgets: DashboardWidgetConfig[]) => {
       if (!layouts.active) return;
-      layouts.updateWidgets(layouts.active.id, widgets);
+      layouts.updateWidgets(widgets);
       recordDashboardUsage(tenantContext, "dashboard.widgetVisibilityChange");
     },
     [layouts, tenantContext]
@@ -285,20 +285,18 @@ export default function DashboardShell() {
     [notifications, router]
   );
 
-  const visibleWidgets = useMemo(() => {
+  /**
+   * Entitlement/permission filtering now happens server-side
+   * (`layoutActions.ts`'s `filterWidget` hook, computed per-request against
+   * the real `EntitlementService`/RBAC) — `renderableIds` is the result.
+   * `visibleWidgets` is what's actually shown: renderable AND not hidden.
+   */
+  const renderableWidgets = useMemo(() => {
     const widgets = layouts.active?.widgets ?? [];
-    return [...widgets].filter(w => w.visible).sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || a.order - b.order);
-  }, [layouts.active]);
+    return widgets.filter(w => layouts.renderableIds.has(w.instanceId));
+  }, [layouts.active, layouts.renderableIds]);
 
-  const isVisible = useCallback(
-    (key: DashboardWidgetKey) => {
-      if (!visibleWidgets.some(w => w.key === key)) return false;
-      const requiredPermission = DASHBOARD_WIDGET_PERMISSIONS[key];
-      if (requiredPermission && permissions && !permissions.includes(requiredPermission)) return false;
-      return true;
-    },
-    [visibleWidgets, permissions]
-  );
+  const visibleWidgets = useMemo(() => renderableWidgets.filter(w => w.visible), [renderableWidgets]);
 
   /** Real permission check when a session exists; falls back to the "workspace" (admin) persona so the banner stays demo-visible without a login flow. */
   const isAdmin = permissions ? permissions.includes(permissionName("organization", "admin")) : layouts.active?.persona === "workspace";
@@ -346,13 +344,46 @@ export default function DashboardShell() {
     }
   }, [visibleWidgets, tenantContext]);
 
-  const widgetSection = useCallback(
-    (key: DashboardWidgetKey, node: React.ReactNode) => (
-      <motion.div id={`widget-${key}`} key={key} variants={sectionVariants}>
-        {node}
-      </motion.div>
-    ),
-    []
+  const renderDashboardWidget = useCallback(
+    (config: DashboardWidgetConfig): React.ReactNode => {
+      switch (config.key) {
+        case "kpi-grid":
+          return <KpiGrid items={dashboard.marketingKpis} loading={loading} />;
+        case "goals-scorecard":
+          return <GoalsScorecard goals={goals.scorecard} loading={loading} />;
+        case "health-score":
+          return <HealthScoreCard health={dashboard.healthScore} loading={loading} />;
+        case "marketing-performance":
+          return <MarketingPerformanceChart data={dashboard.performanceSeries} kpis={dashboard.marketingKpis} loading={loading} onExport={() => handleExport("pdf")} />;
+        case "channel-overview":
+          return <ChannelOverview rows={dashboard.channelOverview} loading={loading} />;
+        case "quick-actions":
+          return <QuickActions />;
+        case "pending-approvals":
+          return <PendingApprovals kpis={dashboard.kpis} approvals={dashboard.pendingApprovals} loading={loading} />;
+        case "action-center":
+          return <ActionCenter items={dashboard.actionCenterItems} loading={loading} onSnooze={dashboard.snoozeActionCenterItem} />;
+        case "recent-activity":
+          return <RecentActivity items={dashboard.activity} loading={loading} />;
+        case "upcoming-tasks":
+          return <UpcomingTasks tasks={dashboard.upcomingTasks} loading={loading} />;
+        case "ai-recommendations":
+          return <AiRecommendations items={dashboard.recommendations} loading={loading} onApply={readOnly ? () => {} : handleApplyRecommendation} onDismiss={readOnly ? () => {} : handleDismissRecommendation} />;
+        case "connected-platforms":
+          return <ConnectedPlatforms platforms={dashboard.connectedPlatforms} loading={loading} onRetry={readOnly ? async () => {} : handleRetryConnection} onRefreshAll={dashboard.refresh} />;
+        case "subscription-summary":
+          return <SubscriptionSummary subscription={dashboard.subscription} loading={loading} />;
+        case "reports-panel":
+          return <DashboardReportsPanel reports={dashboardReports} exports={recentExports} schedules={dashboardSchedules} reportNameById={reportNameById} onToggleSchedule={handleToggleSchedule} onExport={handleExport} />;
+        case "ai-credits":
+          return <AiCreditsWidget />;
+        case "brand-sentiment":
+          return <BrandSentimentWidget />;
+        default:
+          return null;
+      }
+    },
+    [dashboard, loading, goals.scorecard, readOnly, handleExport, handleApplyRecommendation, handleDismissRecommendation, handleRetryConnection, dashboardReports, recentExports, dashboardSchedules, reportNameById, handleToggleSchedule]
   );
 
   return (
@@ -375,6 +406,7 @@ export default function DashboardShell() {
               onToggleFavorite={layouts.toggleFavorite}
               onSetDefault={layouts.setAsDefault}
               onResetToTemplate={layouts.resetToTemplate}
+              onSaveAsTemplate={layouts.saveAsTemplate}
             />
             <ConnectorStatusBar platforms={dashboard.connectedPlatforms} />
           </div>
@@ -413,10 +445,11 @@ export default function DashboardShell() {
         <div className="mb-6">
           <WidgetLibraryPanel
             widgets={layouts.active.widgets}
-            catalog={DASHBOARD_WIDGET_CATALOG}
+            catalog={layouts.catalog}
             groups={DASHBOARD_WIDGET_GROUPS}
             readOnly={readOnly}
             onChange={handleUpdateWidgets}
+            onAdd={layouts.addWidget}
             onClose={() => setLibraryOpen(false)}
           />
         </div>
@@ -434,86 +467,18 @@ export default function DashboardShell() {
           />
         </motion.div>
 
-        {isVisible("kpi-grid") && widgetSection("kpi-grid", <KpiGrid items={dashboard.marketingKpis} loading={loading} />)}
-
-        {(isVisible("goals-scorecard") || isVisible("health-score")) && (
-          <motion.div variants={sectionVariants} className="grid gap-6 lg:grid-cols-2">
-            {isVisible("goals-scorecard") && (
-              <div id="widget-goals-scorecard">
-                <GoalsScorecard goals={goals.scorecard} loading={loading} />
-              </div>
-            )}
-            {isVisible("health-score") && (
-              <div id="widget-health-score">
-                <HealthScoreCard health={dashboard.healthScore} loading={loading} />
-              </div>
-            )}
-          </motion.div>
+        {layouts.loaded && (
+          <WidgetGrid
+            widgets={renderableWidgets}
+            catalog={layouts.catalog}
+            readOnly={readOnly}
+            renderWidget={renderDashboardWidget}
+            onWidgetsChange={layouts.updateWidgets}
+            onDuplicateWidget={layouts.duplicateWidget}
+            onRemoveWidget={layouts.removeWidget}
+            onResetWidget={layouts.resetWidget}
+          />
         )}
-
-        {(isVisible("marketing-performance") || isVisible("channel-overview")) && (
-          <motion.div variants={sectionVariants} className="grid gap-6 xl:grid-cols-2">
-            {isVisible("marketing-performance") && (
-              <div id="widget-marketing-performance">
-                <MarketingPerformanceChart data={dashboard.performanceSeries} kpis={dashboard.marketingKpis} loading={loading} onExport={() => handleExport("pdf")} />
-              </div>
-            )}
-            {isVisible("channel-overview") && (
-              <div id="widget-channel-overview">
-                <ChannelOverview rows={dashboard.channelOverview} loading={loading} />
-              </div>
-            )}
-          </motion.div>
-        )}
-
-        {isVisible("quick-actions") && widgetSection("quick-actions", <QuickActions />)}
-
-        {isVisible("pending-approvals") && widgetSection("pending-approvals", <PendingApprovals kpis={dashboard.kpis} approvals={dashboard.pendingApprovals} loading={loading} />)}
-
-        {isVisible("action-center") && widgetSection("action-center", <ActionCenter items={dashboard.actionCenterItems} loading={loading} onSnooze={dashboard.snoozeActionCenterItem} />)}
-
-        {(isVisible("recent-activity") || isVisible("upcoming-tasks")) && (
-          <motion.div variants={sectionVariants} className="grid gap-6 lg:grid-cols-2">
-            {isVisible("recent-activity") && (
-              <div id="widget-recent-activity">
-                <RecentActivity items={dashboard.activity} loading={loading} />
-              </div>
-            )}
-            {isVisible("upcoming-tasks") && (
-              <div id="widget-upcoming-tasks">
-                <UpcomingTasks tasks={dashboard.upcomingTasks} loading={loading} />
-              </div>
-            )}
-          </motion.div>
-        )}
-
-        {(isVisible("ai-recommendations") || isVisible("connected-platforms")) && (
-          <motion.div variants={sectionVariants} className="grid gap-6 lg:grid-cols-2">
-            {isVisible("ai-recommendations") && (
-              <div id="widget-ai-recommendations">
-                <AiRecommendations
-                  items={dashboard.recommendations}
-                  loading={loading}
-                  onApply={readOnly ? () => {} : handleApplyRecommendation}
-                  onDismiss={readOnly ? () => {} : handleDismissRecommendation}
-                />
-              </div>
-            )}
-            {isVisible("connected-platforms") && (
-              <div id="widget-connected-platforms">
-                <ConnectedPlatforms platforms={dashboard.connectedPlatforms} loading={loading} onRetry={readOnly ? async () => {} : handleRetryConnection} onRefreshAll={dashboard.refresh} />
-              </div>
-            )}
-          </motion.div>
-        )}
-
-        {isVisible("subscription-summary") && widgetSection("subscription-summary", <SubscriptionSummary subscription={dashboard.subscription} loading={loading} />)}
-
-        {isVisible("reports-panel") &&
-          widgetSection(
-            "reports-panel",
-            <DashboardReportsPanel reports={dashboardReports} exports={recentExports} schedules={dashboardSchedules} reportNameById={reportNameById} onToggleSchedule={handleToggleSchedule} onExport={handleExport} />
-          )}
       </motion.div>
 
       <CommandPalette
@@ -521,7 +486,7 @@ export default function DashboardShell() {
         onClose={() => setPaletteOpen(false)}
         layouts={layouts.layouts}
         onSwitchLayout={handleSwitchLayout}
-        widgets={DASHBOARD_WIDGET_CATALOG}
+        widgets={layouts.catalog}
         onSelectWidget={scrollToWidget}
         goals={goals.scorecard}
         onSelectGoal={() => scrollToWidget("goals-scorecard")}

@@ -22,7 +22,7 @@ const TIME_RANGES = [
 
 export function BrandMentions() {
   const router = useRouter();
-  const { mentions, resolveMention, unresolveMention, flagMention, unflagMention, escalateMention, exportMentions, canUpdate, canExport, canAssign } = useBrandMonitoring();
+  const { mentions, resolveMention, unresolveMention, flagMention, unflagMention, escalateMention, exportMentions, canUpdate, canExport, canAssign, showToast } = useBrandMonitoring();
   const [searchQuery, setSearchQuery] = useState("");
   const [sentimentFilter, setSentimentFilter] = useState<string>("all");
   const [platformFilter, setPlatformFilter] = useState<string>("all");
@@ -98,7 +98,7 @@ export function BrandMentions() {
   ];
 
   const handleExport = () => {
-    exportMentions();
+    if (!exportMentions()) showToast("Unable to export mentions — check your plan or permissions.");
   };
 
   return (

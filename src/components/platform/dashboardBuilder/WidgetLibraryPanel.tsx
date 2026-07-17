@@ -13,7 +13,7 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
-import { Search, Eye, EyeOff, Pin, PinOff, ArrowUp, ArrowDown, X } from "lucide-react";
+import { Search, Eye, EyeOff, Pin, PinOff, ArrowUp, ArrowDown, X, Plus } from "lucide-react";
 import type { DashboardWidgetCatalogEntry, DashboardWidgetConfig } from "@/core/platform/dashboardBuilder";
 
 interface WidgetLibraryPanelProps<TKey extends string> {
@@ -22,10 +22,12 @@ interface WidgetLibraryPanelProps<TKey extends string> {
   groups: readonly string[];
   readOnly: boolean;
   onChange: (widgets: DashboardWidgetConfig<TKey>[]) => void;
+  /** Places a brand-new instance of a catalog widget that currently has zero instances on this layout (e.g. after "Remove") — real server round-trip via `addDashboardWidgetAction`, not a local-only add. */
+  onAdd: (key: TKey) => void;
   onClose: () => void;
 }
 
-export default function WidgetLibraryPanel<TKey extends string>({ widgets, catalog, groups, readOnly, onChange, onClose }: WidgetLibraryPanelProps<TKey>) {
+export default function WidgetLibraryPanel<TKey extends string>({ widgets, catalog, groups, readOnly, onChange, onAdd, onClose }: WidgetLibraryPanelProps<TKey>) {
   const [query, setQuery] = useState("");
 
   const ordered = useMemo(() => [...widgets].sort((a, b) => a.order - b.order), [widgets]);
@@ -81,7 +83,20 @@ export default function WidgetLibraryPanel<TKey extends string>({ widgets, catal
                 <div className="space-y-2">
                   {entries.map(entry => {
                     const config = configFor(entry.key);
-                    if (!config) return null;
+                    if (!config) {
+                      return (
+                        <div key={entry.key} className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-border/60 bg-card/30 px-3 py-2.5">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground">{entry.label}</p>
+                            <p className="truncate text-xs text-muted-foreground">{entry.description}</p>
+                          </div>
+                          <Button variant="outline" size="sm" className="flex-shrink-0 gap-1" disabled={readOnly} onClick={() => onAdd(entry.key)}>
+                            <Plus size={13} />
+                            Add
+                          </Button>
+                        </div>
+                      );
+                    }
                     return (
                       <div key={entry.key} className={`flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/50 px-3 py-2.5 ${!config.visible ? "opacity-50" : ""}`}>
                         <div className="min-w-0">

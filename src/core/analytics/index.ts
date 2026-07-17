@@ -14,7 +14,6 @@
 
 import { registerDefaultAnalyticsMetrics } from "./registry/AnalyticsMetricRegistry";
 import { registerAnalyticsReports } from "./reports/registerAnalyticsReports";
-import { seedAnalyticsDashboards } from "./dashboards/seedAnalyticsDashboards";
 import { seedAnalyticsSegments } from "./segments/seedAnalyticsSegments";
 import { registerAnalyticsUsageTypes } from "./commercial/AnalyticsUsageAdapter";
 
@@ -33,8 +32,13 @@ export { registerAnalyticsSkills } from "./skills/registerAnalyticsSkills";
 export { generateAnalyticsFacts } from "./mock/generateAnalyticsFacts";
 
 export * from "./dashboards/types";
-export { AnalyticsDashboardRegistry, analyticsDashboardRegistry } from "./dashboards/AnalyticsDashboardRegistry";
-export { seedAnalyticsDashboards } from "./dashboards/seedAnalyticsDashboards";
+// `AnalyticsDashboardRegistry`/`analyticsDashboardRegistry`/`seedAnalyticsDashboards`
+// are deliberately NOT re-exported here (Round 23): that registry is now
+// `import "server-only"`-tagged and file-persisted — re-exporting it from
+// this barrel would risk pulling server-only code into every client
+// component that imports anything else from `@/core/analytics`. Server
+// Actions (`features/analytics/layoutActions.ts`) import the deep path
+// (`./dashboards/AnalyticsDashboardRegistry`, `./dashboards/seedAnalyticsDashboards`) directly.
 
 export type { AnalyticsSegment, SegmentKind } from "./segments/types";
 export { SegmentRegistry, segmentRegistry } from "./segments/SegmentRegistry";
@@ -58,13 +62,15 @@ export { AnalyticsAnnotationRegistry, analyticsAnnotationRegistry } from "./anno
 
 /**
  * Registers the default custom-metric catalog, Analytics' report
- * definitions, its 7 default dashboards, its starter segments, and its
- * Commercial Platform usage types. Safe to call more than once — always
- * returns the same report ids.
+ * definitions, its starter segments, and its Commercial Platform usage
+ * types. Safe to call more than once — always returns the same report
+ * ids. Client-callable (no server-only dependency) — the 7 default
+ * dashboard templates are seeded separately, server-side, by
+ * `features/analytics/layoutActions.ts` (see note above on why the
+ * registry itself isn't re-exported from this barrel).
  */
 export function initializeAnalyticsFoundation(): { channelReportId: string; trafficReportId: string; executiveReportId: string; revenueReportId: string; audienceReportId: string } {
   registerDefaultAnalyticsMetrics();
-  seedAnalyticsDashboards();
   seedAnalyticsSegments();
   registerAnalyticsUsageTypes();
   return registerAnalyticsReports();

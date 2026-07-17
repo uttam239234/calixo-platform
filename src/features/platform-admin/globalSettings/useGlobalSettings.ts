@@ -12,7 +12,7 @@ import { useCallback, useState } from "react";
 import { platformGlobalSettingsPlatformAPI } from "@/core/platform/commercial";
 import type { PlatformGlobalSettings } from "@/core/platform/commercial";
 import { useInternalRole } from "../internalRole";
-import { commitPlanChange } from "../commitPlanChange";
+import { commitPlanChange, type CommitPlanChangeResult } from "../commitPlanChange";
 import { saveGlobalSettingsAction } from "@/core/platform/configStore/actions";
 
 export function useGlobalSettings() {
@@ -23,12 +23,16 @@ export function useGlobalSettings() {
   const settings = platformGlobalSettingsPlatformAPI.get();
 
   const update = useCallback(
-    (patch: Partial<PlatformGlobalSettings>) => {
+    async (patch: Partial<PlatformGlobalSettings>): Promise<CommitPlanChangeResult> => {
       const before = settings;
       const description = "Updated global commercial settings";
       platformGlobalSettingsPlatformAPI.update(patch);
-      void saveGlobalSettingsAction(patch, description);
-      void commitPlanChange({
+      const saveResult = await saveGlobalSettingsAction(patch, description);
+      if (!saveResult.ok) {
+        refresh();
+        return { error: saveResult.error };
+      }
+      const result = await commitPlanChange({
         entityType: "platform-global-settings",
         entityId: "singleton",
         before,
@@ -37,6 +41,7 @@ export function useGlobalSettings() {
         description,
       });
       refresh();
+      return result;
     },
     [settings, role, refresh]
   );

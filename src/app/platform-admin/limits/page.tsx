@@ -57,8 +57,10 @@ export default function LimitsPage() {
           onClose={() => setEditing(null)}
           onSave={async patch => {
             const result = await updateLimits(editing.tier, patch);
+            if (result.error) return { error: result.error };
             if (result.undoToken) setUndo({ token: result.undoToken, message: `${editing.label}'s limits updated.`, windowMs: result.undoWindowMs ?? 0 });
             setEditing(null);
+            return {};
           }}
         />
       )}
@@ -75,9 +77,21 @@ function EditLimitsDialog({
 }: {
   definition: SubscriptionTierDefinition;
   onClose: () => void;
-  onSave: (patch: Partial<Record<NumericLimitKey, number>>) => void;
+  onSave: (patch: Partial<Record<NumericLimitKey, number>>) => Promise<{ error?: string }>;
 }) {
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(LIMIT_FIELDS.map(f => [f.key, String(definition.limits[f.key])])));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave() {
+    const patch: Partial<Record<NumericLimitKey, number>> = {};
+    for (const field of LIMIT_FIELDS) patch[field.key] = Number(values[field.key]) || 0;
+    setSaving(true);
+    setError(null);
+    const result = await onSave(patch);
+    setSaving(false);
+    if (result.error) setError(result.error);
+  }
 
   return (
     <SimpleDialog title={`Edit ${definition.label} Limits`} onClose={onClose}>
@@ -93,17 +107,12 @@ function EditLimitsDialog({
           />
         ))}
       </div>
+      {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} disabled={saving}>
           Cancel
         </Button>
-        <Button
-          onClick={() => {
-            const patch: Partial<Record<NumericLimitKey, number>> = {};
-            for (const field of LIMIT_FIELDS) patch[field.key] = Number(values[field.key]) || 0;
-            onSave(patch);
-          }}
-        >
+        <Button disabled={saving} loading={saving} onClick={handleSave}>
           Save Changes
         </Button>
       </div>

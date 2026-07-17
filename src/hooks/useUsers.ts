@@ -89,8 +89,10 @@ export function useUsers(organizationId: string) {
   const remove = useCallback(
     (userId: string, actorId: string): boolean => {
       const removed = organizationPlatformAPI.removeMember(organizationId, userId, actorId);
-      userRegistry.unregister(userId);
-      refresh();
+      if (removed) {
+        userRegistry.unregister(userId);
+        refresh();
+      }
       return removed;
     },
     [organizationId, refresh]

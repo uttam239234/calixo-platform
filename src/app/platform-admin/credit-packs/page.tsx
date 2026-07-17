@@ -14,6 +14,7 @@ export default function CreditPacksPage() {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<CreditPackDefinition | null>(null);
   const [undo, setUndo] = useState<{ token: string; message: string; windowMs: number } | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   return (
     <div>
@@ -24,6 +25,7 @@ export default function CreditPacksPage() {
           Add Pack
         </Button>
       </div>
+      {actionError && <p className="mb-3 text-sm text-destructive">{actionError}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {packs.map((pack, index) => (
@@ -46,14 +48,14 @@ export default function CreditPacksPage() {
                 <Pencil size={13} />
                 Edit
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setActive(pack.id, !pack.isActive)}>
+              <Button variant="outline" size="sm" onClick={async () => { const result = await setActive(pack.id, !pack.isActive); setActionError(result.error ?? null); }}>
                 {pack.isActive ? <Ban size={13} /> : <CheckCircle2 size={13} />}
                 {pack.isActive ? "Disable" : "Enable"}
               </Button>
-              <Button variant="outline" size="icon-sm" aria-label="Move up" disabled={index === 0} onClick={() => reorder(pack.id, "up")}>
+              <Button variant="outline" size="icon-sm" aria-label="Move up" disabled={index === 0} onClick={async () => { const result = await reorder(pack.id, "up"); setActionError(result.error ?? null); }}>
                 <ArrowUp size={13} />
               </Button>
-              <Button variant="outline" size="icon-sm" aria-label="Move down" disabled={index === packs.length - 1} onClick={() => reorder(pack.id, "down")}>
+              <Button variant="outline" size="icon-sm" aria-label="Move down" disabled={index === packs.length - 1} onClick={async () => { const result = await reorder(pack.id, "down"); setActionError(result.error ?? null); }}>
                 <ArrowDown size={13} />
               </Button>
             </div>
@@ -65,9 +67,11 @@ export default function CreditPacksPage() {
         <PackDialog
           title="Add Credit Pack"
           onClose={() => setAdding(false)}
-          onSave={(price, credits) => {
-            addPack(`pack-${Date.now()}`, price, credits);
+          onSave={async (price, credits) => {
+            const result = await addPack(`pack-${Date.now()}`, price, credits);
+            if (result.error) return { error: result.error };
             setAdding(false);
+            return {};
           }}
         />
       )}
@@ -80,8 +84,10 @@ export default function CreditPacksPage() {
           onClose={() => setEditing(null)}
           onSave={async (price, credits) => {
             const result = await editPack(editing, price, credits);
+            if (result.error) return { error: result.error };
             if (result.undoToken) setUndo({ token: result.undoToken, message: "Credit pack updated.", windowMs: result.undoWindowMs ?? 0 });
             setEditing(null);
+            return {};
           }}
         />
       )}
@@ -102,10 +108,20 @@ function PackDialog({
   initialPrice?: number;
   initialCredits?: number;
   onClose: () => void;
-  onSave: (price: number, credits: number) => void;
+  onSave: (price: number, credits: number) => Promise<{ error?: string }>;
 }) {
   const [price, setPrice] = useState(String(initialPrice));
   const [credits, setCredits] = useState(String(initialCredits));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    const result = await onSave(Number(price) || 0, Number(credits) || 0);
+    setSaving(false);
+    if (result.error) setError(result.error);
+  }
 
   return (
     <SimpleDialog title={title} onClose={onClose}>
@@ -113,11 +129,14 @@ function PackDialog({
         <Input label="Price ($)" type="number" min={0} value={price} onChange={e => setPrice(e.target.value)} />
         <Input label="Credits" type="number" min={0} value={credits} onChange={e => setCredits(e.target.value)} />
       </div>
+      {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} disabled={saving}>
           Cancel
         </Button>
-        <Button onClick={() => onSave(Number(price) || 0, Number(credits) || 0)}>Save</Button>
+        <Button disabled={saving} loading={saving} onClick={handleSave}>
+          Save
+        </Button>
       </div>
     </SimpleDialog>
   );

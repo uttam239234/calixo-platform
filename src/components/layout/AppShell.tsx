@@ -10,12 +10,22 @@ interface AppShellProps {
 
 export default function AppShell({ children }: AppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
+      {/* Mobile Nav Backdrop */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar */}
       <aside
-        className="hidden md:flex fixed md:relative z-40 h-screen flex-col transition-all duration-300 ease-in-out"
+        className={`${mobileNavOpen ? "flex" : "hidden md:flex"} fixed md:relative z-40 h-screen flex-col transition-all duration-300 ease-in-out`}
         style={{ width: sidebarCollapsed ? "var(--sidebar-width-collapsed)" : "var(--sidebar-width)" }}
         aria-label="Sidebar"
       >
@@ -28,7 +38,7 @@ export default function AppShell({ children }: AppShellProps) {
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col h-screen overflow-hidden w-full min-w-0">
         {/* Sticky Header */}
-        <Header />
+        <Header onOpenMobileNav={() => setMobileNavOpen((prev) => !prev)} />
 
         {/* Scrollable Content */}
         <main className="flex-1 overflow-y-auto scrollbar-thin bg-background">

@@ -27,6 +27,7 @@ function PlatformRow({ platform, onRetry }: { platform: DashboardConnectedPlatfo
   const status = statusConfig[platform.status];
   const StatusIcon = status.icon;
   const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
   const expiresInDays = platform.tokenExpiresAt ? daysUntil(platform.tokenExpiresAt) : null;
   const tokenExpiringSoon = expiresInDays !== null && expiresInDays <= TOKEN_WARNING_DAYS;
 
@@ -42,6 +43,7 @@ function PlatformRow({ platform, onRetry }: { platform: DashboardConnectedPlatfo
             {platform.lastSyncAt ? new Date(platform.lastSyncAt).toLocaleString() : platform.errorMessage ?? "Not yet synced"}
             {platform.successRate !== undefined && ` · ${Math.round(platform.successRate)}% success`}
           </p>
+          {retryError && <p className="mt-0.5 text-xs text-destructive">{retryError}</p>}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -63,8 +65,14 @@ function PlatformRow({ platform, onRetry }: { platform: DashboardConnectedPlatfo
             disabled={retrying}
             onClick={async () => {
               setRetrying(true);
-              await onRetry(platform.id);
-              setRetrying(false);
+              setRetryError(null);
+              try {
+                await onRetry(platform.id);
+              } catch (error) {
+                setRetryError(error instanceof Error ? error.message : "Retry failed. Please try again.");
+              } finally {
+                setRetrying(false);
+              }
             }}
           >
             {retrying ? "Retrying…" : "Retry"}

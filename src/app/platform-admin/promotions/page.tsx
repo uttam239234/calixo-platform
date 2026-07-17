@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { SimpleDialog } from "@/components/settings/users/SimpleDialog";
 import { Toggle } from "@/components/ui/Toggle";
 import { usePromotions } from "@/features/platform-admin/promotions/usePromotions";
+import type { CreatePromotionResult } from "@/features/platform-admin/promotions/usePromotions";
 import type { DiscountKind } from "@/core/platform/commercial";
 
 export default function PromotionsPage() {
@@ -60,7 +61,16 @@ export default function PromotionsPage() {
         </table>
       </div>
 
-      {creating && <NewPromotionDialog onClose={() => setCreating(false)} onCreate={input => { create(input); setCreating(false); }} />}
+      {creating && (
+        <NewPromotionDialog
+          onClose={() => setCreating(false)}
+          onCreate={async input => {
+            const result = await create(input);
+            if (result.ok) setCreating(false);
+            return result;
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -70,13 +80,29 @@ function NewPromotionDialog({
   onCreate,
 }: {
   onClose: () => void;
-  onCreate: (input: { code: string; discountKind: DiscountKind; discountValue: number; validUntil?: string; maxRedemptions?: number }) => void;
+  onCreate: (input: { code: string; discountKind: DiscountKind; discountValue: number; validUntil?: string; maxRedemptions?: number }) => Promise<CreatePromotionResult>;
 }) {
   const [code, setCode] = useState("");
   const [discountKind, setDiscountKind] = useState<DiscountKind>("percent");
   const [discountValue, setDiscountValue] = useState("10");
   const [validUntil, setValidUntil] = useState("");
   const [maxRedemptions, setMaxRedemptions] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleCreate() {
+    setSaving(true);
+    setError(null);
+    const result = await onCreate({
+      code: code.trim(),
+      discountKind,
+      discountValue: Number(discountValue) || 0,
+      validUntil: validUntil ? new Date(validUntil).toISOString() : undefined,
+      maxRedemptions: maxRedemptions ? Number(maxRedemptions) : undefined,
+    });
+    setSaving(false);
+    if (!result.ok) setError(result.error ?? "Something went wrong.");
+  }
 
   return (
     <SimpleDialog title="New Promotion" onClose={onClose}>
@@ -95,22 +121,12 @@ function NewPromotionDialog({
         <Input label="Expiry (optional)" type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} />
         <Input label="Usage Limit (optional)" type="number" min={1} value={maxRedemptions} onChange={e => setMaxRedemptions(e.target.value)} />
       </div>
+      {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} disabled={saving}>
           Cancel
         </Button>
-        <Button
-          disabled={!code.trim()}
-          onClick={() =>
-            onCreate({
-              code: code.trim(),
-              discountKind,
-              discountValue: Number(discountValue) || 0,
-              validUntil: validUntil ? new Date(validUntil).toISOString() : undefined,
-              maxRedemptions: maxRedemptions ? Number(maxRedemptions) : undefined,
-            })
-          }
-        >
+        <Button disabled={!code.trim() || saving} loading={saving} onClick={handleCreate}>
           Create Promotion
         </Button>
       </div>

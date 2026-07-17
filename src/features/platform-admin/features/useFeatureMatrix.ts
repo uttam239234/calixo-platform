@@ -22,7 +22,7 @@ import { useCallback, useState } from "react";
 import { subscriptionRegistry } from "@/core/platform/subscription";
 import type { SubscriptionTier, SubscriptionLimits } from "@/core/platform/subscription";
 import { useInternalRole } from "../internalRole";
-import { commitPlanChange } from "../commitPlanChange";
+import { commitPlanChange, type CommitPlanChangeResult } from "../commitPlanChange";
 import { saveSubscriptionTierAction } from "@/core/platform/configStore/actions";
 import { SELF_SERVE_TIERS } from "@/features/settings/billing/constants";
 import { ALL_MODULE_IDS, LIMIT_PROXY_DEFAULTS, type MatrixRow } from "./matrixRows";
@@ -44,9 +44,9 @@ export function useFeatureMatrix() {
   const tiers = SELF_SERVE_TIERS.map(tier => ({ tier, definition: subscriptionRegistry.get(tier)! }));
 
   const toggle = useCallback(
-    async (tier: SubscriptionTier, row: MatrixRow, nextValue: boolean) => {
+    async (tier: SubscriptionTier, row: MatrixRow, nextValue: boolean): Promise<CommitPlanChangeResult> => {
       const definition = subscriptionRegistry.get(tier);
-      if (!definition) return;
+      if (!definition) return {};
       const before = isRowEnabled(definition.limits, row);
       let nextLimits: SubscriptionLimits = definition.limits;
 
@@ -65,9 +65,13 @@ export function useFeatureMatrix() {
       const description = `${nextValue ? "Enabled" : "Disabled"} ${row.label} for the ${tier} plan`;
       const nextDefinition = { ...definition, limits: nextLimits };
       subscriptionRegistry.register(nextDefinition);
-      void saveSubscriptionTierAction(nextDefinition, description);
+      const saveResult = await saveSubscriptionTierAction(nextDefinition, description);
+      if (!saveResult.ok) {
+        refresh();
+        return { error: saveResult.error };
+      }
       const risky = before && !nextValue ? "feature_removal" : undefined;
-      await commitPlanChange({
+      const result = await commitPlanChange({
         entityType: "subscription-tier-modules",
         entityId: `${tier}:${row.id}`,
         before,
@@ -86,6 +90,7 @@ export function useFeatureMatrix() {
           : undefined,
       });
       refresh();
+      return result;
     },
     [role, refresh]
   );

@@ -78,7 +78,7 @@ export default function Hero() {
                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
               </Link>
               <a
-                href="#platform"
+                href="mailto:sales@calixo.io?subject=Demo%20Request"
                 className="inline-flex h-13 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-7 text-[15px] font-semibold text-white backdrop-blur-xl transition-all hover:bg-white/[0.08] active:scale-[0.98]"
               >
                 <PlayCircle size={17} />

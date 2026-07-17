@@ -13,6 +13,8 @@ export default function GlobalSettingsPage() {
   const [taxPercent, setTaxPercent] = useState(String(settings.taxPercent));
   const [contactEmail, setContactEmail] = useState(settings.enterpriseContactEmail);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <div className="max-w-xl">
@@ -27,14 +29,23 @@ export default function GlobalSettingsPage() {
 
         <div className="flex items-center gap-3 pt-2">
           <Button
-            onClick={() => {
-              update({
+            disabled={saving}
+            loading={saving}
+            onClick={async () => {
+              setSaving(true);
+              setError(null);
+              const result = await update({
                 freeTrialLengthDays: Number(trialLength) || 0,
                 trialAiCredits: Number(trialCredits) || 0,
                 defaultCurrency: currency,
                 taxPercent: Number(taxPercent) || 0,
                 enterpriseContactEmail: contactEmail,
               });
+              setSaving(false);
+              if (result.error) {
+                setError(result.error);
+                return;
+              }
               setSaved(true);
               setTimeout(() => setSaved(false), 2000);
             }}
@@ -42,6 +53,7 @@ export default function GlobalSettingsPage() {
             Save Changes
           </Button>
           {saved && <span className="text-sm text-success">Saved.</span>}
+          {error && <span className="text-sm text-destructive">{error}</span>}
         </div>
       </div>
     </div>

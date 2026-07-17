@@ -62,6 +62,8 @@ export interface CommitPlanChangeParams<T> {
 export interface CommitPlanChangeResult {
   undoToken?: string;
   undoWindowMs?: number;
+  /** Set when the section's real disk-persistence Server Action reported `{ok: false}` — the in-memory registry still reflects the change, but it may not survive a restart or be visible to other instances. */
+  error?: string;
 }
 
 export async function commitPlanChange<T>(params: CommitPlanChangeParams<T>): Promise<CommitPlanChangeResult> {

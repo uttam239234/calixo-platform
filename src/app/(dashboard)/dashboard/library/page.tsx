@@ -37,6 +37,7 @@ export default function LibraryPage() {
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [cmdQuery, setCmdQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const result = useMemo(() => LibraryEngine.search(searchQuery, filters, sort), [searchQuery, filters, sort]);
   const selectedAsset = useMemo(() => selectedAssetId ? LibraryEngine.getAsset(selectedAssetId) : undefined, [selectedAssetId]);
@@ -54,6 +55,33 @@ export default function LibraryPage() {
   const handleFilterChange = (key: keyof LibraryFilter, value: string) => setFilters(prev => ({ ...prev, [key]: value || undefined }));
   const handleSelectAsset = useCallback((id: string) => { setSelectedAssetId(id); setShowDetails(true); }, []);
   const toggleSelect = (id: string) => { const next = new Set(selectedIds); if (next.has(id)) next.delete(id); else next.add(id); setSelectedIds(next); };
+
+  const handleCopyLink = async (asset: AssetEntry) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/dashboard/library?asset=${asset.id}`);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // clipboard permission denied — link simply isn't copied, no further action needed
+    }
+  };
+
+  const handleDownload = (asset: AssetEntry) => {
+    if (asset.fileUrl || asset.preview) {
+      const a = document.createElement("a");
+      a.href = asset.fileUrl ?? asset.preview!;
+      a.download = asset.name;
+      a.click();
+      return;
+    }
+    const blob = new Blob([JSON.stringify(asset, null, 2)], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${asset.name.replace(/\s+/g, "_")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const cmdResults = useMemo(() => {
     if (!cmdQuery) return [];
@@ -113,7 +141,7 @@ export default function LibraryPage() {
           {selectedIds.size > 0 && (
             <Card>
               <CardHeader title="Bulk Actions" description={`${selectedIds.size} selected`} />
-              <CardContent><div className="flex flex-wrap gap-1">{["Move","Copy","Archive","Delete","Tag"].map(a=><Button key={a} size="xs" variant="outline" className="text-[10px] border-slate-700 h-7">{a}</Button>)}</div></CardContent>
+              <CardContent><div className="flex flex-wrap gap-1">{["Move","Copy","Archive","Delete","Tag"].map(a=><Button key={a} size="xs" variant="outline" disabled title="Coming soon" className="text-[10px] border-slate-700 h-7 opacity-50">{a}</Button>)}</div></CardContent>
             </Card>
           )}
         </div>
@@ -164,7 +192,7 @@ export default function LibraryPage() {
               <Card><CardHeader title="Metadata" /><CardContent className="text-[10px] space-y-1 text-slate-400">{[{l:"Type",v:selectedAsset.type},{l:"Brand",v:selectedAsset.brand},{l:"Campaign",v:selectedAsset.campaign},{l:"Created",v:new Date(selectedAsset.createdAt).toLocaleDateString()},{l:"Version",v:selectedAsset.currentVersion},{l:"Status",v:selectedAsset.approvalStatus}].map(m=><div key={m.l} className="flex justify-between"><span className="text-slate-600">{m.l}</span><span>{m.v ?? "—"}</span></div>)}</CardContent></Card>
               <Card><CardHeader title="Versions" description={`${versions.length} total`} /><CardContent className="text-[10px] space-y-1">{versions.slice(0,8).map(v=><div key={v.id} className="flex justify-between"><span>{v.label}</span><span className="text-slate-600">{new Date(v.createdAt).toLocaleDateString()}</span></div>)}</CardContent></Card>
               <Card><CardHeader title="Relationships" description={`${relationships.length} links`} /><CardContent className="text-[10px] space-y-1">{relationships.slice(0,6).map(r=><div key={r.id} className="flex items-center gap-1 text-slate-400"><GitBranch size={10} className="text-slate-600" /><span>{r.type}</span><ChevronRight size={10} className="text-slate-600" /></div>)}</CardContent></Card>
-              <div className="flex gap-2"><Button size="xs" className="gap-1 text-[10px]"><Download size={11} /> Download</Button><Button size="xs" variant="outline" className="gap-1 text-[10px] border-slate-700"><Copy size={11} /> Copy Link</Button></div>
+              <div className="flex gap-2"><Button size="xs" onClick={() => handleDownload(selectedAsset)} className="gap-1 text-[10px]"><Download size={11} /> Download</Button><Button size="xs" variant="outline" onClick={() => handleCopyLink(selectedAsset)} className="gap-1 text-[10px] border-slate-700">{linkCopied ? "Copied!" : <><Copy size={11} /> Copy Link</>}</Button></div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -177,7 +205,7 @@ export default function LibraryPage() {
             <div className="w-full max-w-xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
               <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800"><Search size={16} className="text-slate-500" /><input value={cmdQuery} onChange={e => setCmdQuery(e.target.value)} placeholder="Search resources, collections, campaigns..." autoFocus className="flex-1 bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-600" /><kbd className="text-[10px] text-slate-600 bg-slate-800 px-2 py-0.5 rounded">ESC</kbd></div>
               <div className="max-h-72 overflow-y-auto p-2">
-                {cmdResults.map(r => <button key={r.id} onClick={() => { setCmdPaletteOpen(false); if (r.type === "asset") handleSelectAsset(r.id); }} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800/50 text-sm text-slate-300"><r.icon size={15} className="text-cyan-400" /><span className="flex-1">{r.label}</span><span className="text-[10px] text-slate-600">{r.type}</span></button>)}
+                {cmdResults.map(r => <button key={r.id} onClick={() => { setCmdPaletteOpen(false); if (r.type === "asset") handleSelectAsset(r.id); else if (r.type === "collection") handleFilterChange("collectionId", r.id); }} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800/50 text-sm text-slate-300"><r.icon size={15} className="text-cyan-400" /><span className="flex-1">{r.label}</span><span className="text-[10px] text-slate-600">{r.type}</span></button>)}
                 {cmdQuery && cmdResults.length === 0 && <p className="text-xs text-slate-600 px-3 py-4">No results found for "{cmdQuery}"</p>}
                 {!cmdQuery && <p className="text-xs text-slate-600 px-3 py-4">Start typing to search across all resources...</p>}
               </div>

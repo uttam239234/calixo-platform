@@ -52,21 +52,23 @@ export function usePlans() {
       const after = { monthlyPrice, annualPrice };
       const description = `Changed ${tier}'s price to $${monthlyPrice}/mo, $${annualPrice}/yr`;
       pricingPlatformAPI.registerRule({ ...rule, monthlyPrice, annualPrice });
-      void savePricingRuleAction({ ...rule, monthlyPrice, annualPrice }, description);
-      const result = await commitPlanChange({
-        entityType: "pricing-rule",
-        entityId: rule.id,
-        before,
-        after,
-        actor: role,
-        description,
-        risky: "price_change",
-        restore: prev => {
-          pricingPlatformAPI.registerRule({ ...rule, monthlyPrice: prev.monthlyPrice, annualPrice: prev.annualPrice });
-          void savePricingRuleAction({ ...rule, monthlyPrice: prev.monthlyPrice, annualPrice: prev.annualPrice }, `Undo: ${description}`);
-          refresh();
-        },
-      });
+      const saveResult = await savePricingRuleAction({ ...rule, monthlyPrice, annualPrice }, description);
+      const result = saveResult.ok
+        ? await commitPlanChange({
+            entityType: "pricing-rule",
+            entityId: rule.id,
+            before,
+            after,
+            actor: role,
+            description,
+            risky: "price_change",
+            restore: prev => {
+              pricingPlatformAPI.registerRule({ ...rule, monthlyPrice: prev.monthlyPrice, annualPrice: prev.annualPrice });
+              void savePricingRuleAction({ ...rule, monthlyPrice: prev.monthlyPrice, annualPrice: prev.annualPrice }, `Undo: ${description}`);
+              refresh();
+            },
+          })
+        : { error: saveResult.error };
       refresh();
       return result;
     },
@@ -81,26 +83,28 @@ export function usePlans() {
       const description = `Changed ${tier}'s included AI credits from ${before.toLocaleString()} to ${aiCredits.toLocaleString()}`;
       const nextDefinition = { ...definition, limits: { ...definition.limits, aiCredits } };
       subscriptionRegistry.register(nextDefinition);
-      void saveSubscriptionTierAction(nextDefinition, description);
+      const saveResult = await saveSubscriptionTierAction(nextDefinition, description);
       const risky = aiCredits < before ? "credit_reduction" : undefined;
-      const result = await commitPlanChange({
-        entityType: "subscription-tier-credits",
-        entityId: tier,
-        before,
-        after: aiCredits,
-        actor: role,
-        description,
-        risky,
-        restore: risky
-          ? prev => {
-              const d = subscriptionRegistry.get(tier)!;
-              const restored = { ...d, limits: { ...d.limits, aiCredits: prev } };
-              subscriptionRegistry.register(restored);
-              void saveSubscriptionTierAction(restored, `Undo: ${description}`);
-              refresh();
-            }
-          : undefined,
-      });
+      const result = saveResult.ok
+        ? await commitPlanChange({
+            entityType: "subscription-tier-credits",
+            entityId: tier,
+            before,
+            after: aiCredits,
+            actor: role,
+            description,
+            risky,
+            restore: risky
+              ? prev => {
+                  const d = subscriptionRegistry.get(tier)!;
+                  const restored = { ...d, limits: { ...d.limits, aiCredits: prev } };
+                  subscriptionRegistry.register(restored);
+                  void saveSubscriptionTierAction(restored, `Undo: ${description}`);
+                  refresh();
+                }
+              : undefined,
+          })
+        : { error: saveResult.error };
       refresh();
       return result;
     },
@@ -115,7 +119,11 @@ export function usePlans() {
       const description = `${isActive ? "Enabled" : "Disabled"} the ${tier} plan`;
       const nextDefinition = { ...definition, isActive };
       subscriptionRegistry.register(nextDefinition);
-      void saveSubscriptionTierAction(nextDefinition, description);
+      const saveResult = await saveSubscriptionTierAction(nextDefinition, description);
+      if (!saveResult.ok) {
+        refresh();
+        return { error: saveResult.error };
+      }
       const risky = !isActive ? "plan_deletion" : undefined;
       const result = await commitPlanChange({
         entityType: "subscription-tier-active",
@@ -142,20 +150,28 @@ export function usePlans() {
   );
 
   const duplicate = useCallback(
-    async (sourceTier: SubscriptionTier, destinationTier: SubscriptionTier) => {
+    async (sourceTier: SubscriptionTier, destinationTier: SubscriptionTier): Promise<CommitPlanChangeResult> => {
       const source = subscriptionRegistry.get(sourceTier);
-      if (!source) return;
+      if (!source) return {};
       const description = `Duplicated the ${sourceTier} plan into the ${destinationTier} plan slot`;
       const duplicated = { ...source, tier: destinationTier, label: `${source.label} (Copy)`, isActive: true };
       subscriptionRegistry.register(duplicated);
-      void saveSubscriptionTierAction(duplicated, description);
+      const saveResult = await saveSubscriptionTierAction(duplicated, description);
+      if (!saveResult.ok) {
+        refresh();
+        return { error: saveResult.error };
+      }
       const sourceRule = flatRuleFor(sourceTier);
       if (sourceRule) {
         const duplicatedRule = { ...sourceRule, id: `price-${destinationTier}`, tier: destinationTier };
         pricingPlatformAPI.registerRule(duplicatedRule);
-        void savePricingRuleAction(duplicatedRule, description);
+        const ruleSaveResult = await savePricingRuleAction(duplicatedRule, description);
+        if (!ruleSaveResult.ok) {
+          refresh();
+          return { error: ruleSaveResult.error };
+        }
       }
-      await commitPlanChange({
+      const result = await commitPlanChange({
         entityType: "subscription-tier",
         entityId: destinationTier,
         before: null,
@@ -164,6 +180,7 @@ export function usePlans() {
         description,
       });
       refresh();
+      return result;
     },
     [role, refresh]
   );

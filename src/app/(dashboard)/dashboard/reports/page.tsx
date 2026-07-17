@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bot, LayoutTemplate, Loader2, RotateCcw, Sparkles } from "lucide-react";
-import { reportsPlatformAPI } from "@/core/reports";
+import { logReportsError, reportsPlatformAPI } from "@/core/reports";
 import type { AssistantQuestionId, AssistantSession, ReportDataset, ReportDefinition, ReportSourceId } from "@/core/reports";
 import { useReportsContext } from "@/features/reports/ReportsProvider";
 import { ReportsDashboard } from "@/components/reports";
@@ -59,12 +59,18 @@ export default function AiReportAssistantPage() {
   async function resolveSession(finishedSession: AssistantSession) {
     setPhase("generating");
     const startedAt = Date.now();
-    const resolved = await reportsPlatformAPI.resolveAssistantSession(finishedSession, currentUserName);
-    if (resolved) {
-      recordAiGenerated();
-      setResult(resolved);
-      setPhase("result");
-    } else {
+    try {
+      const resolved = await reportsPlatformAPI.resolveAssistantSession(finishedSession, currentUserName);
+      if (resolved) {
+        recordAiGenerated();
+        setResult(resolved);
+        setPhase("result");
+      } else {
+        showToast("Something went wrong generating that report.");
+        setPhase("intro");
+      }
+    } catch (error) {
+      logReportsError("Failed to resolve assistant session", error);
       showToast("Something went wrong generating that report.");
       setPhase("intro");
     }

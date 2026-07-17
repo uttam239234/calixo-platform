@@ -14,7 +14,7 @@ import { useCallback, useState } from "react";
 import { featureFlagRegistry } from "@/core/platform/featureFlags";
 import type { FeatureFlagDefinition } from "@/core/platform/featureFlags";
 import { useInternalRole } from "../internalRole";
-import { commitPlanChange } from "../commitPlanChange";
+import { commitPlanChange, type CommitPlanChangeResult } from "../commitPlanChange";
 import { saveExperimentRolloutAction } from "@/core/platform/configStore/actions";
 
 export function useExperiments() {
@@ -25,12 +25,16 @@ export function useExperiments() {
   const experiments = featureFlagRegistry.list().filter(f => f.category === "experimental");
 
   const setRollout = useCallback(
-    (flag: FeatureFlagDefinition, rolloutPercent: number) => {
+    async (flag: FeatureFlagDefinition, rolloutPercent: number): Promise<CommitPlanChangeResult> => {
       const before = flag.rolloutPercent ?? 0;
       const description = `Changed ${flag.label}'s rollout from ${before}% to ${rolloutPercent}%`;
       featureFlagRegistry.register({ ...flag, rolloutPercent });
-      void saveExperimentRolloutAction(flag, rolloutPercent, description);
-      void commitPlanChange({
+      const saveResult = await saveExperimentRolloutAction(flag, rolloutPercent, description);
+      if (!saveResult.ok) {
+        refresh();
+        return { error: saveResult.error };
+      }
+      const result = await commitPlanChange({
         entityType: "experiment-flag",
         entityId: flag.id,
         before,
@@ -39,6 +43,7 @@ export function useExperiments() {
         description,
       });
       refresh();
+      return result;
     },
     [role, refresh]
   );

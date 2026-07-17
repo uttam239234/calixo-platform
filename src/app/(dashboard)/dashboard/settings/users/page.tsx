@@ -55,6 +55,7 @@ export default function PeoplePage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<User | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const teamNameFor = (user: User) => (user.teamIds.length > 0 ? (teams.lookup(user.teamIds[0])?.name ?? "—") : "—");
 
@@ -111,6 +112,8 @@ export default function PeoplePage() {
         }
       />
 
+      {actionError && <p className="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{actionError}</p>}
+
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative w-full max-w-xs">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -166,7 +169,9 @@ export default function PeoplePage() {
                 {user.status === "suspended" ? (
                   <button
                     onClick={() => {
-                      users.reinstate(user.id);
+                      setActionError(null);
+                      const result = users.reinstate(user.id);
+                      if (!result.success) setActionError(result.errors[0] ?? `Couldn't reinstate ${user.displayName}.`);
                       setOpenMenuId(null);
                     }}
                     disabled={!canManageUsers}
@@ -177,7 +182,9 @@ export default function PeoplePage() {
                 ) : (
                   <button
                     onClick={() => {
-                      users.suspend(user.id);
+                      setActionError(null);
+                      const result = users.suspend(user.id);
+                      if (!result.success) setActionError(result.errors[0] ?? `Couldn't suspend ${user.displayName}.`);
                       setOpenMenuId(null);
                     }}
                     disabled={!canManageUsers}
@@ -188,7 +195,9 @@ export default function PeoplePage() {
                 )}
                 <button
                   onClick={() => {
-                    users.resetAccess(user.id);
+                    setActionError(null);
+                    const result = users.resetAccess(user.id);
+                    if (!result.success) setActionError(result.errors[0] ?? `Couldn't reset access for ${user.displayName}.`);
                     setOpenMenuId(null);
                   }}
                   disabled={!canManageUsers}
@@ -234,8 +243,13 @@ export default function PeoplePage() {
             <Button
               variant="destructive"
               onClick={() => {
-                users.remove(confirmRemove.id, tenantContext.userId);
-                setConfirmRemove(null);
+                setActionError(null);
+                const removed = users.remove(confirmRemove.id, tenantContext.userId);
+                if (removed) {
+                  setConfirmRemove(null);
+                } else {
+                  setActionError(`Couldn't remove ${confirmRemove.displayName}. Please try again.`);
+                }
               }}
             >
               Remove

@@ -17,6 +17,7 @@ export function CampaignWizard() {
   const { platforms, currentUserName, tenantContext, addCampaign, showToast } = useCampaigns();
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState("");
+  const [publishError, setPublishError] = useState("");
   const [uploadedCreative, setUploadedCreative] = useState("");
   const [form, setForm] = useState({
     platform: "google",
@@ -67,7 +68,13 @@ export function CampaignWizard() {
       creatives: form.creatives.split(",").filter(x => x.trim()).length,
       organizationId: tenantContext.organizationId,
     };
-    addCampaign(campaign);
+    setPublishError("");
+    try {
+      addCampaign(campaign);
+    } catch (error) {
+      setPublishError(error instanceof Error ? error.message : "Failed to publish campaign. Please try again.");
+      return;
+    }
     showToast(`"${campaign.name}" created successfully.`);
     router.push("/dashboard/ads/campaigns");
   };
@@ -273,6 +280,7 @@ export function CampaignWizard() {
       </Card>
 
       {errors && <p className="mt-3 text-sm text-destructive">{errors}</p>}
+      {publishError && <p className="mt-3 text-sm text-destructive">{publishError}</p>}
 
       <div className="mt-5 flex items-center justify-between">
         <Button variant="outline" disabled={step === 0} onClick={() => { setErrors(""); setStep(x => x - 1); }}>

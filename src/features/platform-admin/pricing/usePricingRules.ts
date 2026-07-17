@@ -48,21 +48,23 @@ export function usePricingRules() {
       const before = { monthlyPrice: rule.monthlyPrice ?? 0, annualPrice: rule.annualPrice ?? 0 };
       const description = `Changed ${tier}'s pricing to $${monthlyPrice}/mo, $${annualPrice}/yr`;
       pricingPlatformAPI.registerRule({ ...rule, monthlyPrice, annualPrice });
-      void savePricingRuleAction({ ...rule, monthlyPrice, annualPrice }, description);
-      const result = await commitPlanChange({
-        entityType: "pricing-rule",
-        entityId: rule.id,
-        before,
-        after: { monthlyPrice, annualPrice },
-        actor: role,
-        description,
-        risky: "price_change",
-        restore: prev => {
-          pricingPlatformAPI.registerRule({ ...rule, monthlyPrice: prev.monthlyPrice, annualPrice: prev.annualPrice });
-          void savePricingRuleAction({ ...rule, monthlyPrice: prev.monthlyPrice, annualPrice: prev.annualPrice }, `Undo: ${description}`);
-          refresh();
-        },
-      });
+      const saveResult = await savePricingRuleAction({ ...rule, monthlyPrice, annualPrice }, description);
+      const result = saveResult.ok
+        ? await commitPlanChange({
+            entityType: "pricing-rule",
+            entityId: rule.id,
+            before,
+            after: { monthlyPrice, annualPrice },
+            actor: role,
+            description,
+            risky: "price_change",
+            restore: prev => {
+              pricingPlatformAPI.registerRule({ ...rule, monthlyPrice: prev.monthlyPrice, annualPrice: prev.annualPrice });
+              void savePricingRuleAction({ ...rule, monthlyPrice: prev.monthlyPrice, annualPrice: prev.annualPrice }, `Undo: ${description}`);
+              refresh();
+            },
+          })
+        : { error: saveResult.error };
       refresh();
       return result;
     },

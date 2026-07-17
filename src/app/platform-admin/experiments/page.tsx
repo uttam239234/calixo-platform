@@ -1,13 +1,25 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useExperiments } from "@/features/platform-admin/experiments/useExperiments";
+import type { FeatureFlagDefinition } from "@/core/platform/featureFlags";
 
 const ROLLOUT_STEPS = [0, 25, 50, 100];
 
 export default function ExperimentsPage() {
   const { experiments, setRollout } = useExperiments();
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  async function handleSetRollout(flag: FeatureFlagDefinition, step: number) {
+    setBusyId(flag.id);
+    setErrors(prev => ({ ...prev, [flag.id]: "" }));
+    const result = await setRollout(flag, step);
+    setBusyId(null);
+    if (result.error) setErrors(prev => ({ ...prev, [flag.id]: result.error! }));
+  }
 
   return (
     <div>
@@ -28,13 +40,15 @@ export default function ExperimentsPage() {
                     variant={(flag.rolloutPercent ?? 0) === step ? "primary" : "ghost"}
                     size="sm"
                     className={cn("rounded-none border-0")}
-                    onClick={() => setRollout(flag, step)}
+                    disabled={busyId === flag.id}
+                    onClick={() => handleSetRollout(flag, step)}
                   >
                     {step}%
                   </Button>
                 ))}
               </div>
             </div>
+            {errors[flag.id] && <p className="mt-2 text-sm text-destructive">{errors[flag.id]}</p>}
           </div>
         ))}
       </div>

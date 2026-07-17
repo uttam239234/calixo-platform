@@ -23,13 +23,17 @@ export function useCreditPacks() {
   const packs = creditPackPlatformAPI.list();
 
   const addPack = useCallback(
-    (id: string, price: number, credits: number) => {
+    async (id: string, price: number, credits: number): Promise<CommitPlanChangeResult> => {
       const order = packs.length + 1;
       const description = `Added a new $${price} → ${credits.toLocaleString()} credit pack`;
       const pack = { id, price, credits, isActive: true, order };
       creditPackPlatformAPI.register(pack);
-      void saveCreditPackAction(pack, description);
-      void commitPlanChange({
+      const saveResult = await saveCreditPackAction(pack, description);
+      if (!saveResult.ok) {
+        refresh();
+        return { error: saveResult.error };
+      }
+      const result = await commitPlanChange({
         entityType: "credit-pack",
         entityId: id,
         before: null,
@@ -38,6 +42,7 @@ export function useCreditPacks() {
         description,
       });
       refresh();
+      return result;
     },
     [packs.length, role, refresh]
   );
@@ -48,24 +53,26 @@ export function useCreditPacks() {
       const after = { price, credits };
       const description = `Changed the $${pack.price} pack to $${price} → ${credits.toLocaleString()} credits`;
       creditPackPlatformAPI.register({ ...pack, price, credits });
-      void saveCreditPackAction({ ...pack, price, credits }, description);
+      const saveResult = await saveCreditPackAction({ ...pack, price, credits }, description);
       const risky = credits < pack.credits ? "credit_reduction" : undefined;
-      const result = await commitPlanChange({
-        entityType: "credit-pack",
-        entityId: pack.id,
-        before,
-        after,
-        actor: role,
-        description,
-        risky,
-        restore: risky
-          ? prev => {
-              creditPackPlatformAPI.register({ ...pack, price: prev.price, credits: prev.credits });
-              void saveCreditPackAction({ ...pack, price: prev.price, credits: prev.credits }, `Undo: ${description}`);
-              refresh();
-            }
-          : undefined,
-      });
+      const result = saveResult.ok
+        ? await commitPlanChange({
+            entityType: "credit-pack",
+            entityId: pack.id,
+            before,
+            after,
+            actor: role,
+            description,
+            risky,
+            restore: risky
+              ? prev => {
+                  creditPackPlatformAPI.register({ ...pack, price: prev.price, credits: prev.credits });
+                  void saveCreditPackAction({ ...pack, price: prev.price, credits: prev.credits }, `Undo: ${description}`);
+                  refresh();
+                }
+              : undefined,
+          })
+        : { error: saveResult.error };
       refresh();
       return result;
     },
@@ -73,11 +80,15 @@ export function useCreditPacks() {
   );
 
   const setActive = useCallback(
-    (id: string, isActive: boolean) => {
+    async (id: string, isActive: boolean): Promise<CommitPlanChangeResult> => {
       const description = `${isActive ? "Enabled" : "Disabled"} credit pack ${id}`;
       creditPackPlatformAPI.setActive(id, isActive);
-      void setCreditPackActiveAction(id, isActive, description);
-      void commitPlanChange({
+      const saveResult = await setCreditPackActiveAction(id, isActive, description);
+      if (!saveResult.ok) {
+        refresh();
+        return { error: saveResult.error };
+      }
+      const result = await commitPlanChange({
         entityType: "credit-pack-active",
         entityId: id,
         before: !isActive,
@@ -86,15 +97,17 @@ export function useCreditPacks() {
         description,
       });
       refresh();
+      return result;
     },
     [role, refresh]
   );
 
   const reorder = useCallback(
-    (id: string, direction: "up" | "down") => {
+    async (id: string, direction: "up" | "down"): Promise<CommitPlanChangeResult> => {
       creditPackPlatformAPI.reorder(id, direction);
-      void reorderCreditPackAction(id, direction);
+      const saveResult = await reorderCreditPackAction(id, direction);
       refresh();
+      return saveResult.ok ? {} : { error: saveResult.error };
     },
     [refresh]
   );

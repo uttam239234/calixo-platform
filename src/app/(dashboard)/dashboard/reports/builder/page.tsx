@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Wrench } from "lucide-react";
-import { reportsPlatformAPI } from "@/core/reports";
+import { logReportsError, reportsPlatformAPI } from "@/core/reports";
 import type { ReportDataset, ReportDefinition } from "@/core/reports";
 import { useReportBuilder } from "@/hooks/useReportBuilder";
 import { useReportsContext } from "@/features/reports/ReportsProvider";
@@ -32,11 +32,16 @@ export default function ReportBuilderPage() {
   }
 
   async function handleSave(input: Parameters<typeof builder.save>[0]) {
-    const report = builder.save(input);
-    recordReportCreated();
-    const { dataset } = await reportsPlatformAPI.runReport(report.id);
-    setCreated({ report, dataset });
-    showToast(`${report.name} saved to your Report Library.`);
+    try {
+      const report = builder.save(input);
+      recordReportCreated();
+      const { dataset } = await reportsPlatformAPI.runReport(report.id);
+      setCreated({ report, dataset });
+      showToast(`${report.name} saved to your Report Library.`);
+    } catch (error) {
+      logReportsError("Failed to save report from builder", error);
+      showToast("Something went wrong saving that report. Please try again.");
+    }
   }
 
   if (created) {

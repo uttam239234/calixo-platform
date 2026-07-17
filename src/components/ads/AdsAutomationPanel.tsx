@@ -57,19 +57,35 @@ export function AdsAutomationPanel() {
 
   const handleCreate = async () => {
     if (!canUpdate) return;
-    await createRule({
-      name: template.label,
-      description: template.describe(threshold),
-      action: template.action,
-      condition: template.condition(threshold),
-    });
-    showToast(`Rule "${template.label}" created.`);
-    setShowForm(false);
+    try {
+      await createRule({
+        name: template.label,
+        description: template.describe(threshold),
+        action: template.action,
+        condition: template.condition(threshold),
+      });
+      showToast(`Rule "${template.label}" created.`);
+      setShowForm(false);
+    } catch {
+      showToast("Couldn't create the rule. Please try again.");
+    }
   };
 
   const handleRun = async (id: string, name: string) => {
-    const result = await runRule(id, campaigns);
-    showToast(`"${name}" matched ${result.matchedCount} campaign${result.matchedCount === 1 ? "" : "s"}.`);
+    try {
+      const result = await runRule(id, campaigns);
+      showToast(`"${name}" matched ${result.matchedCount} campaign${result.matchedCount === 1 ? "" : "s"}.`);
+    } catch {
+      showToast(`Couldn't run "${name}". Please try again.`);
+    }
+  };
+
+  const handleToggle = async (id: string, name: string, nextActive: boolean) => {
+    try {
+      await toggleActive(id, nextActive);
+    } catch {
+      showToast(`Couldn't update "${name}". Please try again.`);
+    }
   };
 
   return (
@@ -122,7 +138,7 @@ export function AdsAutomationPanel() {
                   <Button variant="outline" size="sm" className="h-7 px-2 text-xs" disabled={busyId === rule.id || !canUpdate} onClick={() => handleRun(rule.id, rule.name)}>
                     <Play size={12} /> Run now
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={busyId === rule.id || !canUpdate} onClick={() => toggleActive(rule.id, !rule.isActive)}>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={busyId === rule.id || !canUpdate} onClick={() => handleToggle(rule.id, rule.name, !rule.isActive)}>
                     {rule.isActive ? "Deactivate" : "Activate"}
                   </Button>
                   <button onClick={() => deleteRule(rule.id)} disabled={!canUpdate} className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40">

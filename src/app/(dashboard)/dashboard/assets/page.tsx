@@ -27,6 +27,7 @@ export default function AssetsPage() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [copied, setCopied] = useState(false);
+  const [exportError, setExportError] = useState(false);
 
   const allAssets = useMemo(() => AssetEngine.getAll(), []);
   const filtered = useMemo(() => {
@@ -42,7 +43,16 @@ export default function AssetsPage() {
   const allVersions = useMemo(() => AssetEngine.getAllVersions(), []);
   const totalAssets = AssetEngine.count();
 
-  const handleExport = (fmt: string) => { navigator.clipboard.writeText(AssetEngine.export(fmt)); setCopied(true); setTimeout(()=>setCopied(false),2000); };
+  const handleExport = async (fmt: string) => {
+    try {
+      await navigator.clipboard.writeText(AssetEngine.export(fmt));
+      setCopied(true);
+      setTimeout(()=>setCopied(false),2000);
+    } catch {
+      setExportError(true);
+      setTimeout(()=>setExportError(false),2000);
+    }
+  };
 
   const selectCls = "h-9 rounded-xl border border-slate-700/60 bg-slate-900/70 px-3 text-xs text-slate-300 outline-none";
 
@@ -92,6 +102,7 @@ export default function AssetsPage() {
         )}
       </div>
       {copied && <p className="text-[10px] text-emerald-400">Copied to clipboard!</p>}
+      {exportError && <p className="text-[10px] text-rose-400">Couldn&apos;t copy to clipboard. Please try again.</p>}
     </div>
   );
 }

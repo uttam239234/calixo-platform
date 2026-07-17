@@ -58,26 +58,28 @@ export function useLimits() {
       const description = `Changed ${tier}'s usage limits`;
       const nextDefinition = { ...definition, limits: nextLimits };
       subscriptionRegistry.register(nextDefinition);
-      void saveSubscriptionTierAction(nextDefinition, description);
+      const saveResult = await saveSubscriptionTierAction(nextDefinition, description);
       const risky = anyReduced ? "credit_reduction" : undefined;
-      const result = await commitPlanChange({
-        entityType: "subscription-tier-limits",
-        entityId: tier,
-        before,
-        after: patch,
-        actor: role,
-        description,
-        risky,
-        restore: risky
-          ? prev => {
-              const d = subscriptionRegistry.get(tier)!;
-              const restored = { ...d, limits: { ...d.limits, ...prev } };
-              subscriptionRegistry.register(restored);
-              void saveSubscriptionTierAction(restored, `Undo: ${description}`);
-              refresh();
-            }
-          : undefined,
-      });
+      const result = saveResult.ok
+        ? await commitPlanChange({
+            entityType: "subscription-tier-limits",
+            entityId: tier,
+            before,
+            after: patch,
+            actor: role,
+            description,
+            risky,
+            restore: risky
+              ? prev => {
+                  const d = subscriptionRegistry.get(tier)!;
+                  const restored = { ...d, limits: { ...d.limits, ...prev } };
+                  subscriptionRegistry.register(restored);
+                  void saveSubscriptionTierAction(restored, `Undo: ${description}`);
+                  refresh();
+                }
+              : undefined,
+          })
+        : { error: saveResult.error };
       refresh();
       return result;
     },

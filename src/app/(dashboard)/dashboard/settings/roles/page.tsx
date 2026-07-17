@@ -22,6 +22,8 @@ export default function RolesPage() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Role | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<Role | null>(null);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [checkPersonId, setCheckPersonId] = useState("");
   const [checkFeatureId, setCheckFeatureId] = useState("");
@@ -51,6 +53,8 @@ export default function RolesPage() {
           )
         }
       />
+
+      {actionError && <p className="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{actionError}</p>}
 
       <div className="mb-6 rounded-2xl border border-border bg-card p-5">
         <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
@@ -127,11 +131,29 @@ export default function RolesPage() {
                   <Button size="xs" variant="outline" onClick={() => setEditing(role)}>
                     <Pencil size={12} /> Edit
                   </Button>
-                  <Button size="xs" variant="outline" onClick={() => roles.duplicateRole(role)}>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    onClick={async () => {
+                      setActionError(null);
+                      try {
+                        await roles.duplicateRole(role);
+                      } catch (error) {
+                        setActionError(error instanceof Error ? error.message : `Couldn't duplicate "${role.name}". Please try again.`);
+                      }
+                    }}
+                  >
                     <Copy size={12} /> Duplicate
                   </Button>
                   {!isDefault && canManageRoles && (
-                    <Button size="xs" variant="outline" onClick={() => setConfirmArchive(role)}>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={() => {
+                        setArchiveError(null);
+                        setConfirmArchive(role);
+                      }}
+                    >
                       <Archive size={12} /> Archive
                     </Button>
                   )}
@@ -169,6 +191,7 @@ export default function RolesPage() {
 
       {confirmArchive && (
         <SimpleDialog title={`Archive ${confirmArchive.name}?`} description="People currently assigned this role keep it until you reassign them. Archived roles are hidden from this list." onClose={() => setConfirmArchive(null)}>
+          {archiveError && <p className="mb-3 text-sm text-destructive">{archiveError}</p>}
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setConfirmArchive(null)}>
               Cancel
@@ -176,8 +199,13 @@ export default function RolesPage() {
             <Button
               variant="destructive"
               onClick={async () => {
-                await roles.archiveRole(confirmArchive.id);
-                setConfirmArchive(null);
+                setArchiveError(null);
+                try {
+                  await roles.archiveRole(confirmArchive.id);
+                  setConfirmArchive(null);
+                } catch (error) {
+                  setArchiveError(error instanceof Error ? error.message : `Couldn't archive "${confirmArchive.name}". Please try again.`);
+                }
               }}
             >
               Archive
@@ -207,6 +235,8 @@ function RoleFormDialog({
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
   const [selected, setSelected] = useState<Set<string>>(new Set(initialPermissions));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const toggle = (permission: string) => {
     setSelected(prev => {
@@ -234,11 +264,26 @@ function RoleFormDialog({
           </div>
         </div>
       </div>
+      {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} disabled={saving}>
           Cancel
         </Button>
-        <Button disabled={!name.trim()} onClick={() => onSave(name.trim(), description.trim(), Array.from(selected))}>
+        <Button
+          disabled={!name.trim()}
+          loading={saving}
+          onClick={async () => {
+            setSaving(true);
+            setError(null);
+            try {
+              await onSave(name.trim(), description.trim(), Array.from(selected));
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Something went wrong saving this role.");
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
           Save
         </Button>
       </div>

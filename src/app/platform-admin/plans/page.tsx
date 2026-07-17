@@ -81,10 +81,13 @@ export default function PlansPage() {
           onClose={() => setEditing(null)}
           onSave={async (monthlyPrice, annualPrice, aiCredits) => {
             const priceResult = await updatePrice(editing.tier, monthlyPrice, annualPrice);
+            if (priceResult.error) return { error: priceResult.error };
             const creditsResult = await updateIncludedCredits(editing.tier, aiCredits);
+            if (creditsResult.error) return { error: creditsResult.error };
             const result = creditsResult.undoToken ? creditsResult : priceResult;
             if (result.undoToken) setUndo({ token: result.undoToken, message: `${editing.definition.label} updated.`, windowMs: result.undoWindowMs ?? 0 });
             setEditing(null);
+            return {};
           }}
         />
       )}
@@ -95,8 +98,10 @@ export default function PlansPage() {
           allTiers={plans.map(p => p.tier)}
           onClose={() => setDuplicating(null)}
           onDuplicate={async destination => {
-            await duplicate(duplicating.tier, destination);
+            const result = await duplicate(duplicating.tier, destination);
+            if (result.error) return { error: result.error };
             setDuplicating(null);
+            return {};
           }}
         />
       )}
@@ -130,10 +135,28 @@ export default function PlansPage() {
   );
 }
 
-function EditPlanDialog({ plan, onClose, onSave }: { plan: PlanRow; onClose: () => void; onSave: (monthlyPrice: number, annualPrice: number, aiCredits: number) => void }) {
+function EditPlanDialog({
+  plan,
+  onClose,
+  onSave,
+}: {
+  plan: PlanRow;
+  onClose: () => void;
+  onSave: (monthlyPrice: number, annualPrice: number, aiCredits: number) => Promise<{ error?: string }>;
+}) {
   const [monthlyPrice, setMonthlyPrice] = useState(String(plan.pricingRule?.monthlyPrice ?? 0));
   const [annualPrice, setAnnualPrice] = useState(String(plan.pricingRule?.annualPrice ?? 0));
   const [aiCredits, setAiCredits] = useState(String(plan.definition.limits.aiCredits));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    const result = await onSave(Number(monthlyPrice) || 0, Number(annualPrice) || 0, Number(aiCredits) || 0);
+    setSaving(false);
+    if (result.error) setError(result.error);
+  }
 
   return (
     <SimpleDialog title={`Edit ${plan.definition.label}`} onClose={onClose}>
@@ -142,19 +165,42 @@ function EditPlanDialog({ plan, onClose, onSave }: { plan: PlanRow; onClose: () 
         <Input label="Annual Price ($)" type="number" min={0} value={annualPrice} onChange={e => setAnnualPrice(e.target.value)} />
         <Input label="Included AI Credits / month" type="number" min={0} value={aiCredits} onChange={e => setAiCredits(e.target.value)} />
       </div>
+      {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} disabled={saving}>
           Cancel
         </Button>
-        <Button onClick={() => onSave(Number(monthlyPrice) || 0, Number(annualPrice) || 0, Number(aiCredits) || 0)}>Save Changes</Button>
+        <Button disabled={saving} loading={saving} onClick={handleSave}>
+          Save Changes
+        </Button>
       </div>
     </SimpleDialog>
   );
 }
 
-function DuplicatePlanDialog({ plan, allTiers, onClose, onDuplicate }: { plan: PlanRow; allTiers: SubscriptionTier[]; onClose: () => void; onDuplicate: (destination: SubscriptionTier) => void }) {
+function DuplicatePlanDialog({
+  plan,
+  allTiers,
+  onClose,
+  onDuplicate,
+}: {
+  plan: PlanRow;
+  allTiers: SubscriptionTier[];
+  onClose: () => void;
+  onDuplicate: (destination: SubscriptionTier) => Promise<{ error?: string }>;
+}) {
   const destinations = allTiers.filter(t => t !== plan.tier);
   const [destination, setDestination] = useState<SubscriptionTier>(destinations[0]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDuplicate() {
+    setSaving(true);
+    setError(null);
+    const result = await onDuplicate(destination);
+    setSaving(false);
+    if (result.error) setError(result.error);
+  }
 
   return (
     <SimpleDialog title={`Duplicate ${plan.definition.label}`} description="Plans are a fixed set of slots — pick another slot to copy this plan's price, credits, and limits into." onClose={onClose}>
@@ -168,11 +214,14 @@ function DuplicatePlanDialog({ plan, allTiers, onClose, onDuplicate }: { plan: P
           ))}
         </select>
       </div>
+      {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} disabled={saving}>
           Cancel
         </Button>
-        <Button onClick={() => onDuplicate(destination)}>Duplicate</Button>
+        <Button disabled={saving} loading={saving} onClick={handleDuplicate}>
+          Duplicate
+        </Button>
       </div>
     </SimpleDialog>
   );

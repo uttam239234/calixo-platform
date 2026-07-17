@@ -25,6 +25,8 @@ export interface Campaign {
   audience: string;
   keywords: string[];
   creatives: number;
+  alertsEnabled?: boolean;
+  approvalRequired?: boolean;
 }
 
 export type CampaignSortKey = "spend" | "conversions" | "ctr" | "roas" | "cpa" | "createdAt" | "name";

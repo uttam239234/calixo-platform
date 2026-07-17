@@ -9,4 +9,20 @@
  */
 
 export { DashboardLayoutRegistry } from "./DashboardLayoutRegistry";
-export type { DashboardLayout, DashboardWidgetConfig, DashboardWidgetCatalogEntry } from "./types";
+export type { DashboardLayoutPersistenceAdapter } from "./DashboardLayoutRegistry";
+export type {
+  DashboardLayout,
+  DashboardWidgetConfig,
+  DashboardWidgetCatalogEntry,
+  DashboardLayoutActor,
+  DashboardLayoutScope,
+  DashboardLayoutTemplateVisibility,
+  WidgetGridPosition,
+} from "./types";
+export { packWidgets, GRID_COLUMNS } from "./packLayout";
+// `createLayoutController` (serverActions.ts) is deliberately NOT re-exported
+// from this barrel — it's `import "server-only"`-tagged, and a barrel
+// re-export risks a bundler pulling the whole file into a client graph even
+// when unused. Server Action files import it directly from
+// "@/core/platform/dashboardBuilder/serverActions" instead.
+export type { LayoutController, LayoutState } from "./serverActions";

@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Zap, Globe, MessageCircle, Rss, ArrowRight } from "lucide-react";
+import { Zap, Globe, MessageCircle, Rss, ArrowRight, Loader2 } from "lucide-react";
 import { Container } from "./shared/Container";
 
 const columns: { title: string; links: { label: string; href: string }[] }[] = [
@@ -28,9 +29,9 @@ const columns: { title: string; links: { label: string; href: string }[] }[] = [
     title: "Resources",
     links: [
       { label: "Customer Stories", href: "#proof" },
-      { label: "Documentation", href: "#" },
-      { label: "Blog", href: "#" },
-      { label: "Guides", href: "#" },
+      { label: "Documentation", href: "#soon" },
+      { label: "Blog", href: "#soon" },
+      { label: "Guides", href: "#soon" },
     ],
   },
   {
@@ -38,22 +39,50 @@ const columns: { title: string; links: { label: string; href: string }[] }[] = [
     links: [
       { label: "API Platform", href: "#enterprise" },
       { label: "Connector Platform", href: "#integrations" },
-      { label: "Changelog", href: "#" },
-      { label: "Status", href: "#" },
+      { label: "Changelog", href: "#soon" },
+      { label: "Status", href: "#soon" },
     ],
   },
   {
     title: "Company",
     links: [
-      { label: "About", href: "#" },
-      { label: "Careers", href: "#" },
-      { label: "Partners", href: "#" },
-      { label: "Contact", href: "#" },
+      { label: "About", href: "#soon" },
+      { label: "Careers", href: "#soon" },
+      { label: "Partners", href: "#soon" },
+      { label: "Contact", href: "mailto:sales@calixo.io" },
     ],
   },
 ];
 
 export default function MarketingFooter() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus("loading");
+    try {
+      const response = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        setStatus("error");
+        setMessage(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setStatus("success");
+      setMessage("Thanks — you're subscribed.");
+      setEmail("");
+    } catch {
+      setStatus("error");
+      setMessage("Something went wrong. Please try again.");
+    }
+  };
+
   return (
     <footer className="border-t border-white/10 bg-[#0B0D17]">
       <Container className="py-16">
@@ -70,14 +99,14 @@ export default function MarketingFooter() {
             </p>
             <div className="mt-6 flex items-center gap-3">
               {[Globe, MessageCircle, Rss].map((Icon, i) => (
-                <a
+                <span
                   key={i}
-                  href="#"
-                  aria-label="Social link"
-                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/50 transition-colors hover:border-white/25 hover:text-white"
+                  aria-label="Social link coming soon"
+                  title="Coming soon"
+                  className="flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-xl border border-white/10 text-white/25"
                 >
                   <Icon size={15} />
-                </a>
+                </span>
               ))}
             </div>
           </div>
@@ -88,9 +117,16 @@ export default function MarketingFooter() {
               <ul className="mt-4 space-y-3">
                 {col.links.map((link) => (
                   <li key={link.label}>
-                    <a href={link.href} className="text-[13.5px] text-white/55 transition-colors hover:text-white">
-                      {link.label}
-                    </a>
+                    {link.href === "#soon" ? (
+                      <span className="inline-flex items-center gap-1.5 text-[13.5px] text-white/30">
+                        {link.label}
+                        <span className="rounded-full border border-white/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white/30">Soon</span>
+                      </span>
+                    ) : (
+                      <a href={link.href} className="text-[13.5px] text-white/55 transition-colors hover:text-white">
+                        {link.label}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -101,9 +137,11 @@ export default function MarketingFooter() {
         <div className="mt-14 flex flex-col gap-6 rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[15px] font-semibold text-white">Get product updates</p>
-            <p className="mt-1 text-[13px] text-white/40">One email a month. No spam, ever.</p>
+            <p className="mt-1 text-[13px] text-white/40">
+              {status === "success" ? message : status === "error" ? message : "One email a month. No spam, ever."}
+            </p>
           </div>
-          <form className="flex w-full max-w-sm items-center gap-2" onSubmit={(e) => e.preventDefault()}>
+          <form className="flex w-full max-w-sm items-center gap-2" onSubmit={handleSubscribe}>
             <label htmlFor="footer-newsletter-email" className="sr-only">
               Email address
             </label>
@@ -111,15 +149,19 @@ export default function MarketingFooter() {
               id="footer-newsletter-email"
               type="email"
               required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
-              className="h-11 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 text-[13.5px] text-white placeholder:text-white/30 outline-none focus:border-white/25"
+              disabled={status === "loading"}
+              className="h-11 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 text-[13.5px] text-white placeholder:text-white/30 outline-none focus:border-white/25 disabled:opacity-60"
             />
             <button
               type="submit"
-              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-white text-[#0B0D17] transition-transform active:scale-95"
+              disabled={status === "loading"}
+              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-white text-[#0B0D17] transition-transform active:scale-95 disabled:opacity-60"
               aria-label="Subscribe"
             >
-              <ArrowRight size={16} />
+              {status === "loading" ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
             </button>
           </form>
         </div>
@@ -127,18 +169,11 @@ export default function MarketingFooter() {
         <div className="mt-10 flex flex-col gap-4 border-t border-white/10 pt-8 text-[13px] text-white/35 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Calixo, Inc. All rights reserved.</p>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <a href="#" className="hover:text-white/60">
-              Privacy Policy
-            </a>
-            <a href="#" className="hover:text-white/60">
-              Terms of Service
-            </a>
-            <a href="#" className="hover:text-white/60">
-              Security
-            </a>
-            <a href="#" className="hover:text-white/60">
-              Status
-            </a>
+            {["Privacy Policy", "Terms of Service", "Security", "Status"].map((label) => (
+              <span key={label} title="Coming soon" className="cursor-not-allowed text-white/20">
+                {label}
+              </span>
+            ))}
           </div>
         </div>
       </Container>

@@ -36,9 +36,12 @@ export function useAdsAutomationRules(organizationId: string) {
   const toggleActive = useCallback(
     async (id: string, isActive: boolean) => {
       setBusyId(id);
-      await adsAutomationRuleRegistry.setActive(id, isActive);
-      refresh();
-      setBusyId(null);
+      try {
+        await adsAutomationRuleRegistry.setActive(id, isActive);
+        refresh();
+      } finally {
+        setBusyId(null);
+      }
     },
     [refresh]
   );
@@ -54,10 +57,13 @@ export function useAdsAutomationRules(organizationId: string) {
   const runRule = useCallback(
     async (id: string, campaigns: Parameters<typeof adsAutomationRuleRegistry.run>[1]) => {
       setBusyId(id);
-      const result = await adsAutomationRuleRegistry.run(id, campaigns);
-      refresh();
-      setBusyId(null);
-      return result;
+      try {
+        const result = await adsAutomationRuleRegistry.run(id, campaigns);
+        refresh();
+        return result;
+      } finally {
+        setBusyId(null);
+      }
     },
     [refresh]
   );

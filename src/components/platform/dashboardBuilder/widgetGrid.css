@@ -1,0 +1,34 @@
+/* Calixo Platform - Widget Grid theming
+ * Overrides react-grid-layout's default (hardcoded, light-mode-only) resize
+ * handle and drop-placeholder colors with the app's real theme tokens, and
+ * wires `prefers-reduced-motion` / the `.widget-grid--no-motion` class
+ * through to react-grid-layout's own transition rules.
+ */
+
+.widget-grid > .react-grid-item.react-grid-placeholder {
+  background: var(--primary);
+  opacity: 0.12;
+  border-radius: 1rem;
+}
+
+.widget-grid > .react-grid-item > .react-resizable-handle::after {
+  border-right-color: var(--primary);
+  border-bottom-color: var(--primary);
+  opacity: 0.6;
+}
+
+.widget-grid > .react-grid-item.react-draggable-dragging {
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.28);
+}
+
+.widget-grid--no-motion,
+.widget-grid--no-motion .react-grid-item {
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .widget-grid,
+  .widget-grid .react-grid-item {
+    transition: none !important;
+  }
+}

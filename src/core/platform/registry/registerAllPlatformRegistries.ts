@@ -60,8 +60,7 @@ import { platformRegistry } from "./PlatformRegistry";
 import { userRegistry, teamRegistry } from "@/core/users";
 import { settingsRegistry, settingsGroupRegistry } from "@/core/settings";
 import { reportRegistry, dashboardRegistry as reportsDashboardRegistry, templateRegistry } from "@/core/reports";
-import { analyticsDashboardRegistry, segmentRegistry } from "@/core/analytics";
-import { dashboardLayoutRegistry } from "@/core/dashboard";
+import { segmentRegistry } from "@/core/analytics";
 import { ModuleRegistry } from "@/core/modules";
 import { connectorRegistry } from "@/integrations/registry/ConnectorRegistry";
 
@@ -90,9 +89,13 @@ export function registerAllPlatformRegistries(): void {
   platformRegistry.register({ name: "reports", kind: "ReportRegistry", count: () => reportRegistry.count() });
   platformRegistry.register({ name: "reportDashboards", kind: "DashboardRegistry", count: () => reportsDashboardRegistry.count() });
   platformRegistry.register({ name: "reportTemplates", kind: "TemplateRegistry", count: () => templateRegistry.count() });
-  platformRegistry.register({ name: "analyticsDashboards", kind: "AnalyticsDashboardRegistry", count: () => analyticsDashboardRegistry.count() });
+  // `analyticsDashboardRegistry`/`dashboardLayoutRegistry` (Round 23) are
+  // deliberately NOT registered here: both are now `"server-only"`-tagged
+  // and disk-backed, and this file is reachable from client bundles via
+  // `core/platform/index.ts` → several client Providers — importing them
+  // here would pull a `fs` dependency into the browser build. Their counts
+  // aren't available in the platform registry directory as a result.
   platformRegistry.register({ name: "analyticsSegments", kind: "SegmentRegistry", count: () => segmentRegistry.count() });
-  platformRegistry.register({ name: "dashboardLayouts", kind: "DashboardLayoutRegistry", count: () => dashboardLayoutRegistry.count() });
   platformRegistry.register({ name: "modules", kind: "ModuleRegistry", count: () => ModuleRegistry.getModuleCount() });
   platformRegistry.register({ name: "connectors", kind: "ConnectorRegistry", count: () => connectorRegistry.getConnectorCount() });
 

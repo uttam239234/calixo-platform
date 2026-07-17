@@ -18,7 +18,7 @@ const LANGUAGES = ["Spanish", "French", "German", "Hindi", "Portuguese", "Arabic
 export default function CreativeDesignStudioPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { mode, creativeCatalog, brandStyleDefaults, generateCreative, saveToAssets, submitForApproval, localize, canApprove } = useContentStudio();
+  const { mode, creativeCatalog, brandStyleDefaults, generateCreative, saveToAssets, submitForApproval, localize, canApprove, showToast } = useContentStudio();
 
   const [stage, setStage] = useState<Stage>("gallery");
   const [showHistory, setShowHistory] = useState(false);
@@ -219,7 +219,9 @@ export default function CreativeDesignStudioPage() {
 
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => saveToAssets(result.id)}
+                  onClick={() => {
+                    if (!saveToAssets(result.id)) showToast("Unable to save to Assets — check your plan or permissions.");
+                  }}
                   className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90"
                 >
                   <Save size={15} /> Save to Assets
@@ -237,7 +239,9 @@ export default function CreativeDesignStudioPage() {
                 )}
                 {mode === "advanced" && canApprove && (
                   <button
-                    onClick={() => submitForApproval(result.id)}
+                    onClick={() => {
+                      if (!submitForApproval(result.id)) showToast("Unable to submit for approval.");
+                    }}
                     className="flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary/30"
                   >
                     <Send size={15} /> Submit for Approval

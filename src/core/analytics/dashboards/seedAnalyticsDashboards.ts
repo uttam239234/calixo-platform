@@ -6,15 +6,19 @@
  * (Executive, Marketing, Campaign, Traffic, Revenue, Conversion, Audience).
  * SEO/Social/Brand/Lead/Sales/Customer analytics are NOT included here —
  * no real fact-table dimension backs them yet (see completion report).
+ * All `scope: "system"`, `organizationId: "system"` — global, read-only
+ * clone sources; editing one auto-forks a personal copy (see
+ * `DashboardLayoutRegistry.materializeUserLayout`).
  */
 
 import type { AnalyticsDashboardLayout, AnalyticsWidgetConfig, AnalyticsWidgetKey } from "./types";
-import { analyticsDashboardRegistry, AnalyticsDashboardRegistry } from "./AnalyticsDashboardRegistry";
+import { analyticsDashboardRegistry, AnalyticsDashboardRegistry, defaultAnalyticsWidgetSet } from "./AnalyticsDashboardRegistry";
 
 const TEMPLATE_OWNER = "system";
 
 function widgets(order: AnalyticsWidgetKey[], hidden: AnalyticsWidgetKey[] = [], pinned: AnalyticsWidgetKey[] = []): AnalyticsWidgetConfig[] {
-  return order.map((key, index) => ({ key, visible: !hidden.includes(key), pinned: pinned.includes(key), order: index }));
+  const base = defaultAnalyticsWidgetSet(order);
+  return base.map(w => ({ ...w, visible: !hidden.includes(w.key), pinned: pinned.includes(w.key) }));
 }
 
 const ALL_KEYS: AnalyticsWidgetKey[] = [
@@ -40,9 +44,12 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
     description: "Top-line KPIs, goal progress, and AI insights for leadership",
     persona: "executive",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: true,
     isFavorite: true,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
       ["executive-summary", "goals-scorecard", "health-score", "revenue-chart", "ai-insights", "insight-action-center", "reports-panel", "traffic-analytics", "channel-performance", "campaign-performance", "conversion-funnel", "audience-insights", "geo-performance"],
@@ -56,9 +63,12 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
     description: "Revenue, channel mix, and campaign performance for marketing teams",
     persona: "marketing",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: false,
     isFavorite: false,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
       ["executive-summary", "health-score", "revenue-chart", "channel-performance", "campaign-performance", "ai-insights", "insight-action-center", "goals-scorecard", "traffic-analytics", "conversion-funnel", "audience-insights", "geo-performance", "reports-panel"],
@@ -72,9 +82,12 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
     description: "Per-campaign performance, ROI, and conversion drop-off",
     persona: "campaign",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: false,
     isFavorite: false,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
       ["campaign-performance", "channel-performance", "conversion-funnel", "ai-insights", "insight-action-center", "executive-summary", "health-score", "goals-scorecard", "revenue-chart", "traffic-analytics", "audience-insights", "geo-performance", "reports-panel"],
@@ -88,9 +101,12 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
     description: "Sessions, engagement, and geo distribution",
     persona: "traffic",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: false,
     isFavorite: false,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
       ["traffic-analytics", "geo-performance", "audience-insights", "revenue-chart", "ai-insights", "executive-summary", "goals-scorecard", "health-score", "channel-performance", "campaign-performance", "conversion-funnel", "insight-action-center", "reports-panel"],
@@ -104,9 +120,12 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
     description: "Revenue trend, channel ROAS, and goal tracking",
     persona: "revenue",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: false,
     isFavorite: false,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
       ["revenue-chart", "executive-summary", "health-score", "channel-performance", "goals-scorecard", "ai-insights", "insight-action-center", "traffic-analytics", "campaign-performance", "conversion-funnel", "audience-insights", "geo-performance", "reports-panel"],
@@ -120,9 +139,12 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
     description: "Funnel drop-off and campaign conversion efficiency",
     persona: "conversion",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: false,
     isFavorite: false,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
       ["conversion-funnel", "campaign-performance", "traffic-analytics", "ai-insights", "insight-action-center", "executive-summary", "goals-scorecard", "health-score", "revenue-chart", "channel-performance", "audience-insights", "geo-performance", "reports-panel"],
@@ -136,9 +158,12 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
     description: "Segment composition, behavior, and geographic distribution",
     persona: "audience",
     owner: TEMPLATE_OWNER,
+    scope: "system",
+    organizationId: "system",
     isDefault: false,
     isFavorite: false,
     isTemplate: true,
+    templateVisibility: "organization",
     sharedWith: [],
     widgets: widgets(
       ["audience-insights", "geo-performance", "traffic-analytics", "ai-insights", "executive-summary", "goals-scorecard", "health-score", "revenue-chart", "channel-performance", "campaign-performance", "conversion-funnel", "insight-action-center", "reports-panel"],
@@ -150,7 +175,7 @@ const TEMPLATES: Omit<AnalyticsDashboardLayout, "createdAt" | "updatedAt">[] = [
 
 let seeded = false;
 
-/** Safe to call more than once — registers the 7 default templates exactly once. */
+/** Safe to call more than once — registers the 7 default templates exactly once per process (and, since the registry persists to disk, `register()` itself is also a no-op for any id already present from a prior boot's saved file). */
 export function seedAnalyticsDashboards(registry: AnalyticsDashboardRegistry = analyticsDashboardRegistry): void {
   if (seeded) return;
   const now = new Date().toISOString();
