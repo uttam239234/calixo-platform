@@ -56,8 +56,19 @@ export function InternalRoleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const isOwner = await checkBootstrapPlatformOwnerAction();
-      setIsBootstrapOwner(isOwner);
+      // TEMPORARY DEBUG INSTRUMENTATION — production Platform Owner detection
+      // investigation. The try/catch does not change the resulting state on
+      // any path: `isBootstrapOwner` was already implicitly `false` on any
+      // unhandled rejection before this change (its initial useState value).
+      // This only makes a failure visible in the browser console instead of
+      // surfacing as a silent unhandled-rejection warning.
+      try {
+        const isOwner = await checkBootstrapPlatformOwnerAction();
+        console.log("[PlatformOwnerTrace] step6 value received in internalRole.tsx", { isOwner });
+        setIsBootstrapOwner(isOwner);
+      } catch (error) {
+        console.error("[PlatformOwnerTrace] step6 checkBootstrapPlatformOwnerAction() THREW on the client", error);
+      }
     })();
   }, []);
 

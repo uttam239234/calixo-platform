@@ -67,11 +67,17 @@ export const PLATFORM_BYPASS_ROLES: InternalRole[] = ["PLATFORM_OWNER", "PLATFOR
  * the sidebar via a small Server Action — see its own comments.
  */
 function parsePlatformOwnerEmails(raw: string | undefined): string[] {
+  // TEMPORARY DEBUG INSTRUMENTATION — production Platform Owner detection
+  // investigation. Runs once per process start (this is a module-level
+  // const initializer). Remove once the failing step is identified.
+  console.log("[PlatformOwnerTrace] step1 raw env value", { PLATFORM_OWNER_EMAILS_raw: raw, typeofRaw: typeof raw });
   if (!raw) return [];
-  return raw
+  const parsed = raw
     .split(",")
     .map(email => email.trim().toLowerCase())
     .filter(Boolean);
+  console.log("[PlatformOwnerTrace] step2 parsed email list", { parsed });
+  return parsed;
 }
 
 export const PLATFORM_OWNER_EMAILS: string[] = parsePlatformOwnerEmails(process.env.PLATFORM_OWNER_EMAILS);
@@ -96,7 +102,15 @@ export interface DerivePlatformRoleInput {
  */
 export function derivePlatformRole(input: DerivePlatformRoleInput): InternalRole {
   const normalizedEmail = input.email?.trim().toLowerCase();
-  if (normalizedEmail && PLATFORM_OWNER_EMAILS.includes(normalizedEmail)) return "PLATFORM_OWNER";
+  // TEMPORARY DEBUG INSTRUMENTATION — see parsePlatformOwnerEmails() above.
+  const isBootstrapOwnerEmail = !!normalizedEmail && PLATFORM_OWNER_EMAILS.includes(normalizedEmail);
+  console.log("[PlatformOwnerTrace] step4 comparison", {
+    rawEmailInput: input.email,
+    normalizedEmail,
+    configuredEmails: PLATFORM_OWNER_EMAILS,
+    isBootstrapOwnerEmail,
+  });
+  if (isBootstrapOwnerEmail) return "PLATFORM_OWNER";
 
   const isStaffOrg = input.orgSlug === CALIXO_STAFF_ORG_SLUG;
   const isStaffOrgAdmin = isStaffOrg && !!input.orgRole?.toLowerCase().includes("admin");

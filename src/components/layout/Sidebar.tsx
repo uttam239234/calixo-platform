@@ -36,6 +36,11 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { hasPlatformAdminAccess } = useInternalRole();
 
+  // TEMPORARY DEBUG INSTRUMENTATION — production Platform Owner detection investigation.
+  if (typeof window !== "undefined") {
+    console.log("[PlatformOwnerTrace] step7 sidebar visibility condition", { hasPlatformAdminAccess });
+  }
+
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
     return pathname?.startsWith(href + "/") || pathname === href;

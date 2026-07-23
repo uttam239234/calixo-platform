@@ -26,7 +26,30 @@ import { currentUser } from "@clerk/nextjs/server";
 import { derivePlatformRole } from "@/identity/platformRole";
 
 export async function checkBootstrapPlatformOwnerAction(): Promise<boolean> {
-  const user = await currentUser();
-  const email = user?.primaryEmailAddress?.emailAddress ?? null;
-  return derivePlatformRole({ email, orgSlug: null, orgRole: null, hasOrgMembership: false }) === "PLATFORM_OWNER";
+  // TEMPORARY DEBUG INSTRUMENTATION — production Platform Owner detection
+  // investigation. The try/catch is diagnostic scaffolding only: it does not
+  // change the resulting value on any path (an exception here would already
+  // have surfaced client-side as a rejected promise before this change,
+  // silently leaving the caller's default state as "not owner" — identical
+  // net outcome). It exists so a failure INSIDE this function body is
+  // distinguishable in server logs from a failure in Next's own Server
+  // Action dispatch/origin-validation layer, which would prevent this
+  // function body from ever running at all (no log line would appear here
+  // in that case — that absence is itself diagnostic).
+  try {
+    const user = await currentUser();
+    const email = user?.primaryEmailAddress?.emailAddress ?? null;
+    console.log("[PlatformOwnerTrace] step3 clerk primary email (server action)", {
+      clerkUserId: user?.id ?? null,
+      email,
+    });
+
+    const role = derivePlatformRole({ email, orgSlug: null, orgRole: null, hasOrgMembership: false });
+    const isOwner = role === "PLATFORM_OWNER";
+    console.log("[PlatformOwnerTrace] step5 server action return value", { role, isOwner });
+    return isOwner;
+  } catch (error) {
+    console.error("[PlatformOwnerTrace] step5 server action THREW", error);
+    throw error;
+  }
 }
