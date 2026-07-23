@@ -26,7 +26,7 @@ interface ResultState {
  */
 export default function AiReportAssistantPage() {
   const router = useRouter();
-  const { currentUserName, canCreate, recordAiGenerated, showToast } = useReportsContext();
+  const { currentUserName, canCreate, recordAiGenerated, showToast, generateFromTemplate } = useReportsContext();
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [message, setMessage] = useState("");
@@ -80,9 +80,14 @@ export default function AiReportAssistantPage() {
   async function handleQuickTemplate(sourceId: ReportSourceId) {
     guardedStart(async () => {
       setPhase("generating");
-      const { report, dataset } = await reportsPlatformAPI.generateFromTemplate(sourceId, currentUserName);
+      const outcome = await generateFromTemplate(sourceId);
+      if (!outcome) {
+        setPhase("intro");
+        return;
+      }
+      const { report, dataset, aiSummary } = outcome;
       recordAiGenerated();
-      setResult({ report, dataset, responseText: dataset?.sourceLabel ? `Here's your "${report.name}" report — live data from ${dataset.sourceLabel}.` : `Created "${report.name}".` });
+      setResult({ report, dataset, responseText: aiSummary ?? (dataset?.sourceLabel ? `Here's your "${report.name}" report — live data from ${dataset.sourceLabel}.` : `Created "${report.name}".`) });
       setPhase("result");
     });
   }

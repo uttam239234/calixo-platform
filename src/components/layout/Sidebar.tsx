@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import "@/core/modules/bootstrap";
 import { ModuleNavigation } from "@/core/modules";
 import type { ModuleNavSection, ModuleNavItem } from "@/core/modules";
-import { ChevronLeft, ChevronRight, Zap, HardDrive, CreditCard, KeyRound, Landmark, ScrollText, Boxes, HeartPulse } from "lucide-react";
+import { ChevronLeft, ChevronRight, Zap, HardDrive, CreditCard, KeyRound, Landmark, ScrollText, Boxes, HeartPulse, BrainCircuit } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useInternalRole } from "@/features/platform-admin/internalRole";
 
@@ -24,6 +24,7 @@ const PLATFORM_NAV_ITEMS = [
   { href: "/dashboard/settings/audit", label: "Global Audit Logs", icon: ScrollText },
   { href: "/platform-admin/plans", label: "Internal Plans", icon: Boxes },
   { href: "/platform-admin/health", label: "Platform Health", icon: HeartPulse },
+  { href: "/platform-admin/ai-health", label: "AI Health", icon: BrainCircuit },
 ];
 
 interface SidebarProps {

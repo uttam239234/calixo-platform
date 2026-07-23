@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { CheckCircle2, Lock, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Lock, X } from "lucide-react";
 import {
   CONTENT_ORGANIZATION_ID,
   canUseContentFeature,
@@ -17,7 +17,6 @@ import type {
   ContentAction,
   ContentBrief,
   ContentOutputKind,
-  ContentStudioMode,
   CreativeOutputKind,
   GenerationHistoryEntry,
 } from "@/core/content";
@@ -27,7 +26,7 @@ import { useOrganizationId } from "@/organizations/hooks/useOrganization";
 import { authorizationPlatformAPI, permissionName } from "@/core/platform/access";
 import { initializePlatformFoundation } from "@/core/platform";
 import { ModuleEmptyState } from "@/components/enterprise/module";
-import { generateContentAction, generateCreativeAction } from "./actions";
+import { editCreativeVariationAction, generateContentAction, generateCreativeAction } from "./actions";
 
 /**
  * The brief's dotted permission names (content.read/content.create/...) consolidate onto the
@@ -53,8 +52,6 @@ interface ContentTenantContext {
 
 interface ContentStudioContextValue {
   hydrated: boolean;
-  mode: ContentStudioMode;
-  toggleMode: () => void;
   history: GenerationHistoryEntry[];
   selectedBrandId: string;
   setSelectedBrandId: (id: string) => void;
@@ -69,14 +66,15 @@ interface ContentStudioContextValue {
   canExport: boolean;
   canApprove: boolean;
   canManage: boolean;
-  generateCreative: (brief: ContentBrief, outputId: CreativeOutputKind) => Promise<GenerationHistoryEntry | undefined>;
+  generateCreative: (brief: ContentBrief, outputId: CreativeOutputKind, variationCount?: number) => Promise<GenerationHistoryEntry | undefined>;
   generateContent: (brief: ContentBrief, outputId: ContentOutputKind) => Promise<GenerationHistoryEntry | undefined>;
+  editCreativeVariation: (entryId: string, variationIndex: number, instruction: string) => Promise<GenerationHistoryEntry | undefined>;
   applyAction: (entryId: string, action: ContentAction) => Promise<GenerationHistoryEntry | undefined>;
   localize: (entryId: string, language: string) => GenerationHistoryEntry | undefined;
   saveToAssets: (entryId: string) => boolean;
   submitForApproval: (entryId: string) => boolean;
   refreshHistory: () => void;
-  showToast: (message: string) => void;
+  showToast: (message: string, tone?: "success" | "error") => void;
 }
 
 const ContentStudioContext = createContext<ContentStudioContextValue | undefined>(undefined);
@@ -87,11 +85,10 @@ const ContentStudioContext = createContext<ContentStudioContextValue | undefined
  * `BrandMonitoringProvider.tsx` exactly. Mounted once in `dashboard/content/layout.tsx`.
  */
 export function ContentStudioProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<ContentStudioMode>("simple");
   const [history, setHistory] = useState<GenerationHistoryEntry[]>([]);
   const [selectedBrandId, setSelectedBrandId] = useState("brand-calixo");
   const [hydrated, setHydrated] = useState(false);
-  const [toast, setToast] = useState("");
+  const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [permissions, setPermissions] = useState<string[] | null>(null);
 
   const { identity } = useCalixoIdentity();
@@ -135,7 +132,10 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (toast) {
-      const id = setTimeout(() => setToast(""), 3000);
+      // Errors stay up considerably longer than success confirmations — a 3s auto-dismiss on a
+      // real failure (e.g. "Out of AI credits") reads as "nothing happened" if the user glances
+      // away for even a moment, which is exactly the reported symptom this duration split fixes.
+      const id = setTimeout(() => setToast(null), toast.tone === "error" ? 8000 : 3000);
       return () => clearTimeout(id);
     }
   }, [toast]);
@@ -165,21 +165,17 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
   const canApprove = hasPermission(CONTENT_ACTION_PERMISSIONS.approve);
   const canManage = hasPermission(CONTENT_ACTION_PERMISSIONS.manage);
 
-  const showToast = useCallback((message: string) => setToast(message), []);
-
-  const toggleMode = useCallback(() => {
-    setMode(prev => (prev === "simple" ? "advanced" : "simple"));
-  }, []);
+  const showToast = useCallback((message: string, tone: "success" | "error" = "success") => setToast({ message, tone }), []);
 
   const generateCreative = useCallback(
-    async (brief: ContentBrief, outputId: CreativeOutputKind) => {
+    async (brief: ContentBrief, outputId: CreativeOutputKind, variationCount?: number) => {
       if (!canCreate) return undefined;
       const startedAt = Date.now();
       try {
         // Real backend enforcement boundary — see `generateCreativeAction`'s doc comment.
-        const actionResult = await generateCreativeAction({ ...brief, brandStyleId: brief.brandStyleId ?? selectedBrandId }, outputId);
+        const actionResult = await generateCreativeAction({ ...brief, brandStyleId: brief.brandStyleId ?? selectedBrandId }, outputId, variationCount);
         if (!actionResult.ok || !actionResult.entry) {
-          showToast(actionResult.error ?? "Something went wrong generating that creative.");
+          showToast(actionResult.error ?? "Something went wrong generating that creative.", "error");
           return undefined;
         }
         const entry = actionResult.entry;
@@ -192,11 +188,32 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
         return entry;
       } catch (error) {
         logContentError("Failed to generate creative", error);
-        showToast("Something went wrong generating that creative.");
+        showToast("Something went wrong generating that creative.", "error");
         return undefined;
       }
     },
     [canCreate, selectedBrandId, tenantContext, refreshHistory, showToast]
+  );
+
+  const editCreativeVariation = useCallback(
+    async (entryId: string, variationIndex: number, instruction: string) => {
+      if (!canUpdate) return undefined;
+      try {
+        const actionResult = await editCreativeVariationAction(entryId, variationIndex, instruction);
+        if (!actionResult.ok || !actionResult.entry) {
+          showToast(actionResult.error ?? "Something went wrong applying that change.", "error");
+          return undefined;
+        }
+        trackContentAction("editCreativeVariation");
+        refreshHistory();
+        return actionResult.entry;
+      } catch (error) {
+        logContentError("Failed to edit creative variation", error);
+        showToast("Something went wrong applying that change.", "error");
+        return undefined;
+      }
+    },
+    [canUpdate, refreshHistory, showToast]
   );
 
   const generateContent = useCallback(
@@ -207,7 +224,7 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
         // Real backend enforcement boundary — see `generateContentAction`'s doc comment.
         const actionResult = await generateContentAction({ ...brief, brandStyleId: brief.brandStyleId ?? selectedBrandId }, outputId);
         if (!actionResult.ok || !actionResult.entry) {
-          showToast(actionResult.error ?? "Something went wrong generating that content.");
+          showToast(actionResult.error ?? "Something went wrong generating that content.", "error");
           return undefined;
         }
         const entry = actionResult.entry;
@@ -220,7 +237,7 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
         return entry;
       } catch (error) {
         logContentError("Failed to generate content", error);
-        showToast("Something went wrong generating that content.");
+        showToast("Something went wrong generating that content.", "error");
         return undefined;
       }
     },
@@ -294,8 +311,6 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ContentStudioContextValue>(
     () => ({
       hydrated,
-      mode,
-      toggleMode,
       history,
       selectedBrandId,
       setSelectedBrandId,
@@ -312,6 +327,7 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
       canManage,
       generateCreative,
       generateContent,
+      editCreativeVariation,
       applyAction,
       localize,
       saveToAssets,
@@ -321,8 +337,6 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
     }),
     [
       hydrated,
-      mode,
-      toggleMode,
       history,
       selectedBrandId,
       brandStyleDefaults,
@@ -338,6 +352,7 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
       canManage,
       generateCreative,
       generateContent,
+      editCreativeVariation,
       applyAction,
       localize,
       saveToAssets,
@@ -359,10 +374,15 @@ export function ContentStudioProvider({ children }: { children: ReactNode }) {
     <ContentStudioContext.Provider value={value}>
       {children}
       {toast && (
-        <div role="status" className="fixed bottom-6 right-6 z-50 flex max-w-sm items-center gap-3 rounded-2xl border border-success/20 bg-card px-4 py-3 text-sm text-foreground shadow-2xl">
-          <CheckCircle2 size={18} className="text-success" />
-          <span>{toast}</span>
-          <button onClick={() => setToast("")} className="ml-2 text-muted-foreground hover:text-foreground">
+        <div
+          role={toast.tone === "error" ? "alert" : "status"}
+          className={`fixed bottom-6 right-6 z-50 flex max-w-sm items-center gap-3 rounded-2xl border px-4 py-3 text-sm text-foreground shadow-2xl ${
+            toast.tone === "error" ? "border-destructive/30 bg-destructive/5" : "border-success/20 bg-card"
+          }`}
+        >
+          {toast.tone === "error" ? <AlertTriangle size={18} className="text-destructive shrink-0" /> : <CheckCircle2 size={18} className="text-success shrink-0" />}
+          <span>{toast.message}</span>
+          <button onClick={() => setToast(null)} className="ml-2 shrink-0 text-muted-foreground hover:text-foreground">
             <X size={15} />
           </button>
         </div>

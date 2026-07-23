@@ -14,16 +14,28 @@ import { resolveIdentity } from "@/identity/bridge/resolveIdentity.server";
 import { entitlementService } from "@/core/platform/access";
 import { reportsPlatformAPI } from "@/core/reports";
 import type { DeliveryMethod, ExportFormat, ReportDataset, ReportDefinition, ReportRecipient, ReportSchedule, ReportSourceId, ScheduleFrequency } from "@/core/reports";
+import { generateId } from "@/shared/utils/string";
+import { aiService } from "@/aios/services/AIService";
 
-/** No real LLM call backs "AI-generated" report templates in this codebase (same disclosed-simulation standard as `seedOrganizationBilling.ts`'s synthetic usage) — a fixed, modest credit cost, smaller than a full Copilot conversation turn. */
+/** A fixed, disclosed credit cost per generation — unchanged product-pricing choice, not a technical limitation. */
 const REPORT_GENERATION_CREDIT_COST = 10;
 
 export interface GenerateReportActionResult {
   ok: boolean;
   report?: ReportDefinition;
   dataset?: ReportDataset;
+  /** Real, this round: a genuine model-generated summary + key insights over the real dataset rows — replaces the old template string entirely for this (the Server-Action-gated) generation path. The client-direct Assistant chat path (`reportsPlatformAPI.resolveAssistantSession`, called straight from `reports/page.tsx` with no server round-trip) is NOT wired to real AI this round — doing so safely would first require moving that call behind a Server Action, a larger, separate architectural change; disclosed, not fixed here. */
+  aiSummary?: string;
   error?: string;
   upgradeTarget?: string;
+}
+
+/** Digest the dataset into a compact, real-numbers-only text block for the model — never sends raw PII-shaped columns, only whatever `ReportEngine` already computed. */
+function digestDataset(report: ReportDefinition, dataset?: ReportDataset): string {
+  if (!dataset || dataset.rows.length === 0) return `Report "${report.name}" ran but returned no rows.`;
+  const columns = dataset.columns.map(c => c.label).join(", ");
+  const sampleRows = dataset.rows.slice(0, 25).map(r => JSON.stringify(r)).join("\n");
+  return `Report: ${report.name}\nColumns: ${columns}\nRow count: ${dataset.rowCount}\nSample rows (up to 25):\n${sampleRows}`;
 }
 
 export async function generateReportFromTemplateAction(sourceId: ReportSourceId, owner: string): Promise<GenerateReportActionResult> {
@@ -44,8 +56,19 @@ export async function generateReportFromTemplateAction(sourceId: ReportSourceId,
 
   try {
     const outcome = await reportsPlatformAPI.generateFromTemplate(sourceId, owner);
-    await entitlementService.commitAiCredits(actor, reservationId, REPORT_GENERATION_CREDIT_COST, "AI report generation");
-    return { ok: true, report: outcome.report, dataset: outcome.dataset };
+
+    let aiSummary: string | undefined;
+    let actualCredits = REPORT_GENERATION_CREDIT_COST;
+    try {
+      const response = await aiService.summarize(digestDataset(outcome.report, outcome.dataset), { userId: identity.userId, organizationId: identity.organizationId, module: "reports" });
+      aiSummary = response.message.content;
+      actualCredits = Math.max(1, response.usage.totalTokens);
+    } catch {
+      // Real dataset generation already succeeded — a failed AI summary shouldn't fail the whole report, just omit it and keep the disclosed flat credit cost.
+    }
+
+    await entitlementService.commitAiCredits(actor, reservationId, actualCredits, "AI report generation");
+    return { ok: true, report: outcome.report, dataset: outcome.dataset, aiSummary };
   } catch (error) {
     await entitlementService.releaseAiCredits(actor, reservationId);
     return { ok: false, error: error instanceof Error ? error.message : "Something went wrong generating that report." };

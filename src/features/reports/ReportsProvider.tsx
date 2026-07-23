@@ -54,7 +54,7 @@ interface ReportsContextValue {
   canCreate: boolean;
   canExport: boolean;
   canManage: boolean;
-  generateFromTemplate: (sourceId: ReportSourceId) => Promise<{ report: ReportDefinition; dataset?: ReportDataset } | undefined>;
+  generateFromTemplate: (sourceId: ReportSourceId) => Promise<{ report: ReportDefinition; dataset?: ReportDataset; aiSummary?: string } | undefined>;
   recordExport: () => void;
   recordSchedule: () => void;
   recordAiGenerated: () => void;
@@ -155,7 +155,7 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
           showToast(actionResult.error ?? "Something went wrong generating that report.");
           return undefined;
         }
-        const result = { report: actionResult.report, dataset: actionResult.dataset };
+        const result = { report: actionResult.report, dataset: actionResult.dataset, aiSummary: actionResult.aiSummary };
         recordReportsUsage(tenantContext, "reports.reportCreated");
         recordReportsUsage(tenantContext, "reports.aiGenerated");
         trackReportsAction("generateFromTemplate");

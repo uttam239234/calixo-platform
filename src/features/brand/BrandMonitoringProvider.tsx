@@ -18,7 +18,8 @@ import {
   trackReputationAction,
   trackReputationTiming,
 } from "@/core/reputation";
-import type { AlertRule, BrandMention, BrandReport, ReputationSettings } from "@/core/reputation";
+import type { AlertRule, BrandMention, BrandReport, ReputationSettings, ReputationInsight } from "@/core/reputation";
+import { generateBrandInsightAction } from "./insightsActions";
 import { workflowPlatformAPI } from "@/core/workflow";
 import { generateId } from "@/shared/utils/string";
 import { useUser } from "@clerk/nextjs";
@@ -71,6 +72,9 @@ interface BrandMonitoringContextValue {
   reports: BrandReport[];
   settings: ReputationSettings;
   insights: ReturnType<typeof reputationPlatformAPI.getInsights>;
+  generateInsight: () => Promise<void>;
+  generatingInsight: boolean;
+  insightError: string | null;
   sentimentForecast: ReturnType<typeof reputationPlatformAPI.forecastReputationTrend>;
   healthScore: ReturnType<typeof reputationPlatformAPI.getHealthScore>;
   actionCenterItems: ReturnType<typeof reputationPlatformAPI.getActionCenterItems>;
@@ -144,10 +148,10 @@ export function BrandMonitoringProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      await syncReputationSourcesFromConnectors(tenantContext.organizationId);
+      await syncReputationSourcesFromConnectors();
       setConnectorSyncVersion(v => v + 1);
     })();
-  }, [tenantContext.organizationId]);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -433,7 +437,28 @@ export function BrandMonitoringProvider({ children }: { children: ReactNode }) {
   const competitors = useMemo(() => reputationPlatformAPI.getCompetitorLandscape(mentions), [mentions]);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- crisisVersion is a manual re-trigger: resolve/reopen mutate the registry's resolved-id set, which `mentions` doesn't reflect
   const crisisAlerts = useMemo(() => reputationPlatformAPI.getCrisisAlerts(mentions), [mentions, crisisVersion]);
-  const insights = useMemo(() => reputationPlatformAPI.getInsights(mentions), [mentions]);
+  const [aiGeneratedInsights, setAiGeneratedInsights] = useState<ReputationInsight[]>([]);
+  const [generatingInsight, setGeneratingInsight] = useState(false);
+  const [insightError, setInsightError] = useState<string | null>(null);
+  const insights = useMemo(() => [...aiGeneratedInsights, ...reputationPlatformAPI.getInsights(mentions)], [mentions, aiGeneratedInsights]);
+
+  /** Real AI call (see `generateBrandInsightAction`) — prepends a genuinely model-generated insight; the rest of `insights` stays the existing deterministic surface. */
+  const generateInsight = useCallback(async () => {
+    setGeneratingInsight(true);
+    setInsightError(null);
+    try {
+      const result = await generateBrandInsightAction();
+      if (!result.ok || !result.insight) {
+        setInsightError(result.error ?? "Something went wrong generating that insight.");
+        return;
+      }
+      setAiGeneratedInsights(prev => [result.insight!, ...prev]);
+    } catch (error) {
+      setInsightError(error instanceof Error ? error.message : "Something went wrong generating that insight.");
+    } finally {
+      setGeneratingInsight(false);
+    }
+  }, []);
   const sentimentForecast = useMemo(() => reputationPlatformAPI.forecastReputationTrend(sentimentTimeline.map(p => p.positive), 3), [sentimentTimeline]);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- crisisVersion/connectorSyncVersion are manual re-triggers for state the health score reads but `mentions` doesn't reflect
   const healthScore = useMemo(() => reputationPlatformAPI.getHealthScore(mentions), [mentions, crisisVersion, connectorSyncVersion]);
@@ -459,6 +484,9 @@ export function BrandMonitoringProvider({ children }: { children: ReactNode }) {
       reports,
       settings,
       insights,
+      generateInsight,
+      generatingInsight,
+      insightError,
       sentimentForecast,
       healthScore,
       actionCenterItems,
@@ -511,6 +539,9 @@ export function BrandMonitoringProvider({ children }: { children: ReactNode }) {
       reports,
       settings,
       insights,
+      generateInsight,
+      generatingInsight,
+      insightError,
       sentimentForecast,
       healthScore,
       actionCenterItems,

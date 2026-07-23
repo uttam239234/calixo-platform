@@ -32,6 +32,7 @@ const NAV_ITEMS = [
   { href: "/platform-admin/experiments", label: "Experiments" },
   { href: "/platform-admin/settings", label: "Global Settings" },
   { href: "/platform-admin/secrets", label: "Platform Secrets" },
+  { href: "/platform-admin/connectors", label: "Connector Framework" },
   { href: "/platform-admin/health", label: "Platform Health" },
   { href: "/platform-admin/diagnostics", label: "Access Diagnostics" },
 ];

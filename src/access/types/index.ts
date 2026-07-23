@@ -85,6 +85,14 @@ export type AuditEventType =
   | 'secret_rotated'
   | 'secret_validated'
   | 'secret_connection_tested'
+  // Additive — OAuth Applications console. Every write against a platform-owned
+  // OAuth application (never the plaintext client secret — see
+  // `core/platform/secrets/oauth/OAuthApplicationService.ts`).
+  | 'oauth_application_created'
+  | 'oauth_application_updated'
+  | 'oauth_application_reset'
+  | 'oauth_application_validated'
+  | 'oauth_application_tested'
   // Additive — Platform Owner bootstrap access control. Real login/role/
   // access-attempt events for the platform role model (see
   // identity/platformRole.ts).
@@ -114,7 +122,17 @@ export type AuditEventType =
   | 'widget_removed'
   | 'layout_reset'
   | 'layout_created'
-  | 'template_applied';
+  | 'template_applied'
+  // Additive — Universal Connector Framework. Organization-level connector
+  // lifecycle mutations only (never a platform OAuth application change —
+  // those already have their own 'oauth_application_*' events above). See
+  // `core/connectors/TokenManager.ts` / `ConnectorRegistry.ts`.
+  | 'connector_installed'
+  | 'connector_uninstalled'
+  | 'connector_credential_stored'
+  | 'connector_credential_revoked'
+  | 'connector_token_refreshed'
+  | 'connector_webhook_registered';
 
 // ============================================================================
 // Team

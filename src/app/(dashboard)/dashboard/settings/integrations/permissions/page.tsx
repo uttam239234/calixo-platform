@@ -4,7 +4,7 @@ import { Check, X } from "lucide-react";
 import { ModuleHeader } from "@/components/enterprise/module";
 import { useSettingsContext } from "@/features/settings/SettingsProvider";
 import { useIntegrations } from "@/hooks/useIntegrations";
-import { ALL_CAPABILITIES, CAPABILITY_LABELS } from "@/features/settings/integrations/constants";
+import { ALL_FEATURES, FEATURE_LABELS } from "@/features/settings/integrations/constants";
 
 export default function IntegrationPermissionsPage() {
   const { tenantContext } = useSettingsContext();
@@ -22,19 +22,19 @@ export default function IntegrationPermissionsPage() {
       ) : (
         <div className="space-y-4">
           {integrations.apps.map(app => (
-            <div key={app.connection.id} className="rounded-2xl border border-border bg-card p-5">
+            <div key={app.instance.id} className="rounded-2xl border border-border bg-card p-5">
               <p className="mb-4 flex items-center gap-2 text-base">
                 <span className="text-xl">{app.icon}</span>
-                <span className="font-semibold text-foreground">{app.connection.name}</span>
+                <span className="font-semibold text-foreground">{app.instance.displayName}</span>
                 <span className="text-muted-foreground">can:</span>
               </p>
               <ul className="grid gap-2 sm:grid-cols-2">
-                {ALL_CAPABILITIES.map(capability => {
-                  const allowed = app.connection.capabilities.includes(capability);
+                {ALL_FEATURES.map(feature => {
+                  const allowed = app.definition.supportedFeatures.includes(feature);
                   return (
-                    <li key={capability} className="flex items-center gap-2.5 text-sm">
+                    <li key={feature} className="flex items-center gap-2.5 text-sm">
                       {allowed ? <Check size={16} className="flex-shrink-0 text-success" /> : <X size={16} className="flex-shrink-0 text-muted-foreground" />}
-                      <span className={allowed ? "text-foreground" : "text-muted-foreground"}>{CAPABILITY_LABELS[capability]}</span>
+                      <span className={allowed ? "text-foreground" : "text-muted-foreground"}>{FEATURE_LABELS[feature]}</span>
                     </li>
                   );
                 })}

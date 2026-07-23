@@ -158,6 +158,12 @@ class EntitlementService {
   /** Step 1 (validate) as a non-mutating, cacheable read — callers that only need "would this be allowed" (e.g. disabling a Send button) should call this instead of `reserveAiCredits()`, which always holds real balance. */
   async canExecuteAI(actor: EntitlementActor, estimatedCredits: number): Promise<EntitlementResult> {
     if (hasPlatformBypass(actor.userId)) return { allowed: true, reasonCode: "platform_bypass" };
+    // Root-cause fix (production incident, Content Studio "generate produces nothing"): the real
+    // monthly AI-credit grant only ever ran from a seed step nothing in the app actually called,
+    // so every organization's real balance sat at 0 forever and every credit check failed here,
+    // silently, on the very first request. Ensuring the grant on every real check makes this
+    // self-healing regardless of when/whether the organization was ever explicitly seeded.
+    creditPlatformAPI.ensureMonthlyAiCreditsGranted(actor.organizationId);
     const decision = entitlementPlatformAPI.canUseCredit(actor.organizationId, "ai", estimatedCredits);
     return decision.allowed
       ? { allowed: true, reasonCode: "allowed", used: decision.used, remaining: decision.remaining }

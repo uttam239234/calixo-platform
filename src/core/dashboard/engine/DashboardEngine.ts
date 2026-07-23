@@ -12,8 +12,10 @@
  *  - `notificationsPlatformAPI` (src/communication/platform) for the
  *    notification feed and unread count.
  *  - `assetsPlatformAPI` (src/core/assets/platform) for asset activity.
- *  - `connectorsPlatformAPI` (src/integrations/platform) for connection
- *    status.
+ *  - The Universal Connector Framework's Server Actions (`@/core/connectors/actions`)
+ *    for real connector instance/health/token/sync status — never the
+ *    `"server-only"` `connectorFrameworkAPI` directly, since this engine
+ *    is reachable from client component bundles (`DashboardShell.tsx`).
  *
  * No persistence, no UI, no new business rules — this is an adapter/
  * composition layer only.
@@ -24,14 +26,24 @@ import { workflowPlatformAPI } from "@/core/workflow/platform/WorkflowPlatformAP
 import { notificationsPlatformAPI } from "@/communication/platform/NotificationsPlatformAPI";
 import { analyticsPlatformAPI } from "@/core/analytics/platform/AnalyticsPlatformAPI";
 import { assetsPlatformAPI } from "@/core/assets/platform/AssetsPlatformAPI";
-import { connectorsPlatformAPI } from "@/integrations/platform/ConnectorsPlatformAPI";
+import { listConnectorInstancesAction, getConnectorHealthAction, getConnectorSyncHistoryAction, getConnectorTokenStatusAction, refreshConnectorAction } from "@/core/connectors/actions";
+import type { ConnectorHealthStatus } from "@/core/connectors/types";
 import { goalEngine, GoalEngine } from "@/core/platform/goals";
 import { linearForecast } from "@/core/platform/forecast/linearForecast";
 import { alertPlatformAPI } from "@/core/platform/observability/AlertPlatformAPI";
 import { entitlementPlatformAPI } from "@/core/platform/commercial/EntitlementPlatformAPI";
 import { subscriptionPlatformAPI } from "@/core/platform/commercial/SubscriptionPlatformAPI";
 import { dashboardActivityLog } from "../activity/DashboardActivityLog";
-import { DASHBOARD_ORGANIZATION_ID } from "../integrations/seedDashboardConnections";
+
+export const DASHBOARD_ORGANIZATION_ID = "org-current";
+
+/** A coarse, honestly-derived stand-in for a numeric success rate — the framework's `ConnectorHealth` reports a status, not a percentage, so this maps status to a representative figure rather than fabricating precision that doesn't exist. */
+function successRateForHealth(status: ConnectorHealthStatus): number {
+  if (status === "healthy") return 100;
+  if (status === "warning") return 70;
+  if (status === "rate_limited") return 50;
+  return 0;
+}
 import type {
   DashboardActionCenterItem,
   DashboardActivityEntry,
@@ -181,29 +193,41 @@ export class DashboardEngine {
   }
 
   /**
-   * Reads real connection state from the Connector Platform's facade —
-   * seeded once via `seedDashboardConnections()`. Accepts the caller's
-   * real `organizationId` (from `useOrganizationId()`) so connector data
-   * is tenant-scoped; falls back to the demo org when no real session
-   * exists yet.
+   * Reads real connector instances from the Universal Connector Framework.
+   * The connector actions below derive the real signed-in session's own
+   * organization themselves via `resolveIdentity()`, never a caller-supplied
+   * id (a client-resolved id lives in a different registry instance than
+   * the server's and would never match). An org with nothing installed yet
+   * correctly returns an empty list — not a fabricated "connected" state.
    */
-  async getConnectedPlatforms(organizationId: string = DASHBOARD_ORGANIZATION_ID): Promise<DashboardConnectedPlatform[]> {
-    const connections = await connectorsPlatformAPI.getConnectorSummaries(organizationId);
-    return connections.map(c => ({
-      id: c.id,
-      name: c.name,
-      providerId: c.providerId,
-      status: c.status === "expired" ? "error" : (c.status as DashboardConnectedPlatform["status"]),
-      lastSyncAt: c.lastSyncAt,
-      errorMessage: c.status === "error" ? (c.health?.lastErrorMessage ?? "Connection error") : undefined,
-      successRate: c.health?.successRate,
-      tokenExpiresAt: c.tokenExpiresAt,
-    }));
+  async getConnectedPlatforms(): Promise<DashboardConnectedPlatform[]> {
+    const instances = await listConnectorInstancesAction();
+
+    return Promise.all(
+      instances.map(async instance => {
+        const [health, syncHistory, credential] = await Promise.all([
+          getConnectorHealthAction(instance.id).catch(() => undefined),
+          getConnectorSyncHistoryAction(instance.id).catch(() => []),
+          getConnectorTokenStatusAction(instance.id).catch(() => undefined),
+        ]);
+        const status: DashboardConnectedPlatform["status"] = instance.status === "active" ? "connected" : instance.status === "paused" ? "connecting" : instance.status === "error" ? "error" : "disconnected";
+        return {
+          id: instance.id,
+          name: instance.displayName,
+          providerId: instance.connectorId,
+          status,
+          lastSyncAt: syncHistory[syncHistory.length - 1]?.finishedAt,
+          errorMessage: status === "error" ? (health?.message ?? "Connection error") : undefined,
+          successRate: health ? successRateForHealth(health.status) : undefined,
+          tokenExpiresAt: credential?.expiresAt,
+        };
+      })
+    );
   }
 
-  async retryConnection(connectionId: string): Promise<void> {
-    await connectorsPlatformAPI.reconnect(connectionId);
-    dashboardActivityLog.record("You", "reconnected", connectionId);
+  async retryConnection(connectorInstanceId: string): Promise<void> {
+    await refreshConnectorAction(connectorInstanceId);
+    dashboardActivityLog.record("You", "reconnected", connectorInstanceId);
   }
 
   /** Computed from real Workflow entries that carry a due date and aren't yet resolved. */
@@ -287,7 +311,7 @@ export class DashboardEngine {
     const healthScore = Math.max(40, Math.min(99, 78 + healthInputs.reduce((a, b) => a + b, 0) * 7));
     const healthLabel = healthScore >= 85 ? "Excellent" : healthScore >= 70 ? "Good" : "Needs Attention";
 
-    const connections = await this.getConnectedPlatforms(organizationId);
+    const connections = await this.getConnectedPlatforms();
     const expiringSoon = connections.filter(c => c.tokenExpiresAt && Math.ceil((new Date(c.tokenExpiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000)) <= 7).length;
 
     const aiCreditsRemaining = entitlementPlatformAPI.remaining(organizationId, "aiCreditsUsed");
@@ -355,16 +379,15 @@ export class DashboardEngine {
   /**
    * A weighted composite of six already-real signals — never a new
    * computation invented for this method, just this method's own
-   * combining formula. Connector Health/Platform Adoption need the same
-   * connection data `getConnectedPlatforms()` already fetches, so this
-   * takes the same optional `organizationId` param.
+   * combining formula. Connector Health/Platform Adoption reuse the
+   * connection data `getConnectedPlatforms()` already fetches.
    */
-  async getHealthScore(organizationId: string = DASHBOARD_ORGANIZATION_ID): Promise<DashboardHealthScore> {
+  async getHealthScore(): Promise<DashboardHealthScore> {
     const marketing = this.getMarketingKpis();
     const revenue = marketing.find(m => m.id === "revenue");
     const revenueScore = revenue ? (revenue.tone === "positive" ? 90 : revenue.tone === "negative" ? 35 : 65) : 65;
 
-    const connections = await this.getConnectedPlatforms(organizationId);
+    const connections = await this.getConnectedPlatforms();
     const withHealth = connections.filter(c => c.successRate !== undefined);
     const connectorScore = withHealth.length > 0 ? withHealth.reduce((sum, c) => sum + (c.successRate ?? 0), 0) / withHealth.length : 80;
 
@@ -487,7 +510,7 @@ export class DashboardEngine {
       });
     }
 
-    const connections = await this.getConnectedPlatforms(organizationId);
+    const connections = await this.getConnectedPlatforms();
     for (const connection of connections) {
       if (connection.status === "error") {
         const id = `incident-connector-${connection.id}`;

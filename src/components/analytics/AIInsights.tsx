@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Sparkles, BrainCircuit, CheckCircle2, X } from "lucide-react";
+import { Sparkles, BrainCircuit, CheckCircle2, X, Loader2 } from "lucide-react";
 import type { AnalyticsInsight } from "@/core/analytics";
 
 const priorityColors: Record<string, string> = {
@@ -16,15 +16,30 @@ interface AIInsightsProps {
   insights: AnalyticsInsight[];
   onApply: (id: string) => void;
   onDismiss: (id: string) => void;
+  onGenerate?: () => void;
+  generating?: boolean;
+  generateError?: string | null;
 }
 
-export function AIInsights({ insights, onApply, onDismiss }: AIInsightsProps) {
+export function AIInsights({ insights, onApply, onDismiss, onGenerate, generating, generateError }: AIInsightsProps) {
   const active = insights.filter(i => i.status !== "dismissed");
 
   return (
     <Card>
-      <CardHeader title="AI Insights" description="Data-driven recommendations to accelerate growth" />
+      <CardHeader
+        title="AI Insights"
+        description="Data-driven recommendations to accelerate growth"
+        action={
+          onGenerate && (
+            <Button variant="outline" size="sm" onClick={onGenerate} disabled={generating}>
+              {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+              {generating ? "Analyzing…" : "Generate Insight"}
+            </Button>
+          )
+        }
+      />
       <CardContent>
+        {generateError && <p className="mb-3 text-sm text-destructive">{generateError}</p>}
         {active.length === 0 ? (
           <EmptyState icon={<Sparkles size={28} />} title="No open insights" description="New recommendations will appear here as fresh data comes in." />
         ) : (

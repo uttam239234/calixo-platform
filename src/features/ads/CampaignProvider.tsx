@@ -88,10 +88,10 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   /** The Connector Platform's real hookup point — upgrades platform status/health to real connector data where one exists, then forces `platforms` to recompute. */
   useEffect(() => {
     (async () => {
-      await syncAdsPlatformsFromConnectors(tenantContext.organizationId);
+      await syncAdsPlatformsFromConnectors();
       setConnectorSyncVersion(v => v + 1);
     })();
-  }, [tenantContext.organizationId]);
+  }, []);
 
   useEffect(() => {
     let active = true;

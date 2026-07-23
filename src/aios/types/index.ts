@@ -24,7 +24,8 @@ export type AIModel =
   | 'gemini-ultra'
   | 'azure-gpt-4o'
   | 'local-llama'
-  | 'local-mistral';
+  | 'local-mistral'
+  | 'gpt-image-1';
 
 export type AIAction = 'chat' | 'completion' | 'embedding' | 'image' | 'audio' | 'function_call';
 
@@ -62,6 +63,8 @@ export interface AIMessage {
   name?: string;
   toolCalls?: ToolCall[];
   toolCallId?: string;
+  /** Data URIs (`data:image/png;base64,...`) attached to a `user` message for vision-capable models — used by Creative Design Studio's real quality-control pass. Each real provider converts these into its own multipart content format; a provider that doesn't translate them simply analyzes the text alone. */
+  imageUrls?: string[];
   metadata?: Record<string, unknown>;
   timestamp: string;
 }
@@ -144,6 +147,8 @@ export interface AIProviderInterface {
   completeStream(request: AICompletionRequest): Promise<AsyncIterable<AICompletionResponse>>;
   embed?(text: string): Promise<number[]>;
   validateConfig(): Promise<boolean>;
+  /** Re-checks real availability (e.g. against the Platform Secrets Console) rather than trusting a boolean set once at registration — `ProviderRouter` calls this before every selection. */
+  refreshAvailability?(): Promise<boolean>;
 }
 
 // ============================================================================

@@ -148,10 +148,10 @@ export function AnalyticsPage() {
   /** The Connector Platform's real hookup point — narrows the fact table to whatever's actually connected, then forces a fresh snapshot pull so the change is visible immediately. */
   useEffect(() => {
     (async () => {
-      await syncAnalyticsFactsFromConnectors(tenantContext.organizationId);
+      await syncAnalyticsFactsFromConnectors();
       refreshAnalytics();
     })();
-  }, [tenantContext.organizationId, refreshAnalytics]);
+  }, [refreshAnalytics]);
 
   const reportIdSet = useMemo(() => (reportIds ? Object.values(reportIds) : []), [reportIds]);
 
@@ -337,7 +337,7 @@ export function AnalyticsPage() {
             />
           );
         case "ai-insights":
-          return <AIInsights insights={analytics.insights} onApply={handleApplyInsight} onDismiss={analytics.dismissInsight} />;
+          return <AIInsights insights={analytics.insights} onApply={handleApplyInsight} onDismiss={analytics.dismissInsight} onGenerate={analytics.generateInsight} generating={analytics.generatingInsight} generateError={analytics.insightError} />;
         case "insight-action-center":
           return <AnalyticsInsightActionCenter items={analytics.actionCenterItems} loading={analytics.loading} onScrollToWidget={scrollToWidget} />;
         case "reports-panel":

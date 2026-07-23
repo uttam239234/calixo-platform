@@ -1,34 +1,29 @@
 /**
  * Calixo Platform - Social Connector Adapter
  *
- * The Connector Platform's real hookup point for Social Media — reads live connector summaries
- * via `connectorsPlatformAPI` (the same facade Dashboard's `ConnectedPlatforms` and Ads'
- * `AdsConnectorAdapter` use) and, for the one provider this codebase actually seeds with genuine
- * social read/write capability (`instagram` — see Dashboard's `seedDashboardConnections.ts`),
- * replaces that account's demo `status`/`lastSync` with real connector health and flags it
- * `isLiveConnector: true`.
- *
- * `youtube` is ALSO seeded, but deliberately excluded here: its registry definition only grants
- * `read_analytics` (no `read_social`/`write_social`) and its seed status is `"connecting"`, not
- * `"connected"` — it's an ads/analytics connector, not a genuine social publishing connector.
- * Treating it as "live" would be dishonest. Facebook/LinkedIn/X/TikTok/Pinterest/Threads have no
- * seeded connector at all and honestly keep today's demo status.
+ * The Universal Connector Framework's real hookup point for Social Media — reads real
+ * `ConnectorInstance`s via `connectorFrameworkAPI` (the same facade Dashboard's `ConnectedPlatforms`
+ * and Ads' `AdsConnectorAdapter` use) and, for the connectors that genuinely back a social account
+ * (Meta -> Facebook/Instagram, LinkedIn, YouTube), replaces that account's demo `status`/`lastSync`
+ * with real connector health and flags it `isLiveConnector: true`. X/TikTok have no real adapter in
+ * the framework and honestly keep today's demo status.
  *
  * Social Media owns no connector code here: no OAuth, no token refresh, no sync scheduling, no
- * seeding — only ever reads through `connectorsPlatformAPI`.
+ * seeding — only ever reads through `connectorFrameworkAPI`.
  */
-import { connectorsPlatformAPI } from "@/integrations/platform/ConnectorsPlatformAPI";
-import { SOCIAL_ORGANIZATION_ID } from "../tenant/SocialTenantDefaults";
+import { listConnectorInstancesAction, getConnectorSyncHistoryAction } from "@/core/connectors/actions";
 import type { SocialAccountStatus } from "../types";
 
-/** Only the account with a genuinely connected, social-capable seeded connector. */
-const PROVIDER_TO_SOCIAL_ACCOUNT: Record<string, string> = {
-  instagram: "instagram",
+/** Only accounts with a genuine, registered connector in the Universal Connector Framework — Meta's Graph API covers both Facebook and Instagram, so one "meta" connection backs both accounts. */
+const CONNECTOR_TO_SOCIAL_ACCOUNTS: Record<string, string[]> = {
+  meta: ["facebook", "instagram"],
+  linkedin: ["linkedin"],
+  youtube: ["youtube"],
 };
 
 function toAccountStatus(status: string): SocialAccountStatus {
-  if (status === "connected") return "Connected";
-  if (status === "connecting" || status === "pending") return "Needs attention";
+  if (status === "active") return "Connected";
+  if (status === "paused") return "Needs attention";
   return "Disconnected";
 }
 
@@ -56,29 +51,34 @@ export function getLastSocialConnectorSyncResult(): SocialConnectorSyncResult | 
 }
 
 /**
- * Pulls real connector summaries for `organizationId` and refreshes the live-status map that
+ * Pulls real connector summaries and refreshes the live-status map that
  * `SocialEngine`/`SocialPlatformAPI` consult. Safe to call repeatedly — always re-reads current
  * connector state. If nothing is connected yet, every account falls back to its demo status
- * (today's unchanged default).
+ * (today's unchanged default). The connector actions derive the real signed-in session's own
+ * organization themselves via `resolveIdentity()`.
  */
-export async function syncSocialAccountsFromConnectors(organizationId: string = SOCIAL_ORGANIZATION_ID): Promise<SocialConnectorSyncResult> {
-  const connections = await connectorsPlatformAPI.getConnectorSummaries(organizationId);
+export async function syncSocialAccountsFromConnectors(): Promise<SocialConnectorSyncResult> {
+  const instances = await listConnectorInstancesAction();
 
   const next: Record<string, SocialLiveConnectorStatus> = {};
   const connectedAccountIds: string[] = [];
 
-  for (const connection of connections) {
-    const accountId = PROVIDER_TO_SOCIAL_ACCOUNT[connection.providerId];
-    if (!accountId) continue;
-    if (connection.status === "connected") connectedAccountIds.push(accountId);
-    next[accountId] = {
-      status: toAccountStatus(connection.status),
-      lastSync: connection.lastSyncAt ? new Date(connection.lastSyncAt).toLocaleString() : "Not yet synced",
-    };
+  for (const instance of instances) {
+    const accountIds = CONNECTOR_TO_SOCIAL_ACCOUNTS[instance.connectorId];
+    if (!accountIds) continue;
+    if (instance.status === "active") connectedAccountIds.push(...accountIds);
+    const syncHistory = await getConnectorSyncHistoryAction(instance.id).catch(() => []);
+    const lastSync = syncHistory[syncHistory.length - 1];
+    for (const accountId of accountIds) {
+      next[accountId] = {
+        status: toAccountStatus(instance.status),
+        lastSync: lastSync?.finishedAt ? new Date(lastSync.finishedAt).toLocaleString() : "Not yet synced",
+      };
+    }
   }
 
   liveStatusByAccountId = next;
-  const demoAccountIds = Object.values(PROVIDER_TO_SOCIAL_ACCOUNT).filter(id => !connectedAccountIds.includes(id));
+  const demoAccountIds = Object.values(CONNECTOR_TO_SOCIAL_ACCOUNTS).flat().filter(id => !connectedAccountIds.includes(id));
   lastResult = { connectedAccountIds, demoAccountIds, syncedAt: new Date().toISOString() };
   return lastResult;
 }

@@ -41,6 +41,10 @@ const CONTENT_CATALOG: ContentOutputCatalogEntry[] = [
   { id: "video-script", label: "Video Scripts", description: "A short-form video script", group: "Social", contentType: "video-script", platform: "instagram", defaultLength: "short" },
   { id: "product-description", label: "Product Descriptions", description: "A product or service description", group: "Sales", contentType: "product-description", platform: "landing-page", defaultLength: "short" },
   { id: "case-study", label: "Case Studies", description: "A customer success case study", group: "Sales", contentType: "case-study", platform: "blog", defaultLength: "long" },
+  { id: "linkedin-post-copy", label: "LinkedIn Posts", description: "A native long-form LinkedIn post", group: "Social", contentType: "linkedin-post", platform: "linkedin", defaultLength: "short" },
+  { id: "x-post-copy", label: "X Posts", description: "A short post for X (Twitter)", group: "Social", contentType: "x-post", platform: "linkedin", defaultLength: "short" },
+  { id: "push-notification", label: "Push Notifications", description: "A short mobile push notification message", group: "Messaging", contentType: "sms", platform: "sms", defaultLength: "short" },
+  { id: "newsletter", label: "Newsletters", description: "A newsletter-style email digest", group: "Messaging", contentType: "email", platform: "email", defaultLength: "medium" },
 ];
 
 export const OutputCatalogRegistry = {

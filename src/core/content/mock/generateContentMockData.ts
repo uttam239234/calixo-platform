@@ -2,71 +2,9 @@
  * Calixo Platform — Content Studio Mock Data
  *
  * A handful of realistic "My Creations" history entries so the history panel isn't empty on
- * first load, plus the AI Assistant's fixed, deterministic question bank.
+ * first load.
  */
-import type { AssistantQuestion, GenerationHistoryEntry } from "../types";
-
-export const ASSISTANT_QUESTION_BANK: AssistantQuestion[] = [
-  {
-    id: "channels",
-    prompt: "Which channels will you use?",
-    options: [
-      { id: "instagram", label: "Instagram" },
-      { id: "facebook", label: "Facebook" },
-      { id: "linkedin", label: "LinkedIn" },
-      { id: "whatsapp", label: "WhatsApp" },
-      { id: "email", label: "Email" },
-    ],
-  },
-  {
-    id: "audience",
-    prompt: "Who's it for?",
-    options: [
-      { id: "prospective-students", label: "Prospective students" },
-      { id: "parents", label: "Parents" },
-      { id: "working-professionals", label: "Working professionals" },
-      { id: "existing-customers", label: "Existing customers" },
-    ],
-  },
-  {
-    id: "geography",
-    prompt: "Which region?",
-    options: [
-      { id: "local", label: "Local" },
-      { id: "national", label: "National" },
-      { id: "global", label: "Global" },
-    ],
-  },
-  {
-    id: "needType",
-    prompt: "Do you need creative, content, or both?",
-    options: [
-      { id: "creative", label: "Creative" },
-      { id: "content", label: "Content" },
-      { id: "both", label: "Both" },
-    ],
-  },
-  {
-    id: "tone",
-    prompt: "What tone fits best?",
-    options: [
-      { id: "professional", label: "Professional" },
-      { id: "conversational", label: "Conversational" },
-      { id: "persuasive", label: "Persuasive" },
-      { id: "friendly", label: "Friendly" },
-    ],
-  },
-  {
-    id: "cta",
-    prompt: "What should people do next?",
-    options: [
-      { id: "apply-now", label: "Apply Now" },
-      { id: "learn-more", label: "Learn More" },
-      { id: "book-a-call", label: "Book a Call" },
-      { id: "sign-up", label: "Sign Up" },
-    ],
-  },
-];
+import type { GenerationHistoryEntry } from "../types";
 
 export function generateSeedHistory(organizationId: string): GenerationHistoryEntry[] {
   const now = Date.now();

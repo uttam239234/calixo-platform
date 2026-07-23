@@ -7,7 +7,6 @@
 import { appLogger } from '@/logging';
 import { NotFoundError } from '@/errors';
 import { generateId } from '@/shared/utils/string';
-import { connectorRegistry } from '@/integrations/registry/ConnectorRegistry';
 import type { WebhookService, WebhookConfig, WebhookDelivery, WebhookEvent, ConnectionId } from '@/integrations/types';
 
 const DEFAULT_RETRY = { maxRetries: 3, initialDelayMs: 1000, maxDelayMs: 30000, backoffMultiplier: 2 };

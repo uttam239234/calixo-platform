@@ -209,13 +209,6 @@ export interface AiObservabilitySummary {
   topModels: { model: string; count: number; cost: number }[];
 }
 
-export interface ConnectorObservabilitySummary {
-  connectionId: string;
-  status: string;
-  score: number;
-  uptimePercent: number;
-  lastSyncAt?: string;
-}
 
 // ============================================================================
 // Operations Command Center (mandate section 15)

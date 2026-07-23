@@ -74,6 +74,9 @@ export type PlatformEventType =
   | "WebhookReceived"
   | "WebhookDelivered"
   | "SecretRotated"
+  // Universal Connector Framework (Track 1 Phase 5 extension) — additive.
+  | "ConnectorTokenRefreshed"
+  | "ConnectorPermissionsChanged"
   // Enterprise API, Gateway & Developer Platform (Track 1 Phase 6)
   | "ApiKeyCreated"
   | "ApiKeyRevoked"

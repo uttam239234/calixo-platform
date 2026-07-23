@@ -26,17 +26,16 @@
  * until externally configured" situation the Dashboard certification
  * pass found with `AlertPlatformAPI`.
  */
-import { connectorsPlatformAPI } from "@/integrations/platform/ConnectorsPlatformAPI";
+import { listConnectorInstancesAction } from "@/core/connectors/actions";
 import { analyticsEngine } from "../engine/AnalyticsEngine";
 import { generateAnalyticsFacts } from "../mock/generateAnalyticsFacts";
 import type { AnalyticsChannel } from "../types";
-import { ANALYTICS_ORGANIZATION_ID } from "../tenant/AnalyticsTenantDefaults";
 
-/** Only providers this fact table has a genuine `AnalyticsChannel` mapping for — others (Instagram, YouTube, ...) have no channel equivalent in today's model yet. */
-const PROVIDER_CHANNEL_MAP: Record<string, AnalyticsChannel> = {
+/** Only connectors this fact table has a genuine `AnalyticsChannel` mapping for — others (YouTube, Search Console, ...) have no channel equivalent in today's model yet. */
+const CONNECTOR_CHANNEL_MAP: Record<string, AnalyticsChannel> = {
   "google-ads": "Google Ads",
-  "meta-ads": "Meta",
-  "linkedin-ads": "LinkedIn",
+  meta: "Meta",
+  linkedin: "LinkedIn",
 };
 
 export interface AnalyticsConnectorSyncResult {
@@ -54,25 +53,28 @@ export function getLastConnectorSyncResult(): AnalyticsConnectorSyncResult | nul
 }
 
 /**
- * Pulls real connector summaries for `organizationId` and narrows the
- * engine's fact table to the channels with a real `connected` provider.
- * Safe to call repeatedly (e.g. on every Analytics page mount) — always
- * re-reads current connector state.
+ * Pulls real connector summaries and narrows the engine's fact table to the
+ * channels with a real `connected` provider. Safe to call repeatedly (e.g.
+ * on every Analytics page mount) — always re-reads current connector state.
+ * `listConnectorInstancesAction()` derives the real signed-in session's own
+ * organization itself via `resolveIdentity()`, never a caller-supplied id (a
+ * client-resolved id lives in a different registry instance than the
+ * server's and would never match).
  */
-export async function syncAnalyticsFactsFromConnectors(organizationId: string = ANALYTICS_ORGANIZATION_ID): Promise<AnalyticsConnectorSyncResult> {
-  const connections = await connectorsPlatformAPI.getConnectorSummaries(organizationId);
+export async function syncAnalyticsFactsFromConnectors(): Promise<AnalyticsConnectorSyncResult> {
+  const instances = await listConnectorInstancesAction();
 
   const connectedChannels = new Set<AnalyticsChannel>();
   const connectedProviders: string[] = [];
   const unmapped: string[] = [];
 
-  for (const connection of connections) {
-    const channel = PROVIDER_CHANNEL_MAP[connection.providerId];
-    if (connection.status === "connected" && channel) {
+  for (const instance of instances) {
+    const channel = CONNECTOR_CHANNEL_MAP[instance.connectorId];
+    if (instance.status === "active" && channel) {
       connectedChannels.add(channel);
-      connectedProviders.push(connection.providerId);
+      connectedProviders.push(instance.connectorId);
     } else {
-      unmapped.push(connection.providerId);
+      unmapped.push(instance.connectorId);
     }
   }
 

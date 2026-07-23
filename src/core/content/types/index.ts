@@ -2,9 +2,10 @@
  * Calixo Platform — Content Studio Orchestration Types
  *
  * Content Studio owns none of the generation/layout/quality/brand/asset logic itself — this is
- * a thin translation layer only. `ContentBrief` is the simplified, jargon-free shape Simple Mode
- * and the AI Assistant collect; `ContentOrchestrationEngine` (see ../engine) expands it into the
- * full `GenerationRequest`/`CreativeRequest`/`MediaRequest` shapes the real engines require.
+ * a thin translation layer only. `ContentBrief` is the simplified, jargon-free shape both Studios'
+ * prompt-orchestration classifier fills in from a freeform prompt; `ContentOrchestrationEngine`
+ * (see ../engine) expands it into the full `GenerationRequest`/`CreativeRequest`/`MediaRequest`
+ * shapes the real engines require.
  *
  * Platform is intentionally NOT part of `ContentBrief` — each catalog entry (see ../registry)
  * already pins its own authoritative platform, so there is never a mismatch between what the
@@ -23,6 +24,10 @@ export interface ContentBrief {
   campaignId?: string;
   /** Advanced Mode only — trades creative range for tighter brand-voice/style adherence. */
   strictBrandRules?: boolean;
+  /** Advanced Options only — Creative Design Studio's manual visual-style override, replacing the tone-derived default. */
+  visualStyleOverride?: string;
+  /** Advanced Options only — appended to the real negative prompt so it's honored even by providers (like DALL-E 3) with no dedicated negative-prompt parameter, via an explicit "Avoid: ..." instruction folded into the main prompt. */
+  negativePromptExtra?: string;
 }
 
 // ============================================================================
@@ -60,7 +65,11 @@ export type ContentOutputKind =
   | "press-release"
   | "video-script"
   | "product-description"
-  | "case-study";
+  | "case-study"
+  | "linkedin-post-copy"
+  | "x-post-copy"
+  | "push-notification"
+  | "newsletter";
 
 export type OutputGroup = "Social" | "Ads" | "Messaging" | "Print & Events" | "Custom" | "Long-form" | "Sales";
 
@@ -136,6 +145,10 @@ export interface GenerationHistoryEntry {
   primaryImageUrl?: string;
   variantImageUrls?: string[];
   platformVersions?: PlatformVersion[];
+  /** Real, individually-generated layout variations (Creative Design Studio's "4 professional variations") — `primaryImageUrl`/`variantImageUrls` above are kept in sync from this for backward compatibility with older UI/consumers. */
+  variations?: CreativeVariation[];
+  /** The exact hidden production prompt sent to the image model — stored so natural-language post-generation editing can extend it, never re-derived from scratch. */
+  hiddenPrompt?: string;
 
   localizedVersions?: LocalizedVersion[];
 
@@ -143,48 +156,50 @@ export interface GenerationHistoryEntry {
   workflowEntryId?: string;
 }
 
+export interface CreativeVariation {
+  id: string;
+  imageUrl: string;
+  layoutLabel: string;
+  qualityScore?: number;
+  qualityIssues?: string[];
+  regenerated?: boolean;
+}
+
 // ============================================================================
-// Mode
+// Prompt-driven intent analysis (Creative Design Studio / Content Creation Studio)
 // ============================================================================
 
-export type ContentStudioMode = "simple" | "advanced";
+/** The result of classifying a freeform prompt into a real catalog output + a filled-in brief — shared shape for both Studios (`outputId` is a `CreativeOutputKind` or `ContentOutputKind` depending on which analyzer produced it). Never invents a catalog id: an unrecognized/ambiguous prompt always comes back with `resolved: false` and a clarifying question grounded in real catalog labels. */
+export interface PromptIntentAnalysis {
+  resolved: boolean;
+  outputId?: string;
+  outputLabel?: string;
+  brief?: ContentBrief;
+  clarifyingQuestion?: string;
+  clarifyingOptions?: string[];
+}
 
 // ============================================================================
-// AI Assistant — deterministic conversation
+// Campaign Mode
 // ============================================================================
 
-export type AssistantQuestionId = "channels" | "audience" | "geography" | "needType" | "tone" | "cta";
-export type AssistantNeedType = "creative" | "content" | "both";
-
-export interface AssistantQuestionOption {
+export interface CampaignAssetOption {
   id: string;
   label: string;
+  kind: "creative" | "content";
+  outputId: CreativeOutputKind | ContentOutputKind;
+  selected: boolean;
 }
 
-export interface AssistantQuestion {
-  id: AssistantQuestionId;
-  prompt: string;
-  options: AssistantQuestionOption[];
+export interface CampaignPlan {
+  campaignId: string;
+  campaignName: string;
+  brief: ContentBrief;
+  assetOptions: CampaignAssetOption[];
 }
 
-export interface AssistantTurn {
-  role: "assistant" | "user";
-  message: string;
-  questionId?: AssistantQuestionId;
-}
-
-export interface AssistantAnswers {
-  channels?: string;
-  audience?: string;
-  geography?: string;
-  needType?: AssistantNeedType;
-  tone?: ToneOption;
-  cta?: string;
-}
-
-export interface AssistantSession {
-  turns: AssistantTurn[];
-  answers: AssistantAnswers;
-  objective: string;
-  done: boolean;
+export interface CampaignResult {
+  campaignId: string;
+  campaignName: string;
+  entries: GenerationHistoryEntry[];
 }

@@ -15,7 +15,7 @@ import { openApiPlatformAPI } from "../OpenApiPlatformAPI";
 import { developerPlatformAPI } from "../DeveloperPlatformAPI";
 import { organizationEngine } from "../../organizations/OrganizationEngine";
 import { organizationRegistry } from "../../organizations/OrganizationRegistry";
-import { connectorMarketplaceAPI } from "../../connectors/ConnectorMarketplaceAPI";
+import { listConnectorDefinitionsAction } from "@/core/connectors/actions";
 import type { ApiContractDefinition, ContractHandler } from "../types";
 
 const DEFAULT_RATE_LIMITS: ApiContractDefinition["rateLimits"] = [
@@ -133,7 +133,11 @@ export function registerCoreContracts(): void {
       scopes: ["connector:read"],
       rateLimits: DEFAULT_RATE_LIMITS,
     },
-    async ctx => connectorMarketplaceAPI.browse(ctx.query.category as never)
+    async ctx => {
+      const category = ctx.query.category as string | undefined;
+      const definitions = await listConnectorDefinitionsAction();
+      return category ? definitions.filter(d => d.category === category) : definitions;
+    }
   );
 
   register(

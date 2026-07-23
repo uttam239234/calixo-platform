@@ -31,10 +31,24 @@ import type {
   ContentOutputCatalogEntry,
   ContentOutputKind,
   CreativeOutputKind,
+  CreativeVariation,
   GenerationHistoryEntry,
   LocalizedVersion,
   PlatformVersion,
 } from "../types";
+
+/**
+ * Four distinct layout directives appended to the same production prompt so each of Creative
+ * Design Studio's real image-generation calls produces a genuinely different composition —
+ * "different layout, same campaign identity," per the brief — rather than 4 near-identical
+ * re-rolls of one prompt.
+ */
+const LAYOUT_VARIATIONS: { label: string; directive: string }[] = [
+  { label: "Bold Hero", directive: "Layout composition: bold centered hero — headline dominant near the top, one strong focal image below, generous breathing room." },
+  { label: "Split Panel", directive: "Layout composition: split-panel — visual fills one half of the frame, headline and CTA block anchored in the other half." },
+  { label: "Asymmetric Grid", directive: "Layout composition: asymmetric grid — off-center focal point, logo and CTA anchored to a bottom corner, dynamic diagonal balance." },
+  { label: "Minimalist", directive: "Layout composition: minimalist — large negative space, one small centered focal element, ultra-restrained typography." },
+];
 
 function toneToVisualStyle(tone: ContentBrief["tone"]): string {
   const map: Record<string, string> = {
@@ -86,12 +100,18 @@ function translateDeterministic(text: string, targetLanguage: string): string {
   return `[${tag}] ${text}\n\n(Localized for ${targetLanguage} — a deterministic placeholder prepared for a future real translation API, not a live translation.)`;
 }
 
-function buildMediaRequest(creativeResult: CreativeResult, brandName: string, colors: string[], dimensions?: { width: number; height: number }): MediaRequest {
+function buildMediaRequest(creativeResult: CreativeResult, brandName: string, colors: string[], dimensions?: { width: number; height: number }, negativePromptExtra?: string): MediaRequest {
   return {
+    // Root-cause fix (production incident): `MediaGenerationEngine.generateImage()` resolves
+    // `request.provider || "mock-media"` — every creative generation silently fell back to the
+    // mock provider because this field was never set here, regardless of whether a real image
+    // generator was ever injected via `setRealImageGenerator()`. Every "generated" creative was a
+    // picsum.photos placeholder, never a real image.
+    provider: "openai-image",
     action: "generate",
     mediaType: "image",
     prompt: creativeResult.prompt.prompt,
-    negativePrompt: creativeResult.prompt.negativePrompt,
+    negativePrompt: [creativeResult.prompt.negativePrompt, negativePromptExtra].filter(Boolean).join(", "),
     dimensions: dimensions ?? { width: creativeResult.dimensions.width, height: creativeResult.dimensions.height },
     quality: "standard",
     style: creativeResult.futureImagePayload.stylePreset,
@@ -186,7 +206,7 @@ class ContentOrchestrationEngineImpl {
     return entry;
   }
 
-  async generateCreative(brief: ContentBrief, outputId: CreativeOutputKind, organizationId: string): Promise<GenerationHistoryEntry> {
+  async generateCreative(brief: ContentBrief, outputId: CreativeOutputKind, organizationId: string, variationCount = 4): Promise<GenerationHistoryEntry> {
     const catalogEntry = OutputCatalogRegistry.getCreative(outputId);
     if (!catalogEntry) throw new Error(`Unknown creative output: ${outputId}`);
 
@@ -199,7 +219,7 @@ class ContentOrchestrationEngineImpl {
       campaign: brief.campaignId ?? "quick-create",
       brand: { name: brand.brandName, logo: logoUrl, colors: paletteColors, fonts: [] },
       audience: brief.audienceName,
-      visualStyle: brief.strictBrandRules ? "corporate" : toneToVisualStyle(brief.tone),
+      visualStyle: brief.visualStyleOverride || (brief.strictBrandRules ? "corporate" : toneToVisualStyle(brief.tone)),
       colorPalette: paletteColors,
       message: brief.objective,
       cta: brief.cta,
@@ -210,8 +230,7 @@ class ContentOrchestrationEngineImpl {
     const creativeResult = CreativeEngine.generate(creativeRequest);
     const knowledge = CreativeTypeService.get(catalogEntry.creativeType);
 
-    let primaryImageUrl: string;
-    let variantImageUrls: string[] = [];
+    let variations: CreativeVariation[];
     const platformVersions: PlatformVersion[] = [];
 
     if (catalogEntry.assetSetSize && catalogEntry.assetSetSize > 1) {
@@ -220,19 +239,21 @@ class ContentOrchestrationEngineImpl {
       const responses = await Promise.all(
         ratioDimensions.map(dims => mediaPlatformAPI.generateImage(buildMediaRequest(creativeResult, brand.brandName, paletteColors, { width: dims.width, height: dims.height })))
       );
-      primaryImageUrl = responses[0].assetUrl;
+      variations = responses.map((r, i) => ({ id: `var-${i}`, imageUrl: r.assetUrl, layoutLabel: `${ratioDimensions[i].width}×${ratioDimensions[i].height}` }));
       for (let i = 1; i < responses.length; i++) {
         platformVersions.push({ platform: `${catalogEntry.platform} (${ratioDimensions[i].width}x${ratioDimensions[i].height})`, imageUrl: responses[i].assetUrl });
       }
     } else {
-      const primaryMedia = await mediaPlatformAPI.generateImage(buildMediaRequest(creativeResult, brand.brandName, paletteColors));
-      primaryImageUrl = primaryMedia.assetUrl;
-
-      const [variantA, variantB] = await Promise.all([
-        mediaPlatformAPI.createVariation(buildMediaRequest(creativeResult, brand.brandName, paletteColors)),
-        mediaPlatformAPI.createVariation(buildMediaRequest(creativeResult, brand.brandName, paletteColors)),
-      ]);
-      variantImageUrls = [variantA.assetUrl, variantB.assetUrl];
+      const count = Math.min(Math.max(variationCount, 1), LAYOUT_VARIATIONS.length);
+      const results = await Promise.all(
+        Array.from({ length: count }, (_, i) => {
+          const layout = LAYOUT_VARIATIONS[i];
+          const request = buildMediaRequest(creativeResult, brand.brandName, paletteColors, undefined, brief.negativePromptExtra);
+          request.prompt = `${request.prompt}. ${layout.directive}`;
+          return mediaPlatformAPI.generateImage(request).then(r => ({ id: `var-${i}`, imageUrl: r.assetUrl, layoutLabel: layout.label }));
+        })
+      );
+      variations = results;
 
       const otherPlatforms = knowledge.compatiblePlatforms.filter(p => p !== catalogEntry.platform).slice(0, 2);
       for (const platform of otherPlatforms) {
@@ -250,12 +271,66 @@ class ContentOrchestrationEngineImpl {
       createdAt: new Date().toISOString(),
       organizationId,
       brief,
-      primaryImageUrl,
-      variantImageUrls,
+      primaryImageUrl: variations[0]?.imageUrl,
+      variantImageUrls: variations.slice(1).map(v => v.imageUrl),
+      variations,
+      hiddenPrompt: creativeResult.prompt.prompt,
       platformVersions,
     };
     this.history.push(entry);
     return entry;
+  }
+
+  /**
+   * Creative Design Studio's post-generation natural-language editing ("Make the headline
+   * larger", "Move logo to the top") — this is regeneration, not pixel-level inpainting: the
+   * exact stored `hiddenPrompt` plus the same layout directive that produced this variation is
+   * re-sent to the real image model with the user's instruction appended as an explicit change
+   * request. Disclosed deliberately as regeneration-based editing, not true masked inpainting,
+   * which no provider wired into this platform supports today.
+   */
+  async regenerateVariation(entryId: string, variationIndex: number, instruction: string): Promise<GenerationHistoryEntry> {
+    const entry = this.getHistoryEntry(entryId);
+    if (!entry || entry.kind !== "creative" || !entry.variations || !entry.hiddenPrompt) throw new Error("Creative history entry not found or has no editable variations");
+    const target = entry.variations[variationIndex];
+    if (!target) throw new Error("Variation not found");
+
+    const catalogEntry = OutputCatalogRegistry.getCreative(entry.outputId as CreativeOutputKind);
+    if (!catalogEntry) throw new Error("Unknown creative output");
+    const dims = PlatformKnowledgeService.getDimensions(catalogEntry.platform)[0];
+    const { brand, colors } = this.resolveBrand(entry.brief);
+    const paletteColors = colors.length > 0 ? colors : ["#4F46E5", "#7C3AED"];
+    const layout = LAYOUT_VARIATIONS.find(l => l.label === target.layoutLabel);
+    const prompt = `${entry.hiddenPrompt}. ${layout?.directive ?? ""} Apply this specific change requested by the user: "${instruction}".`;
+
+    const response = await mediaPlatformAPI.generateImage({
+      provider: "openai-image",
+      action: "generate",
+      mediaType: "image",
+      prompt,
+      dimensions: { width: dims?.width || 1080, height: dims?.height || 1080 },
+      quality: "standard",
+      style: "modern",
+      outputFormat: "png",
+      brand: { name: brand.brandName, colors: paletteColors, voice: "" },
+      platform: catalogEntry.platform,
+      creativeType: catalogEntry.creativeType,
+      campaign: entry.brief.campaignId ?? "quick-create",
+    });
+
+    entry.variations[variationIndex] = { ...target, imageUrl: response.assetUrl, regenerated: true, qualityScore: undefined, qualityIssues: undefined };
+    entry.primaryImageUrl = entry.variations[0]?.imageUrl;
+    entry.variantImageUrls = entry.variations.slice(1).map(v => v.imageUrl);
+    return entry;
+  }
+
+  /** Attaches a real vision-model quality-control result to one variation — called after `generateCreative`, never during it, so a slow/failed QC pass never blocks delivering the images themselves. */
+  recordVariationQuality(entryId: string, variationIndex: number, score: number, issues: string[]): void {
+    const variation = this.getHistoryEntry(entryId)?.variations?.[variationIndex];
+    if (variation) {
+      variation.qualityScore = score;
+      variation.qualityIssues = issues;
+    }
   }
 
   async applyContentAction(entryId: string, action: ContentAction): Promise<GenerationHistoryEntry> {

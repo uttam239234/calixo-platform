@@ -2,30 +2,26 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Sparkles } from "lucide-react";
+import { CheckCircle2, Sparkles, Clock } from "lucide-react";
 import { ModuleHeader } from "@/components/enterprise/module";
 import { Button } from "@/components/ui/button";
 import { SimpleDialog } from "@/components/settings/users/SimpleDialog";
-import { ConnectAppDialog } from "@/components/settings/integrations/ConnectAppDialog";
 import { useSettingsContext } from "@/features/settings/SettingsProvider";
 import { useIntegrations } from "@/hooks/useIntegrations";
-import { useConnectWizard } from "@/hooks/useConnectWizard";
-import { useWorkspaces } from "@/hooks/useWorkspaces";
 import type { AppListing } from "@/features/settings/integrations/marketplace";
-import { MARKETPLACE_CATEGORIES, CATEGORY_LABELS, POPULAR_PROVIDER_IDS, CAPABILITY_LABELS, STARTER_INTEGRATION_SETS, iconForApp } from "@/features/settings/integrations/constants";
+import { MARKETPLACE_CATEGORIES, CATEGORY_LABELS, POPULAR_CONNECTOR_IDS, FEATURE_LABELS, STARTER_INTEGRATION_SETS, iconForApp } from "@/features/settings/integrations/constants";
 
 export default function AppMarketplacePage() {
   const router = useRouter();
   const { tenantContext, canManageIntegrations } = useSettingsContext();
   const organizationId = tenantContext.organizationId;
   const integrations = useIntegrations(organizationId);
-  const workspaces = useWorkspaces(organizationId);
-  const wizard = useConnectWizard({ onInstall: integrations.install });
 
   const [category, setCategory] = useState<string>("all");
   const [learnMore, setLearnMore] = useState<AppListing | null>(null);
   const [applyingStarter, setApplyingStarter] = useState(false);
   const [applyingStarterId, setApplyingStarterId] = useState<string | null>(null);
+  const [connectingId, setConnectingId] = useState<string | null>(null);
 
   const filtered = useMemo(() => (category === "all" ? integrations.marketplace : integrations.marketplace.filter(l => l.category === category)), [integrations.marketplace, category]);
 
@@ -33,11 +29,12 @@ export default function AppMarketplacePage() {
     const starter = STARTER_INTEGRATION_SETS.find(s => s.id === starterId);
     if (!starter) return;
     setApplyingStarterId(starterId);
-    for (const providerId of starter.providerIds) {
-      const listing = integrations.marketplace.find(l => l.providerId === providerId);
-      if (!listing || listing.installState === "installed") continue;
-      await integrations.install(providerId, listing.name);
+    for (const connectorId of starter.connectorIds) {
+      const listing = integrations.marketplace.find(l => l.connectorId === connectorId);
+      if (!listing || listing.installState === "installed" || listing.isComingSoon) continue;
+      await integrations.installOnly(connectorId);
     }
+    await integrations.refresh();
     setApplyingStarterId(null);
     setApplyingStarter(false);
   };
@@ -83,14 +80,15 @@ export default function AppMarketplacePage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map(listing => {
             const isInstalled = listing.installState === "installed";
+            const isConnecting = connectingId === listing.connectorId;
             return (
-              <div key={listing.providerId} className="flex flex-col rounded-2xl border border-border bg-card p-5">
+              <div key={listing.connectorId} className="flex flex-col rounded-2xl border border-border bg-card p-5">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 text-2xl">{iconForApp(listing.providerId)}</div>
+                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 text-2xl">{iconForApp(listing.connectorId)}</div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate font-semibold text-foreground">{listing.name}</p>
-                      {POPULAR_PROVIDER_IDS.has(listing.providerId) && <span className="flex-shrink-0 rounded-full bg-info/10 px-2 py-0.5 text-[10px] font-semibold text-info">Popular</span>}
+                      {!listing.isComingSoon && POPULAR_CONNECTOR_IDS.has(listing.connectorId) && <span className="flex-shrink-0 rounded-full bg-info/10 px-2 py-0.5 text-[10px] font-semibold text-info">Popular</span>}
                     </div>
                     <p className="text-xs text-muted-foreground">{CATEGORY_LABELS[listing.category]}</p>
                   </div>
@@ -99,14 +97,26 @@ export default function AppMarketplacePage() {
                 <p className="mt-3 flex-1 text-sm text-muted-foreground">{listing.description}</p>
 
                 <div className="mt-4 flex items-center gap-2 border-t border-border pt-4">
-                  {isInstalled ? (
+                  {listing.isComingSoon ? (
+                    <Button size="xs" variant="outline" className="flex-1" disabled>
+                      <Clock size={12} /> Coming Soon
+                    </Button>
+                  ) : isInstalled ? (
                     <Button size="xs" variant="outline" className="flex-1" onClick={() => router.push("/dashboard/settings/integrations")}>
                       <CheckCircle2 size={12} /> Connected
                     </Button>
                   ) : (
                     canManageIntegrations && (
-                      <Button size="xs" className="flex-1" onClick={() => wizard.open(listing)}>
-                        Connect
+                      <Button
+                        size="xs"
+                        className="flex-1"
+                        disabled={isConnecting}
+                        onClick={async () => {
+                          setConnectingId(listing.connectorId);
+                          await integrations.connect(listing.connectorId, listing.name);
+                        }}
+                      >
+                        {isConnecting ? "Connecting…" : "Connect"}
                       </Button>
                     )
                   )}
@@ -120,25 +130,27 @@ export default function AppMarketplacePage() {
         </div>
       )}
 
-      <ConnectAppDialog wizard={wizard} workspaces={workspaces.cards} />
-
       {learnMore && (
         <SimpleDialog title={learnMore.name} description={learnMore.description} onClose={() => setLearnMore(null)}>
-          <div>
-            <p className="mb-2 text-xs font-medium text-muted-foreground">{learnMore.name} can:</p>
-            <ul className="space-y-1 text-sm">
-              {learnMore.capabilities.map(capability => (
-                <li key={capability} className="text-foreground">
-                  ✓ {CAPABILITY_LABELS[capability]}
-                </li>
-              ))}
-            </ul>
-          </div>
+          {learnMore.isComingSoon ? (
+            <p className="text-sm text-muted-foreground">This connector isn&apos;t built yet — it&apos;ll appear here as soon as it is.</p>
+          ) : (
+            <div>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">{learnMore.name} can:</p>
+              <ul className="space-y-1 text-sm">
+                {learnMore.features.map(feature => (
+                  <li key={feature} className="text-foreground">
+                    ✓ {FEATURE_LABELS[feature]}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </SimpleDialog>
       )}
 
       {applyingStarter && (
-        <SimpleDialog title="Starter Integrations" description="Connect a recommended set of apps in one click." onClose={() => setApplyingStarter(false)}>
+        <SimpleDialog title="Starter Integrations" description="Add a recommended set of apps in one click, then connect each from Connected Apps." onClose={() => setApplyingStarter(false)}>
           <div className="space-y-2">
             {STARTER_INTEGRATION_SETS.map(starter => (
               <button
@@ -153,7 +165,7 @@ export default function AppMarketplacePage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-foreground">{starter.name}</p>
-                  <p className="text-xs text-muted-foreground">{applyingStarterId === starter.id ? "Connecting…" : starter.description}</p>
+                  <p className="text-xs text-muted-foreground">{applyingStarterId === starter.id ? "Adding…" : starter.description}</p>
                 </div>
               </button>
             ))}

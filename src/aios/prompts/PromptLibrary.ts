@@ -82,6 +82,7 @@ export const SYSTEM_PROMPTS: Array<{
 export class PromptLibrary {
   private prompts: Map<string, Prompt> = new Map();
   private versions: Map<string, PromptVersion[]> = new Map();
+  private initialized = false;
 
   async initialize(): Promise<number> {
     let count = 0;
@@ -100,8 +101,14 @@ export class PromptLibrary {
         count++;
       }
     }
+    this.initialized = true;
     appLogger.info('PromptLibrary', `Initialized ${count} system prompts`);
     return count;
+  }
+
+  /** Nothing in this codebase reliably calls a single app-boot hook (`initializeAIOS()` has zero callers) — every read path self-initializes idempotently instead of trusting that to have happened already. */
+  private async ensureInitialized(): Promise<void> {
+    if (!this.initialized) await this.initialize();
   }
 
   async create(data: CreatePromptRequest): Promise<Prompt> {
@@ -129,18 +136,22 @@ export class PromptLibrary {
   }
 
   async getById(id: string): Promise<Prompt | null> {
+    await this.ensureInitialized();
     return this.prompts.get(id) || null;
   }
 
   async getByKey(key: string): Promise<Prompt | null> {
+    await this.ensureInitialized();
     return Array.from(this.prompts.values()).find(p => p.key === key && !p.isDeleted) || null;
   }
 
   async getAll(): Promise<Prompt[]> {
+    await this.ensureInitialized();
     return Array.from(this.prompts.values()).filter(p => !p.isDeleted);
   }
 
   async getByCategory(category: PromptCategory): Promise<Prompt[]> {
+    await this.ensureInitialized();
     return Array.from(this.prompts.values()).filter(p => p.category === category && !p.isDeleted);
   }
 

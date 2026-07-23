@@ -17,7 +17,13 @@ export const FEATURE_ACCESS_REGISTRY: Record<string, FeatureAccess> = {
   // ============================================================================
   'module.dashboard': {
     featureKey: 'module.dashboard',
-    requiredPermission: 'dashboard.view',
+    // Root-cause fix (production incident): this was 'dashboard.view' — dot notation with a
+    // "view" verb that doesn't even exist in `ActionType`'s 15-verb vocabulary. `permissionName()`
+    // (the canonical registry every real role's permissions are actually issued in) only ever
+    // produces colon-separated `resourceType:action` strings, so this string could never match
+    // any real user's permission set, on any role, ever — `EntitlementService.canAccessModule()`
+    // was unconditionally denying every non-platform-bypass user for every module gated this way.
+    requiredPermission: 'dashboard:read',
     requiredFeatureFlag: 'module.dashboard',
   },
   'dashboard.export': {
@@ -31,7 +37,7 @@ export const FEATURE_ACCESS_REGISTRY: Record<string, FeatureAccess> = {
   // ============================================================================
   'module.analytics': {
     featureKey: 'module.analytics',
-    requiredPermission: 'analytics.view',
+    requiredPermission: 'analytics:read',
     requiredFeatureFlag: 'module.analytics',
   },
   'analytics.export': {
@@ -50,7 +56,9 @@ export const FEATURE_ACCESS_REGISTRY: Record<string, FeatureAccess> = {
   // ============================================================================
   'module.ads-manager': {
     featureKey: 'module.ads-manager',
-    requiredPermission: 'ads.view',
+    // "ads" isn't a real `ResourceType` — Ads Manager's own real permission checks
+    // (`CampaignProvider.tsx`) already use `permissionName("campaign", "read")`.
+    requiredPermission: 'campaign:read',
     requiredFeatureFlag: 'module.ads-manager',
     requiredSubscriptionTier: 'starter',
   },
@@ -78,7 +86,7 @@ export const FEATURE_ACCESS_REGISTRY: Record<string, FeatureAccess> = {
   // ============================================================================
   'module.social-media': {
     featureKey: 'module.social-media',
-    requiredPermission: 'social.view',
+    requiredPermission: 'social:read',
     requiredFeatureFlag: 'module.social-media',
     requiredSubscriptionTier: 'starter',
   },
@@ -106,7 +114,7 @@ export const FEATURE_ACCESS_REGISTRY: Record<string, FeatureAccess> = {
   // ============================================================================
   'module.brand-monitoring': {
     featureKey: 'module.brand-monitoring',
-    requiredPermission: 'brand.view',
+    requiredPermission: 'brand:read',
     requiredFeatureFlag: 'module.brand-monitoring',
     requiredSubscriptionTier: 'professional',
   },
@@ -116,7 +124,7 @@ export const FEATURE_ACCESS_REGISTRY: Record<string, FeatureAccess> = {
   // ============================================================================
   'module.content-studio': {
     featureKey: 'module.content-studio',
-    requiredPermission: 'content.view',
+    requiredPermission: 'content:read',
     requiredFeatureFlag: 'module.content-studio',
     requiredSubscriptionTier: 'professional',
   },
@@ -132,7 +140,7 @@ export const FEATURE_ACCESS_REGISTRY: Record<string, FeatureAccess> = {
   // ============================================================================
   'module.ai-copilot': {
     featureKey: 'module.ai-copilot',
-    requiredPermission: 'ai.use',
+    requiredPermission: 'ai:read',
     requiredFeatureFlag: 'module.ai-copilot',
     requiredSubscriptionTier: 'starter',
   },
@@ -154,7 +162,7 @@ export const FEATURE_ACCESS_REGISTRY: Record<string, FeatureAccess> = {
   // ============================================================================
   'module.reports': {
     featureKey: 'module.reports',
-    requiredPermission: 'reports.view',
+    requiredPermission: 'report:read',
     requiredFeatureFlag: 'module.reports',
   },
   'reports.schedule': {
@@ -169,7 +177,7 @@ export const FEATURE_ACCESS_REGISTRY: Record<string, FeatureAccess> = {
   // ============================================================================
   'module.administration': {
     featureKey: 'module.administration',
-    requiredPermission: 'settings.view',
+    requiredPermission: 'settings:read',
     requiredFeatureFlag: 'module.administration',
   },
   'admin.users': {

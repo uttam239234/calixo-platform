@@ -12,7 +12,6 @@ export * from "./types";
 export { OutputCatalogRegistry } from "./registry/OutputCatalogRegistry";
 
 export { contentOrchestrationEngine } from "./engine/ContentOrchestrationEngine";
-export { assistantConversationEngine, ASSISTANT_QUESTION_BANK } from "./engine/AssistantConversationEngine";
 
 export { contentPlatformAPI, ContentPlatformAPI } from "./platform/ContentPlatformAPI";
 

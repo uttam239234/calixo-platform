@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { developerPlatformAPI } from "@/core/platform/api";
 import { webhookPlatformAPI } from "@/core/platform/connectors";
-import { connectorsPlatformAPI } from "@/integrations";
+import { listConnectorInstancesAction, getConnectorHealthAction, getConnectorSyncHistoryAction } from "@/core/connectors/actions";
 import { creditPlatformAPI } from "@/core/platform/commercial";
 import type { WebhookConfig, WebhookEvent } from "@/integrations/types";
 import type { ConnectorSummary } from "@/core/platform/contracts";
@@ -59,7 +59,23 @@ export function useAutomations(organizationId: string) {
   const refresh = useCallback(async () => {
     if (!organizationId) return;
     setLoading(true);
-    const [configs, summaries] = await Promise.all([developerPlatformAPI.listWebhooks(organizationId), connectorsPlatformAPI.getConnectorSummaries(organizationId)]);
+    const [configs, instances] = await Promise.all([developerPlatformAPI.listWebhooks(organizationId), listConnectorInstancesAction()]);
+    const summaries: ConnectorSummary[] = await Promise.all(
+      instances.map(async instance => {
+        const [health, syncHistory] = await Promise.all([
+          getConnectorHealthAction(instance.id).catch(() => undefined),
+          getConnectorSyncHistoryAction(instance.id).catch(() => []),
+        ]);
+        return {
+          id: instance.id,
+          providerId: instance.connectorId,
+          name: instance.displayName,
+          status: instance.status,
+          lastSyncAt: syncHistory[syncHistory.length - 1]?.finishedAt,
+          health: health ? { status: health.status === "healthy" ? ("healthy" as const) : health.status === "warning" || health.status === "rate_limited" ? ("degraded" as const) : ("unhealthy" as const), failureCount: 0, successRate: health.status === "healthy" ? 100 : 0, lastErrorMessage: health.status === "healthy" ? undefined : health.message } : undefined,
+        };
+      })
+    );
     const cards = await Promise.all(
       configs.map(async config => {
         const deliveries = await webhookPlatformAPI.getDeliveries(config.id);

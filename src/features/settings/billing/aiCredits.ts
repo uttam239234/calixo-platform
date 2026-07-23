@@ -16,24 +16,14 @@ import { subscriptionEngine } from "@/core/platform/subscription";
 import { auditService } from "@/access/audit/AuditService";
 import { entitlementService } from "@/core/platform/access";
 
-function currentPeriodStart(): string {
-  const d = new Date();
-  d.setDate(1);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
-
-/** Idempotent — grants the tier's included AI credits once per billing period, expiring at the subscription's real renewal date so unused included credits genuinely lapse via `CreditEngine.expireLapsed()`. */
+/**
+ * Thin wrapper — the real implementation moved to `CreditPlatformAPI.ensureMonthlyAiCreditsGranted()`
+ * (`core/platform/commercial`) so `EntitlementService` (which cannot import from `features/*`) can
+ * call it directly on every real credit check rather than depending on a one-time seed step. Kept
+ * here, same name and signature, for this file's own existing callers.
+ */
 export function ensureMonthlyCreditsGranted(organizationId: string): void {
-  const subscription = subscriptionPlatformAPI.getOrDefault(organizationId);
-  const periodStart = currentPeriodStart();
-  const alreadyGranted = creditPlatformAPI
-    .getHistory(organizationId, "ai")
-    .some(tx => tx.source === "plan_allowance" && tx.amount > 0 && tx.createdAt >= periodStart);
-  if (alreadyGranted) return;
-  // Real, live tier limit at grant time — not the org's frozen assign-time snapshot (`subscription.limits`), so a Platform Admin raising/lowering a tier's included credits actually changes what gets granted next renewal, not just what's displayed.
-  const aiCredits = subscriptionEngine.getCurrentLimits(organizationId).aiCredits;
-  creditPlatformAPI.grant(organizationId, "ai", aiCredits, "plan_allowance", "Monthly plan allowance", subscription.renewsAt);
+  creditPlatformAPI.ensureMonthlyAiCreditsGranted(organizationId);
 }
 
 export function buyCreditPack(organizationId: string, packId: string, userId: string): CreditTransaction {
@@ -63,6 +53,7 @@ export interface WalletBreakdown {
 }
 
 export function getWalletBreakdown(organizationId: string): WalletBreakdown {
+  creditPlatformAPI.ensureMonthlyAiCreditsGranted(organizationId);
   const subscription = subscriptionPlatformAPI.getOrDefault(organizationId);
   const includedLimit = subscriptionEngine.getCurrentLimits(organizationId).aiCredits;
   const totalAvailable = creditPlatformAPI.getBalance(organizationId, "ai").balance;

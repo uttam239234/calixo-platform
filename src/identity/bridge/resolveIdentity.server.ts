@@ -11,6 +11,22 @@ import "server-only";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { resolveCalixoIdentity, type ResolvedIdentity } from "./resolveCalixoIdentity";
 import { hydrateFromDisk } from "@/core/platform/configStore/serverHydrate";
+import { initializeConnectorFramework } from "@/core/connectors";
+
+/**
+ * The Universal Connector Framework (`@/core/connectors`) is `server-only`
+ * and can't be initialized from `initializePlatformFoundation()` — that
+ * function runs isomorphically (also called from the client-side
+ * `useCalixoIdentity()`). This is the one guaranteed-server call site every
+ * real signed-in request passes through, so it's the correct place to bring
+ * the framework online for the first time in this codebase's history.
+ * Idempotent — safe to call on every request.
+ */
+let connectorFrameworkReady: Promise<void> | null = null;
+function ensureConnectorFramework(): Promise<void> {
+  if (!connectorFrameworkReady) connectorFrameworkReady = initializeConnectorFramework();
+  return connectorFrameworkReady;
+}
 
 /** Returns `null` when there is no signed-in Clerk session — callers decide whether that means redirect, 401, or a signed-out UI state. */
 export async function resolveIdentity(): Promise<ResolvedIdentity | null> {
@@ -37,5 +53,6 @@ export async function resolveIdentity(): Promise<ResolvedIdentity | null> {
   });
   // Runs after `resolveCalixoIdentity()` so default tiers/flags/etc. are already seeded before any persisted override applies on top — see `serverHydrate.ts`'s own header for why this can't live inside that shared, isomorphic file instead.
   hydrateFromDisk();
+  await ensureConnectorFramework();
   return identity;
 }

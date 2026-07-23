@@ -76,6 +76,43 @@ export class AIService {
     return this.chat(request, contextParams);
   }
 
+  /** Real, task-framed wrappers over `chat()` — the brief's own named method list (`summarize`, `analyzeSentiment`, `generateRecommendations`, `generateInsights`). Each is a thin system-prompt shape around the same real provider call, not a separate code path, so every module using these gets the same real credit/analytics/persistence behavior as a raw `chat()` call for free. */
+  async summarize(content: string, contextParams?: Parameters<typeof contextEngine.buildContext>[0]): Promise<AICompletionResponse> {
+    return this.chat({
+      messages: [
+        { id: generateId(16), role: 'system', content: 'Summarize the given content clearly and concisely for a busy marketing operator. Lead with the single most important takeaway, then 2-4 supporting points. No preamble.', timestamp: new Date().toISOString() },
+        { id: generateId(16), role: 'user', content, timestamp: new Date().toISOString() },
+      ],
+    }, contextParams);
+  }
+
+  async analyzeSentiment(content: string, contextParams?: Parameters<typeof contextEngine.buildContext>[0]): Promise<AICompletionResponse> {
+    return this.chat({
+      messages: [
+        { id: generateId(16), role: 'system', content: 'Analyze the sentiment of the given text. Respond with a short assessment (positive/neutral/negative, with a brief reason) suitable for a brand-monitoring dashboard. Be specific about what in the text drives the sentiment.', timestamp: new Date().toISOString() },
+        { id: generateId(16), role: 'user', content, timestamp: new Date().toISOString() },
+      ],
+    }, contextParams);
+  }
+
+  async generateRecommendations(context: string, contextParams?: Parameters<typeof contextEngine.buildContext>[0]): Promise<AICompletionResponse> {
+    return this.chat({
+      messages: [
+        { id: generateId(16), role: 'system', content: 'Given the following real data/context, generate 2-4 specific, actionable recommendations a marketing team could act on this week. Each recommendation should name what to do and why, grounded only in the data provided — never invent numbers not present in the context.', timestamp: new Date().toISOString() },
+        { id: generateId(16), role: 'user', content: context, timestamp: new Date().toISOString() },
+      ],
+    }, contextParams);
+  }
+
+  async generateInsights(context: string, contextParams?: Parameters<typeof contextEngine.buildContext>[0]): Promise<AICompletionResponse> {
+    return this.chat({
+      messages: [
+        { id: generateId(16), role: 'system', content: 'Given the following real data/context, identify the 2-4 most important insights — trends, risks, opportunities, or anomalies. Ground every insight in the specific numbers given; never fabricate a statistic that is not present in the context.', timestamp: new Date().toISOString() },
+        { id: generateId(16), role: 'user', content: context, timestamp: new Date().toISOString() },
+      ],
+    }, contextParams);
+  }
+
   /**
    * Execute a specific agent with input.
    */

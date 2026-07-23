@@ -27,12 +27,6 @@ import { storageProviderRegistry } from "../data/storage/StorageProviderRegistry
 import { migrationEngine } from "../data/MigrationEngine";
 import { schemaRegistry } from "../data/SchemaRegistry";
 import { dataGovernanceRegistry } from "../data/governance";
-import { connectorManifestRegistry } from "../connectors/ConnectorManifestRegistry";
-import { connectorRuntime } from "../connectors/ConnectorRuntime";
-import { connectorWizardEngine } from "../connectors/ConnectorWizardEngine";
-import { connectorHealthEngine } from "../connectors/ConnectorHealthEngine";
-import { normalizationEngine } from "../connectors/NormalizationEngine";
-import { transformationEngine } from "../connectors/TransformationEngine";
 import { secretVault } from "@/integrations/secrets/SecretVault";
 import { contractRegistry } from "../api/ContractRegistry";
 import { rateLimiter } from "../api/RateLimiter";
@@ -62,7 +56,6 @@ import { settingsRegistry, settingsGroupRegistry } from "@/core/settings";
 import { reportRegistry, dashboardRegistry as reportsDashboardRegistry, templateRegistry } from "@/core/reports";
 import { segmentRegistry } from "@/core/analytics";
 import { ModuleRegistry } from "@/core/modules";
-import { connectorRegistry } from "@/integrations/registry/ConnectorRegistry";
 
 let registered = false;
 
@@ -97,7 +90,10 @@ export function registerAllPlatformRegistries(): void {
   // aren't available in the platform registry directory as a result.
   platformRegistry.register({ name: "analyticsSegments", kind: "SegmentRegistry", count: () => segmentRegistry.count() });
   platformRegistry.register({ name: "modules", kind: "ModuleRegistry", count: () => ModuleRegistry.getModuleCount() });
-  platformRegistry.register({ name: "connectors", kind: "ConnectorRegistry", count: () => connectorRegistry.getConnectorCount() });
+  // The Universal Connector Framework's `connectorRegistry` (`@/core/connectors`) is
+  // deliberately NOT registered here for the same reason as the note above: it's
+  // `"server-only"`-tagged and this file is reachable from client bundles. Its count is
+  // surfaced instead by the server-only Platform Admin connector diagnostics page.
 
   // Enterprise Data & Persistence Platform (Track 1 Phase 4)
   platformRegistry.register({ name: "repositories", kind: "RepositoryRegistry", count: () => repositoryRegistry.count() });
@@ -112,12 +108,12 @@ export function registerAllPlatformRegistries(): void {
   platformRegistry.register({ name: "retentionPolicies", kind: "DataGovernanceRegistry", count: () => dataGovernanceRegistry.count() });
 
   // Enterprise Integration & Connector Platform (Track 1 Phase 5)
-  platformRegistry.register({ name: "connectorManifests", kind: "ConnectorManifestRegistry", count: () => connectorManifestRegistry.count() });
-  platformRegistry.register({ name: "connectorOwnerships", kind: "ConnectorRuntime", count: () => connectorRuntime.count() });
-  platformRegistry.register({ name: "connectorWizardSessions", kind: "ConnectorWizardEngine", count: () => connectorWizardEngine.count() });
-  platformRegistry.register({ name: "connectorHealthChecks", kind: "ConnectorHealthEngine", count: () => connectorHealthEngine.count() });
-  platformRegistry.register({ name: "normalizedRecords", kind: "NormalizationEngine", count: () => normalizationEngine.count() });
-  platformRegistry.register({ name: "appliedTransformations", kind: "TransformationEngine", count: () => transformationEngine.count() });
+  // The Universal Connector Framework (`@/core/connectors`) is `server-only` and deliberately not
+  // registered here — this whole file runs isomorphically (client + server) via
+  // `initializePlatformRegistryFoundation()` -> `initializePlatformFoundation()`, so a server-only
+  // module can't be imported at this layer. Its registry/health/log counts are surfaced instead by
+  // the Platform Admin connector diagnostics page (`/platform-admin/connectors`), which is already
+  // server-only.
   platformRegistry.register({ name: "vaultSecrets", kind: "SecretVault", count: () => secretVault.count() });
 
   // Enterprise API, Gateway & Developer Platform (Track 1 Phase 6)

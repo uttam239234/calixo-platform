@@ -73,6 +73,7 @@ export const MODEL_SUPPORTED_ACTIONS: Record<AIModel, { chat: boolean; stream: b
   'azure-gpt-4o': { chat: true, stream: true, functionCalling: true, vision: true, embedding: false },
   'local-llama': { chat: true, stream: false, functionCalling: false, vision: false, embedding: true },
   'local-mistral': { chat: true, stream: false, functionCalling: true, vision: false, embedding: true },
+  'gpt-image-1': { chat: false, stream: false, functionCalling: false, vision: false, embedding: false },
 };
 
 export const PROVIDER_MODEL_MAP: Record<AIProvider, AIModel[]> = {

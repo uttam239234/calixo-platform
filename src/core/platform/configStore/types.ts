@@ -25,7 +25,10 @@ export type PlatformConfigTable =
   | "platform_feature_flags"
   | "platform_global_settings"
   | "platform_secrets_metadata"
-  | "platform_secrets_vault";
+  | "platform_secrets_vault"
+  | "platform_oauth_applications_metadata"
+  | "platform_oauth_applications_vault"
+  | "connector_token_vault";
 
 /** The full, current state of every persisted config registry — what gets written to disk and what a freshly-booted realm (server process or browser tab) hydrates back into its registries. */
 export interface PlatformConfigSnapshot {

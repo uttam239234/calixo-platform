@@ -2,8 +2,9 @@
 
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/button";
 import { useBrandMonitoring } from "@/features/brand/BrandMonitoringProvider";
-import { Sparkles, Lightbulb, AlertTriangle, TrendingUp, Clock } from "lucide-react";
+import { Sparkles, Lightbulb, AlertTriangle, TrendingUp, Clock, Loader2 } from "lucide-react";
 import type { ReputationInsightType } from "@/core/reputation";
 
 const typeConfig: Record<ReputationInsightType, { icon: typeof Sparkles; bg: string; text: string; border: string; label: string }> = {
@@ -14,20 +15,27 @@ const typeConfig: Record<ReputationInsightType, { icon: typeof Sparkles; bg: str
 };
 
 export function BrandInsights() {
-  const { insights } = useBrandMonitoring();
+  const { insights, generateInsight, generatingInsight, insightError } = useBrandMonitoring();
 
   return (
     <div className="space-y-6 pb-8">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/30 to-ai/30 border border-primary/30">
-            <Sparkles size={20} className="text-primary" />
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/30 to-ai/30 border border-primary/30">
+              <Sparkles size={20} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">AI-Powered Brand Intelligence</h2>
+              <p className="text-sm text-muted-foreground">Most insights below are deterministic, generated live from tracked mentions, sentiment, and crisis signals — &quot;AI Analysis&quot; cards are genuine model-generated analysis</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-foreground">AI-Powered Brand Intelligence</h2>
-            <p className="text-sm text-muted-foreground">Deterministic insights generated live from tracked mentions, sentiment, and crisis signals</p>
-          </div>
+          <Button variant="outline" size="sm" onClick={generateInsight} disabled={generatingInsight}>
+            {generatingInsight ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+            {generatingInsight ? "Analyzing…" : "Generate AI Insight"}
+          </Button>
         </div>
+        {insightError && <p className="mb-4 text-sm text-destructive">{insightError}</p>}
       </motion.div>
 
       {insights.length === 0 ? (

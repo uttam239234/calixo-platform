@@ -42,11 +42,17 @@ export class ResourceAuthorizationAPI {
   /**
    * Connector Authorization (section 11) — OAuth-scope-shaped operations
    * mapped onto the standard matrix rather than custom permission names:
-   * read->read, write->update, admin->admin, reconnect->execute,
-   * disconnect->delete, sync->execute, delete->delete.
+   * create->create, read->read, write->update, admin->admin,
+   * reconnect->execute, disconnect->delete, sync->execute, delete->delete.
+   * `create` is its own operation (not folded into `write`) because
+   * installing a brand-new connector instance is a distinct, coarser-grained
+   * action than editing an existing one's config — it also reuses the
+   * already-wired `connector: { create: "connectorsUsed" }` subscription
+   * limit gate (`AuthorizationPlatformAPI.ts`), which no operation reached
+   * before this.
    */
-  canOperateConnector(tenantContext: TenantContext, operation: "read" | "write" | "admin" | "reconnect" | "disconnect" | "sync" | "delete", connectorId: string): Promise<AuthorizationDecision> {
-    const actionMap = { read: "read", write: "update", admin: "admin", reconnect: "execute", disconnect: "delete", sync: "execute", delete: "delete" } as const;
+  canOperateConnector(tenantContext: TenantContext, operation: "create" | "read" | "write" | "admin" | "reconnect" | "disconnect" | "sync" | "delete", connectorId: string): Promise<AuthorizationDecision> {
+    const actionMap = { create: "create", read: "read", write: "update", admin: "admin", reconnect: "execute", disconnect: "delete", sync: "execute", delete: "delete" } as const;
     return this.can(tenantContext, "connector", actionMap[operation], { resourceId: connectorId, organizationId: tenantContext.organization.organizationId });
   }
 }

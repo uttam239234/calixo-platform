@@ -18,6 +18,7 @@ import { formatRelativeTime } from "@/shared/utils/date";
 import { SECTION_LABELS, SECTION_ORDER } from "@/core/platform/secrets/sections";
 import type { PlatformSecretSummary, SecretSection } from "@/core/platform/secrets";
 import { listPlatformSecretsAction, addOrUpdateSecretAction, rotateSecretAction, validateSecretAction, testConnectionAction } from "./actions";
+import { OAuthApplicationsPanel } from "./OAuthApplicationsPanel";
 
 type DialogMode = "add" | "update" | "rotate";
 interface DialogState {
@@ -127,7 +128,7 @@ export default function PlatformSecretsPage() {
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${section === s ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
           >
             {SECTION_LABELS[s]}
-            {secrets && (
+            {secrets && s !== "oauth_applications" && (
               <span className="ml-1.5 text-xs tabular-nums opacity-70">
                 {sectionCounts[s].configured}/{sectionCounts[s].total}
               </span>
@@ -136,27 +137,33 @@ export default function PlatformSecretsPage() {
         ))}
       </nav>
 
-      {loadError && <p className="text-sm text-destructive">{loadError}</p>}
-      {!secrets && !loadError && <p className="text-sm text-muted-foreground">Loading platform secrets…</p>}
+      {section === "oauth_applications" ? (
+        <OAuthApplicationsPanel />
+      ) : (
+        <>
+          {loadError && <p className="text-sm text-destructive">{loadError}</p>}
+          {!secrets && !loadError && <p className="text-sm text-muted-foreground">Loading platform secrets…</p>}
 
-      {secrets && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {secrets
-            .filter(s => s.section === section)
-            .map(s => (
-              <SecretCard
-                key={s.id}
-                secret={s}
-                busy={busyId === s.id}
-                onAdd={() => setDialog({ mode: "add", secret: s })}
-                onUpdate={() => setDialog({ mode: "update", secret: s })}
-                onRotateManual={() => setDialog({ mode: "rotate", secret: s })}
-                onRotateGenerate={() => handleGenerateRotate(s)}
-                onValidate={() => handleValidate(s)}
-                onTest={() => handleTest(s)}
-              />
-            ))}
-        </div>
+          {secrets && (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {secrets
+                .filter(s => s.section === section)
+                .map(s => (
+                  <SecretCard
+                    key={s.id}
+                    secret={s}
+                    busy={busyId === s.id}
+                    onAdd={() => setDialog({ mode: "add", secret: s })}
+                    onUpdate={() => setDialog({ mode: "update", secret: s })}
+                    onRotateManual={() => setDialog({ mode: "rotate", secret: s })}
+                    onRotateGenerate={() => handleGenerateRotate(s)}
+                    onValidate={() => handleValidate(s)}
+                    onTest={() => handleTest(s)}
+                  />
+                ))}
+            </div>
+          )}
+        </>
       )}
 
       {dialog && (

@@ -2,31 +2,38 @@
 
 /**
  * Calixo Integrations - "Connected Apps Center" data hook.
- * The only place allowed to call `connectorPlatformAPI`/`synchronizationPlatformAPI`
- * for this module — components never import them directly. Scoped to a
- * single organization, matching every other Settings module's hook shape
- * (`useWorkspaces`, `useTeams`, ...).
+ * The only place allowed to call the Universal Connector Framework's
+ * Server Actions for this module — components never import them directly.
+ * Thin: it never knows a provider's OAuth details, it only calls
+ * install/buildAuthorizationUrl (real callback route completes the
+ * connect)/disconnect/refresh/sync/health.
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { connectorPlatformAPI, synchronizationPlatformAPI } from "@/core/platform/connectors";
-import { connectorObservability } from "@/core/platform/observability";
-import type { ConnectorObservabilitySummary } from "@/core/platform/observability";
-import { tenantContextService } from "@/core/platform/tenant";
+import {
+  listConnectorInstancesAction,
+  getConnectorDefinitionAction,
+  getConnectorHealthForUserAction,
+  getConnectorSyncHistoryForUserAction,
+  installConnectorAction,
+  buildConnectorAuthorizationUrlAction,
+  disconnectConnectorAction,
+  refreshConnectorAction,
+  syncConnectorAction,
+} from "@/core/connectors/actions";
+import type { ConnectorDefinition, ConnectorHealth, ConnectorInstance, ConnectorSync } from "@/core/connectors/types";
 import { entitlementPlatformAPI } from "@/core/platform/commercial";
-import { connectorRegistry } from "@/integrations/registry/ConnectorRegistry";
-import type { Connection, SyncDataType, SyncJob } from "@/integrations/types";
 import { getMarketplaceListings, type AppListing } from "@/features/settings/integrations/marketplace";
 import { getWorkspacesForConnection, grantWorkspaceAccess, revokeWorkspaceAccess } from "@/features/settings/integrations/workspaceVisibility";
 import { recordIntegrationActivity, getIntegrationActivity } from "@/features/settings/integrations/activityLog";
 import { iconForApp } from "@/features/settings/integrations/constants";
-import { useCalixoIdentity } from "@/identity/bridge/useCalixoIdentity";
 
 export interface ConnectedApp {
-  connection: Connection;
+  instance: ConnectorInstance;
+  definition: ConnectorDefinition;
   icon: string;
-  website?: string;
-  health?: ConnectorObservabilitySummary;
+  health?: ConnectorHealth;
+  lastSync?: ConnectorSync;
   workspaceIds: string[];
 }
 
@@ -36,69 +43,65 @@ export interface IntegrationActivityItem {
   timestamp: string;
 }
 
-/** Priority order for picking a sync data type from a connection's real capabilities — used by "Refresh", which doesn't ask the user to choose one (brief: no technical terminology). */
-const DATA_TYPE_BY_CAPABILITY: [string, SyncDataType][] = [
-  ["read_analytics", "analytics"], ["write_analytics", "analytics"],
-  ["read_campaigns", "campaigns"], ["write_campaigns", "campaigns"],
-  ["read_ads", "ads"], ["write_ads", "ads"],
-  ["read_social", "social_posts"], ["write_social", "social_posts"],
-  ["read_contacts", "contacts"], ["write_contacts", "contacts"],
-  ["read_reports", "reports"],
-];
-
-function dataTypeFor(connection: Connection): SyncDataType {
-  for (const [capability, dataType] of DATA_TYPE_BY_CAPABILITY) {
-    if (connection.capabilities.includes(capability as Connection["capabilities"][number])) return dataType;
-  }
-  return "analytics";
+function fallbackDefinition(instance: ConnectorInstance): ConnectorDefinition {
+  return {
+    id: instance.connectorId,
+    provider: instance.provider,
+    displayName: instance.displayName,
+    category: "productivity",
+    icon: "plug",
+    version: "0.0.0",
+    status: "disabled",
+    supportedFeatures: [],
+    supportedCapabilities: [],
+    requiredOAuthProducts: [],
+    requiredScopes: [],
+    supportedEvents: [],
+    supportsWebhook: false,
+    supportsRealtime: false,
+    supportsScheduling: false,
+    supportsAI: false,
+  };
 }
 
 export function useIntegrations(organizationId: string) {
-  const { identity } = useCalixoIdentity();
   const [apps, setApps] = useState<ConnectedApp[]>([]);
   const [marketplace, setMarketplace] = useState<AppListing[]>([]);
-  const [syncJobsByConnection, setSyncJobsByConnection] = useState<Record<string, SyncJob[]>>({});
   const [activity, setActivity] = useState<IntegrationActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     if (!organizationId) return;
     setLoading(true);
-    const [connections, healthSummaries, listings] = await Promise.all([
-      connectorPlatformAPI.getConnections(organizationId),
-      connectorObservability.getOrganizationSummary(organizationId),
-      getMarketplaceListings(organizationId),
-    ]);
-    const healthByConnection = new Map<string, ConnectorObservabilitySummary>(healthSummaries.map(h => [h.connectionId, h]));
+    const [instances, listings] = await Promise.all([listConnectorInstancesAction(), getMarketplaceListings()]);
 
-    const jobsEntries: [string, SyncJob[]][] = await Promise.all(
-      connections.map(async (c): Promise<[string, SyncJob[]]> => [c.id, await synchronizationPlatformAPI.getHistory(c.id)])
-    );
-    const jobsByConnection: Record<string, SyncJob[]> = Object.fromEntries(jobsEntries);
+    const connectedApps: ConnectedApp[] = [];
+    const syncActivity: IntegrationActivityItem[] = [];
 
-    setApps(
-      connections.map(connection => ({
-        connection,
-        icon: iconForApp(connection.providerId),
-        website: connectorRegistry.getDefinition(connection.providerId)?.metadata.website,
-        health: healthByConnection.get(connection.id),
-        workspaceIds: getWorkspacesForConnection(connection.id),
-      }))
+    await Promise.all(
+      instances.map(async instance => {
+        const [definition, health, syncHistory] = await Promise.all([
+          getConnectorDefinitionAction(instance.connectorId),
+          getConnectorHealthForUserAction(instance.id).catch(() => undefined),
+          getConnectorSyncHistoryForUserAction(instance.id).catch((): ConnectorSync[] => []),
+        ]);
+        connectedApps.push({ instance, definition: definition ?? fallbackDefinition(instance), icon: iconForApp(instance.connectorId), health, lastSync: syncHistory[syncHistory.length - 1], workspaceIds: getWorkspacesForConnection(instance.id) });
+        for (const sync of syncHistory) {
+          if (sync.status !== "succeeded" && sync.status !== "partial" && sync.status !== "failed") continue;
+          syncActivity.push({
+            id: `sync-${sync.id}`,
+            description: sync.status === "failed" ? `${instance.displayName} sync failed` : `${instance.displayName} synced — ${sync.recordsProcessed} record${sync.recordsProcessed === 1 ? "" : "s"}`,
+            timestamp: sync.finishedAt ?? sync.startedAt,
+          });
+        }
+      })
     );
+
+    connectedApps.sort((a, b) => a.instance.displayName.localeCompare(b.instance.displayName));
+    setApps(connectedApps);
     setMarketplace(listings);
-    setSyncJobsByConnection(jobsByConnection);
 
-    const connectionById = new Map(connections.map(c => [c.id, c]));
-    const syncActivity: IntegrationActivityItem[] = Object.values(jobsByConnection)
-      .flat()
-      .filter((job: SyncJob) => job.status === "completed" || job.status === "failed")
-      .map((job: SyncJob) => {
-        const app = connectionById.get(job.connectionId)?.name ?? "An app";
-        const description = job.status === "completed" ? `${app} synced — ${job.recordsProcessed} records` : `${app} sync failed`;
-        return { id: `sync-${job.id}`, description, timestamp: job.completedAt ?? job.startedAt ?? new Date().toISOString() };
-      });
     const loggedActivity: IntegrationActivityItem[] = getIntegrationActivity(organizationId).map(e => ({ id: e.id, description: e.description, timestamp: e.timestamp }));
-
     setActivity([...loggedActivity, ...syncActivity].sort((a, b) => b.timestamp.localeCompare(a.timestamp)));
     setLoading(false);
   }, [organizationId]);
@@ -109,87 +112,94 @@ export function useIntegrations(organizationId: string) {
     })();
   }, [refresh]);
 
-  const withTenantContext = useCallback(() => tenantContextService.resolve({ organizationId, userId: identity?.userId ?? "" }), [organizationId, identity?.userId]);
+  const requireSlot = useCallback(() => {
+    const entitlement = entitlementPlatformAPI.canUse({ organizationId, key: "connectorsUsed", requested: 1 });
+    if (!entitlement.allowed) throw new Error(entitlement.reason ?? "Upgrade required: your plan's connected-app limit has been reached.");
+  }, [organizationId]);
 
-  const install = useCallback(
-    async (providerId: string, appName: string) => {
-      // Real plan-tier entitlement check — distinct from any permission/RBAC gate: an organization can be fully permitted to manage integrations and still be out of connector slots for its tier.
-      const entitlement = entitlementPlatformAPI.canUse({ organizationId, key: "connectorsUsed", requested: 1 });
-      if (!entitlement.allowed) {
-        throw new Error(entitlement.reason ?? "Upgrade required: your plan's connected-app limit has been reached.");
-      }
-      const tenantContext = await withTenantContext();
-      const connection = await connectorPlatformAPI.install(tenantContext, providerId, {});
-      recordIntegrationActivity(organizationId, `${appName} connected`);
-      await refresh();
-      return connection;
+  /** Adds the app without connecting it yet — used by "Starter Integrations" to add several apps in one click; each still needs its own real OAuth consent from Connected Apps. */
+  const installOnly = useCallback(
+    async (connectorId: string) => {
+      requireSlot();
+      const instance = await installConnectorAction(connectorId);
+      recordIntegrationActivity(organizationId, `${instance.displayName} added — connect it to start syncing`);
+      return instance;
     },
-    [organizationId, withTenantContext, refresh]
+    [organizationId, requireSlot]
+  );
+
+  /** Installs (if needed) and redirects the browser to the real provider's OAuth consent screen — the only "connect" flow; there is no simulated/demo step. */
+  const connect = useCallback(
+    async (connectorId: string, appName: string) => {
+      const existing = apps.find(a => a.instance.connectorId === connectorId);
+      let instance = existing?.instance;
+      if (!instance) {
+        requireSlot();
+        instance = await installConnectorAction(connectorId);
+      }
+      const { url } = await buildConnectorAuthorizationUrlAction(instance.id);
+      recordIntegrationActivity(organizationId, `${appName} connection started`);
+      window.location.href = url;
+    },
+    [organizationId, apps, requireSlot]
   );
 
   const disconnect = useCallback(
-    async (connectionId: string, appName: string) => {
-      const tenantContext = await withTenantContext();
-      await connectorPlatformAPI.disconnect(tenantContext, connectionId);
+    async (connectorInstanceId: string, appName: string) => {
+      await disconnectConnectorAction(connectorInstanceId);
       recordIntegrationActivity(organizationId, `${appName} disconnected`);
-      await refresh();
-    },
-    [organizationId, withTenantContext, refresh]
-  );
-
-  const reconnect = useCallback(
-    async (connectionId: string, appName: string) => {
-      const tenantContext = await withTenantContext();
-      await connectorPlatformAPI.reconnect(tenantContext, connectionId);
-      recordIntegrationActivity(organizationId, `${appName} reconnected`);
-      await refresh();
-    },
-    [organizationId, withTenantContext, refresh]
-  );
-
-  const refreshSync = useCallback(
-    async (connection: Connection, appName: string) => {
-      const job = await synchronizationPlatformAPI.sync(connection.id, dataTypeFor(connection), "incremental");
-      recordIntegrationActivity(organizationId, job.status === "completed" ? `${appName} synced — ${job.recordsProcessed} records` : `${appName} sync failed`);
       await refresh();
     },
     [organizationId, refresh]
   );
 
-  const changeAccount = useCallback(
-    async (connectionId: string, providerId: string, appName: string) => {
-      const tenantContext = await withTenantContext();
-      await connectorPlatformAPI.delete(tenantContext, connectionId);
-      await connectorPlatformAPI.install(tenantContext, providerId, {});
-      recordIntegrationActivity(organizationId, `${appName} account changed`);
+  /** Tries a real, silent token refresh first; only redirects to a fresh OAuth consent screen if that fails (expired/revoked refresh token). */
+  const reconnect = useCallback(
+    async (connectorInstanceId: string, appName: string) => {
+      const result = await refreshConnectorAction(connectorInstanceId);
+      if (result.ok) {
+        recordIntegrationActivity(organizationId, `${appName} reconnected`);
+        await refresh();
+        return;
+      }
+      const { url } = await buildConnectorAuthorizationUrlAction(connectorInstanceId);
+      recordIntegrationActivity(organizationId, `${appName} reconnection started`);
+      window.location.href = url;
+    },
+    [organizationId, refresh]
+  );
+
+  const refreshSync = useCallback(
+    async (connectorInstanceId: string, appName: string) => {
+      const sync = await syncConnectorAction(connectorInstanceId, "incremental");
+      recordIntegrationActivity(organizationId, sync.status === "succeeded" || sync.status === "partial" ? `${appName} synced — ${sync.recordsProcessed} records` : `${appName} sync failed`);
       await refresh();
     },
-    [organizationId, withTenantContext, refresh]
+    [organizationId, refresh]
   );
 
   const setWorkspaceVisibility = useCallback(
-    (connectionId: string, workspaceId: string, visible: boolean) => {
-      if (visible) grantWorkspaceAccess(connectionId, workspaceId);
-      else revokeWorkspaceAccess(connectionId, workspaceId);
+    (connectorInstanceId: string, workspaceId: string, visible: boolean) => {
+      if (visible) grantWorkspaceAccess(connectorInstanceId, workspaceId);
+      else revokeWorkspaceAccess(connectorInstanceId, workspaceId);
       void refresh();
     },
     [refresh]
   );
 
-  const lookup = useCallback((connectionId: string) => apps.find(a => a.connection.id === connectionId), [apps]);
+  const lookup = useCallback((connectorInstanceId: string) => apps.find(a => a.instance.id === connectorInstanceId), [apps]);
 
   return {
     apps,
     marketplace,
-    syncJobsByConnection,
     activity,
     loading,
     lookup,
-    install,
+    installOnly,
+    connect,
     disconnect,
     reconnect,
     refreshSync,
-    changeAccount,
     setWorkspaceVisibility,
     refresh,
   };

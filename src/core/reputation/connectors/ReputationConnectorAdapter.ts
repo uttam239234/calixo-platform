@@ -1,23 +1,23 @@
 /**
  * Calixo Platform - Reputation Connector Adapter
  *
- * The Connector Platform's real hookup point for Brand Monitoring — reads live connector
- * summaries via `connectorsPlatformAPI` (the same facade Social's `SocialConnectorAdapter` uses)
- * and, for the one provider this codebase actually seeds with genuine social read capability
- * (`instagram`), reports real connection health for that monitored source. Every other named
- * source in the brief — X, organic Facebook, organic LinkedIn, YouTube, Reddit, News, Blogs,
- * Forums, Review sites — has no seeded connector anywhere in the platform and honestly keeps
- * "demo" status.
+ * The Universal Connector Framework's real hookup point for Brand Monitoring — reads real
+ * `ConnectorInstance`s via `connectorFrameworkAPI` (the same facade Social's `SocialConnectorAdapter`
+ * uses) and, for the connectors that genuinely back a monitored source (Meta -> Facebook/Instagram,
+ * LinkedIn, YouTube), reports real connection health for that source. Every other named source in
+ * the brief — X, Reddit, News, Blogs, Forums, Review sites — has no real adapter in the framework
+ * yet and honestly keeps "demo" status.
  *
  * Brand Monitoring owns no connector code here: no OAuth, no token refresh, no sync scheduling,
- * no crawling engine, no seeding — only ever reads through `connectorsPlatformAPI`.
+ * no crawling engine, no seeding — only ever reads through `connectorFrameworkAPI`.
  */
-import { connectorsPlatformAPI } from "@/integrations/platform/ConnectorsPlatformAPI";
-import { REPUTATION_ORGANIZATION_ID } from "../tenant/ReputationTenantDefaults";
+import { listConnectorInstancesAction, getConnectorHealthAction } from "@/core/connectors/actions";
 
-/** Only the source with a genuinely connected, social-read-capable seeded connector. */
-const PROVIDER_TO_SOURCE: Record<string, string> = {
-  instagram: "Instagram",
+/** Only sources with a genuine, registered connector in the Universal Connector Framework — Meta's Graph API covers both Facebook and Instagram, so one "meta" connection backs both sources. */
+const CONNECTOR_TO_SOURCES: Record<string, string[]> = {
+  meta: ["Facebook", "Instagram"],
+  linkedin: ["LinkedIn"],
+  youtube: ["YouTube"],
 };
 
 export type ReputationSourceStatus = "connected" | "connecting" | "disconnected" | "demo";
@@ -27,12 +27,6 @@ export interface ReputationSourceHealth {
   status: ReputationSourceStatus;
   lastSync: string;
   isLiveConnector: boolean;
-}
-
-function toSourceStatus(status: string): ReputationSourceStatus {
-  if (status === "connected") return "connected";
-  if (status === "connecting" || status === "pending") return "connecting";
-  return "disconnected";
 }
 
 let liveStatusBySource: Record<string, ReputationSourceHealth> = {};
@@ -52,22 +46,27 @@ export function getReputationSourceStatuses(trackedSources: string[]): Reputatio
 }
 
 /**
- * Pulls real connector summaries for `organizationId` and refreshes the live-status map. Safe to
+ * Pulls real connector summaries and refreshes the live-status map. The connector actions derive
+ * the real signed-in session's own organization themselves via `resolveIdentity()`. Safe to
  * call repeatedly. If nothing is connected yet, every source falls back to demo status.
  */
-export async function syncReputationSourcesFromConnectors(organizationId: string = REPUTATION_ORGANIZATION_ID): Promise<void> {
-  const connections = await connectorsPlatformAPI.getConnectorSummaries(organizationId);
+export async function syncReputationSourcesFromConnectors(): Promise<void> {
+  const instances = await listConnectorInstancesAction();
 
   const next: Record<string, ReputationSourceHealth> = {};
-  for (const connection of connections) {
-    const source = PROVIDER_TO_SOURCE[connection.providerId];
-    if (!source) continue;
-    next[source] = {
-      source,
-      status: toSourceStatus(connection.status),
-      lastSync: connection.lastSyncAt ? new Date(connection.lastSyncAt).toLocaleString() : "Not yet synced",
-      isLiveConnector: connection.status === "connected",
-    };
+  for (const instance of instances) {
+    const sources = CONNECTOR_TO_SOURCES[instance.connectorId];
+    if (!sources) continue;
+    const health = await getConnectorHealthAction(instance.id).catch(() => undefined);
+    const status: ReputationSourceStatus = instance.status === "active" ? "connected" : instance.status === "error" ? "disconnected" : "connecting";
+    for (const source of sources) {
+      next[source] = {
+        source,
+        status,
+        lastSync: health?.checkedAt ? new Date(health.checkedAt).toLocaleString() : "Not yet synced",
+        isLiveConnector: instance.status === "active",
+      };
+    }
   }
   liveStatusBySource = next;
 }

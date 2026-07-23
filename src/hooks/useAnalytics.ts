@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { analyticsEngine, analyticsPlatformAPI, initializeAnalyticsFoundation, logAnalyticsError, trackAnalyticsTiming, ANALYTICS_ORGANIZATION_ID } from "@/core/analytics";
 import type { AnalyticsActionCenterItem, AnalyticsFilterState, AnalyticsHealthScore, AnalyticsInsight, AnalyticsRange, AnalyticsSnapshot } from "@/core/analytics";
 import { CAMPAIGNS, CHANNELS, DEVICES, AUDIENCES, REGIONS } from "@/core/analytics/mock/generateAnalyticsFacts";
+import { generateAnalyticsInsightAction } from "@/features/analytics/insightsActions";
 
 const EMPTY_SNAPSHOT: AnalyticsSnapshot = {
   summaryMetrics: [],
@@ -31,6 +32,8 @@ export function useAnalytics(organizationId: string = ANALYTICS_ORGANIZATION_ID)
   const [healthScore, setHealthScore] = useState<AnalyticsHealthScore | null>(null);
   const [actionCenterItems, setActionCenterItems] = useState<AnalyticsActionCenterItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generatingInsight, setGeneratingInsight] = useState(false);
+  const [insightError, setInsightError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     const startedAt = Date.now();
@@ -71,6 +74,24 @@ export function useAnalytics(organizationId: string = ANALYTICS_ORGANIZATION_ID)
     setInsights(analyticsEngine.getInsights());
   }, []);
 
+  /** Real AI call (see `generateAnalyticsInsightAction`) — prepends a genuinely model-generated insight to the existing (static-baseline) list rather than replacing it. */
+  const generateInsight = useCallback(async () => {
+    setGeneratingInsight(true);
+    setInsightError(null);
+    try {
+      const result = await generateAnalyticsInsightAction();
+      if (!result.ok || !result.insight) {
+        setInsightError(result.error ?? "Something went wrong generating that insight.");
+        return;
+      }
+      setInsights(prev => [result.insight!, ...prev]);
+    } catch (error) {
+      setInsightError(error instanceof Error ? error.message : "Something went wrong generating that insight.");
+    } finally {
+      setGeneratingInsight(false);
+    }
+  }, []);
+
   /** Diffs two independently-specified periods — see `AnalyticsPlatformAPI.comparePeriods()`. Doesn't depend on this hook's own `range`/`filters` state, so callers pass whatever two periods they want compared. */
   const comparePeriods = useCallback(
     (periodA: Parameters<typeof analyticsPlatformAPI.comparePeriods>[0], periodB: Parameters<typeof analyticsPlatformAPI.comparePeriods>[1]) => analyticsPlatformAPI.comparePeriods(periodA, periodB),
@@ -104,6 +125,9 @@ export function useAnalytics(organizationId: string = ANALYTICS_ORGANIZATION_ID)
     actionCenterItems,
     applyInsight,
     dismissInsight,
+    generateInsight,
+    generatingInsight,
+    insightError,
     comparePeriods,
     loading,
     refresh,

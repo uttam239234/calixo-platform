@@ -15,7 +15,7 @@ import { subscriptionRegistry } from "@/core/platform/subscription";
 import type { Subscription, SubscriptionTier, BillingCycle, SubscriptionTierDefinition } from "@/core/platform/subscription";
 import { organizationPlatformAPI } from "@/core/platform/organizations";
 import { userRegistry } from "@/core/users";
-import { connectorPlatformAPI } from "@/core/platform/connectors";
+import { listConnectorInstancesAction } from "@/core/connectors/actions";
 import { workspacePlatformAPI } from "@/core/platform/workspaces";
 import { getWalletBreakdown, buyCreditPack, type WalletBreakdown } from "@/features/settings/billing/aiCredits";
 import {
@@ -71,7 +71,7 @@ export function useBilling(organizationId: string) {
     if (!organizationId) return;
     setLoading(true);
     const sub = subscriptionPlatformAPI.getOrDefault(organizationId);
-    const connections = await connectorPlatformAPI.getConnections(organizationId);
+    const instances = await listConnectorInstancesAction();
 
     setSubscription(sub);
     setWallet(getWalletBreakdown(organizationId));
@@ -80,7 +80,7 @@ export function useBilling(organizationId: string) {
     setCreditPacks(creditPackPlatformAPI.list({ activeOnly: true }));
     setUsageStats([
       { id: "users", label: "Users", used: userRegistry.list({ organizationId }).length, limit: sub.limits.seats },
-      { id: "integrations", label: "Integrations", used: connections.length, limit: sub.limits.connectors },
+      { id: "integrations", label: "Integrations", used: instances.length, limit: sub.limits.connectors },
       { id: "workspaces", label: "Workspaces", used: workspacePlatformAPI.list({ organizationId }).length, limit: sub.limits.workspaces },
     ]);
     setLoading(false);

@@ -61,6 +61,17 @@ export const CreativePromptEngine = {
     // CTA
     if (request.cta) parts.push(`CTA text: "${request.cta}"`);
 
+    // Safe margins + platform best practices — real platform knowledge folded directly into the
+    // image prompt, not just used for post-hoc quality scoring.
+    const platformKnowledge = PlatformKnowledgeService.get(request.platform);
+    const safeAreas = platformKnowledge.safeAreas;
+    if (safeAreas.top > 0 || safeAreas.bottom > 0 || safeAreas.left > 0 || safeAreas.right > 0) {
+      parts.push(`safe margins: keep headline, logo, and CTA at least ${safeAreas.top}${safeAreas.unit} from the top, ${safeAreas.bottom}${safeAreas.unit} from the bottom, ${safeAreas.left}${safeAreas.unit} from the left, and ${safeAreas.right}${safeAreas.unit} from the right`);
+    }
+    if (platformKnowledge.bestPractices.length > 0) {
+      parts.push(`platform best practice: ${platformKnowledge.bestPractices[0]}`);
+    }
+
     // Style keywords
     parts.push(styleKeywords.join(", "));
 

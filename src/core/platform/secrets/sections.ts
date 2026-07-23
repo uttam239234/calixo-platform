@@ -12,11 +12,11 @@ export const SECTION_LABELS: Record<SecretSection, string> = {
   ai_providers: "AI Providers",
   authentication: "Authentication",
   payments: "Payments",
-  integrations: "Integrations",
+  oauth_applications: "OAuth Applications",
   security: "Security",
   database: "Database",
   storage: "Storage",
   monitoring: "Monitoring",
 };
 
-export const SECTION_ORDER: SecretSection[] = ["ai_providers", "authentication", "payments", "integrations", "security", "database", "storage", "monitoring"];
+export const SECTION_ORDER: SecretSection[] = ["ai_providers", "authentication", "payments", "oauth_applications", "security", "database", "storage", "monitoring"];

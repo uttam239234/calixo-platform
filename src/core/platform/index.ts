@@ -46,7 +46,6 @@ import { initializePlatformRegistryFoundation } from "./registry";
 import { initializeIdentityFoundation } from "./identity";
 import { initializeAccessControlFoundation } from "./access";
 import { initializeDataFoundation } from "./data";
-import { initializeConnectorFoundation } from "./connectors";
 import { initializeApiFoundation } from "./api";
 import { initializeExecutionFoundation } from "./execution";
 import { initializeObservabilityFoundation } from "./observability";
@@ -54,7 +53,7 @@ import { initializeCommercialFoundation } from "./commercial";
 
 let initialized = false;
 
-/** Registers subscription tiers, feature flags, identity, access control (permissions/system roles/default policies), the Data & Persistence Platform (base entity schema, bootstrap migration, existing-repository indexing), the Integration & Connector Platform (Universal Data Model schemas, example manifest-driven connector), the API/Gateway/Developer Platform (core contracts: health, OpenAPI spec, organizations, connector marketplace, developer API keys), the Execution/Automation/Background Processing Platform (real workflow/notification/report-tick/ai-embedding workers, then — for the first time in this codebase's history — connects `queueEngine` to `workerRegistry` and starts the queue/event-bus/scheduler poll loops), the Observability/Monitoring/Diagnostics/Operations Platform (wires Error Intelligence's event subscriptions, default alert rules, and a real recurring observability tick), the Commercial/Billing/Licensing/Subscription Platform (registers usage types/quotas/pricing, wires event-driven Connector/Execution usage metering and a real recurring AI/API usage + grace-period/credit-expiry tick), and the registry meta-layer — the small foundational set every module can depend on being ready. Organizations/Workspaces themselves have no built-in catalog (created via `OrganizationEngine.create()` or the opt-in mock seed). Safe to call more than once. */
+/** Registers subscription tiers, feature flags, identity, access control (permissions/system roles/default policies), the Data & Persistence Platform (base entity schema, bootstrap migration, existing-repository indexing), the API/Gateway/Developer Platform (core contracts: health, OpenAPI spec, organizations, connector marketplace, developer API keys), the Execution/Automation/Background Processing Platform (real workflow/notification/report-tick/ai-embedding workers, then — for the first time in this codebase's history — connects `queueEngine` to `workerRegistry` and starts the queue/event-bus/scheduler poll loops), the Observability/Monitoring/Diagnostics/Operations Platform (wires Error Intelligence's event subscriptions, default alert rules, and a real recurring observability tick), the Commercial/Billing/Licensing/Subscription Platform (registers usage types/quotas/pricing, wires event-driven Connector/Execution usage metering and a real recurring AI/API usage + grace-period/credit-expiry tick), and the registry meta-layer — the small foundational set every module can depend on being ready. Organizations/Workspaces themselves have no built-in catalog (created via `OrganizationEngine.create()` or the opt-in mock seed). Deliberately does NOT initialize the Universal Connector Framework (`@/core/connectors`, `import "server-only"`-tagged) — this function runs isomorphically (called from both `resolveIdentity.server.ts` and the client-side `useCalixoIdentity()`), so anything server-only must be initialized from the server-only call site instead; see `resolveIdentity.server.ts`. Safe to call more than once. */
 export async function initializePlatformFoundation(): Promise<void> {
   if (initialized) return;
   initialized = true;
@@ -65,7 +64,6 @@ export async function initializePlatformFoundation(): Promise<void> {
   initializeIdentityFoundation();
   await initializeAccessControlFoundation();
   await initializeDataFoundation();
-  await initializeConnectorFoundation();
   await initializeApiFoundation();
   await initializeExecutionFoundation();
   await initializeObservabilityFoundation();

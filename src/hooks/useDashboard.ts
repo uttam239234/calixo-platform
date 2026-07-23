@@ -56,13 +56,13 @@ export function useDashboard() {
       setMarketingKpis(dashboardEngine.getMarketingKpis());
       setPerformanceSeries(dashboardEngine.getPerformanceSeries());
       setChannelOverview(dashboardEngine.getChannelOverview());
-      setConnectedPlatforms(await dashboardEngine.getConnectedPlatforms(organizationId ?? undefined));
+      setConnectedPlatforms(await dashboardEngine.getConnectedPlatforms());
       setUpcomingTasks(dashboardEngine.getUpcomingTasks());
       setRecommendations(dashboardEngine.getRecommendations());
       setBriefing(await dashboardEngine.getMorningBriefing(organizationId ?? undefined));
       setForecast(dashboardEngine.getForecast());
       setRisks(dashboardEngine.detectRisks());
-      setHealthScore(await dashboardEngine.getHealthScore(organizationId ?? undefined));
+      setHealthScore(await dashboardEngine.getHealthScore());
       setActionCenterItems(await dashboardEngine.getActionCenterItems(organizationId ?? undefined));
       setSubscription(dashboardEngine.getSubscriptionSummary(organizationId ?? undefined));
       trackDashboardLoadTime(Date.now() - startedAt);

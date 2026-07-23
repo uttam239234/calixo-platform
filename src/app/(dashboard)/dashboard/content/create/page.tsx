@@ -1,20 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Download, Expand, Globe2, History, Save, Send, Share2, Shrink, Sparkles, TrendingUp, Wand2 } from "lucide-react";
-import { ContentStudioHeader } from "@/components/content/ContentStudioHeader";
-import { BriefChipsForm } from "@/components/content/BriefChipsForm";
-import { AdvancedModePanel } from "@/components/content/AdvancedModePanel";
+import {
+  ArrowLeft, Download, Expand, Globe2, History, Loader2, Save, Send, Share2, Shrink,
+  Sparkles, TrendingUp, Wand2,
+} from "lucide-react";
 import { MyCreationsPanel } from "@/components/content/MyCreationsPanel";
 import { useContentStudio } from "@/features/content/ContentStudioProvider";
-import type { ContentAction, ContentOutputCatalogEntry, GenerationHistoryEntry } from "@/core/content";
-import type { ToneOption } from "@/core/ai/types";
+import { analyzeContentPromptAction, type ConversationTurn } from "@/features/content/actions";
+import type { ContentAction, GenerationHistoryEntry, PromptIntentAnalysis } from "@/core/content";
 
-type Stage = "gallery" | "brief" | "result";
+type Phase = "intro" | "clarifying" | "generating" | "result";
 type ResultView = "primary" | "short" | "long";
 const LANGUAGES = ["Spanish", "French", "German", "Hindi", "Portuguese", "Arabic"];
+
+const EXAMPLES = [
+  "Write a LinkedIn post about our new MBA cohort.",
+  "Write a blog on why students choose Calixo.",
+  "Create an email campaign for admissions season.",
+  "Generate Google Ads headlines for B.Tech admissions.",
+  "Write Meta primary text for our scholarship offer.",
+  "Generate a WhatsApp campaign for exam results.",
+];
+
+const PROGRESS_STAGES = ["Understanding your brief…", "Matching the right format…", "Applying brand voice…", "Writing…", "Polishing for the platform…"];
 
 const ACTIONS: { id: ContentAction; label: string; icon: typeof Wand2 }[] = [
   { id: "rewrite", label: "Rewrite", icon: Wand2 },
@@ -25,51 +36,45 @@ const ACTIONS: { id: ContentAction; label: string; icon: typeof Wand2 }[] = [
   { id: "improve-seo", label: "Improve SEO", icon: TrendingUp },
 ];
 
+function useStagedProgress(active: boolean) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (!active) {
+      (async () => setI(0))();
+      return;
+    }
+    const id = setInterval(() => setI(v => Math.min(v + 1, PROGRESS_STAGES.length - 1)), 1500);
+    return () => clearInterval(id);
+  }, [active]);
+  return PROGRESS_STAGES[i];
+}
+
 export default function ContentCreationStudioPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { mode, contentCatalog, brandStyleDefaults, generateContent, applyAction, saveToAssets, submitForApproval, localize, canApprove, showToast } = useContentStudio();
+  const { brandStyleDefaults, generateContent, applyAction, saveToAssets, submitForApproval, localize, canApprove, showToast } = useContentStudio();
 
-  const [stage, setStage] = useState<Stage>("gallery");
+  const [phase, setPhase] = useState<Phase>("intro");
   const [showHistory, setShowHistory] = useState(false);
-  const [selected, setSelected] = useState<ContentOutputCatalogEntry | null>(null);
-  const [objective, setObjective] = useState("");
-  const [audienceName, setAudienceName] = useState("Prospective students");
-  const [tone, setTone] = useState<ToneOption>("professional");
-  const [cta, setCta] = useState("Learn More");
-  const [campaignId, setCampaignId] = useState<string | undefined>(undefined);
-  const [strictBrandRules, setStrictBrandRules] = useState(false);
-  const [abMode, setAbMode] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [applyingAction, setApplyingAction] = useState<ContentAction | null>(null);
+  const [prompt, setPrompt] = useState("");
+  const [conversation, setConversation] = useState<ConversationTurn[]>([]);
+  const [pendingQuestion, setPendingQuestion] = useState<PromptIntentAnalysis | null>(null);
+  const [answerText, setAnswerText] = useState("");
+  const [busy, setBusy] = useState(false);
+
   const [result, setResult] = useState<GenerationHistoryEntry | null>(null);
   const [view, setView] = useState<ResultView>("primary");
-  const [localizeLanguage, setLocalizeLanguage] = useState(LANGUAGES[0]);
   const [editedText, setEditedText] = useState("");
+  const [applyingAction, setApplyingAction] = useState<ContentAction | null>(null);
+  const [localizeLanguage, setLocalizeLanguage] = useState(LANGUAGES[0]);
+
+  const stageLabel = useStagedProgress(phase === "generating");
 
   useEffect(() => {
     (async () => {
       if (searchParams.get("panel") === "history") setShowHistory(true);
-      const outputId = searchParams.get("output");
-      if (outputId) {
-        const entry = contentCatalog.find(c => c.id === outputId);
-        if (entry) {
-          setSelected(entry);
-          setStage("brief");
-        }
-      }
     })();
-  }, [searchParams, contentCatalog]);
-
-  const grouped = useMemo(() => {
-    const groups = new Map<string, ContentOutputCatalogEntry[]>();
-    for (const entry of contentCatalog) {
-      const list = groups.get(entry.group) ?? [];
-      list.push(entry);
-      groups.set(entry.group, list);
-    }
-    return groups;
-  }, [contentCatalog]);
+  }, [searchParams]);
 
   useEffect(() => {
     (async () => {
@@ -78,18 +83,62 @@ export default function ContentCreationStudioPage() {
     })();
   }, [result]);
 
-  async function handleGenerate() {
-    if (!selected) return;
-    setGenerating(true);
-    const entry = await generateContent(
-      { objective, audienceName, tone, cta, language: "English", brandStyleId: brandStyleDefaults?.id, campaignId, strictBrandRules },
-      selected.id
-    );
-    setGenerating(false);
+  async function runAnalysis(text: string, turns: ConversationTurn[]) {
+    setBusy(true);
+    const response = await analyzeContentPromptAction(text, turns);
+    setBusy(false);
+    if (!response.ok || !response.analysis) {
+      showToast(response.error ?? "Something went wrong understanding that prompt.", "error");
+      return;
+    }
+    if (!response.analysis.resolved) {
+      setPendingQuestion(response.analysis);
+      setPhase("clarifying");
+      return;
+    }
+    await runGeneration(response.analysis);
+  }
+
+  async function runGeneration(analysis: PromptIntentAnalysis) {
+    if (!analysis.outputId || !analysis.brief) return;
+    setPhase("generating");
+    const entry = await generateContent({ ...analysis.brief, brandStyleId: brandStyleDefaults?.id }, analysis.outputId as Parameters<typeof generateContent>[1]);
     if (entry) {
       setResult(entry);
-      setStage("result");
+      setPhase("result");
+    } else {
+      setPhase("intro");
     }
+  }
+
+  function start(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setPrompt(trimmed);
+    setConversation([]);
+    runAnalysis(trimmed, []);
+  }
+
+  async function submitClarification() {
+    if (!pendingQuestion?.clarifyingQuestion || !answerText.trim()) return;
+    const nextConversation = [...conversation, { question: pendingQuestion.clarifyingQuestion, answer: answerText.trim() }];
+    setConversation(nextConversation);
+    setAnswerText("");
+    setPendingQuestion(null);
+    setBusy(true);
+    const response = await analyzeContentPromptAction(prompt, nextConversation);
+    setBusy(false);
+    if (!response.ok || !response.analysis) {
+      showToast(response.error ?? "Something went wrong understanding that prompt.", "error");
+      setPhase("intro");
+      return;
+    }
+    if (!response.analysis.resolved) {
+      setPendingQuestion(response.analysis);
+      setPhase("clarifying");
+      return;
+    }
+    await runGeneration(response.analysis);
   }
 
   async function handleAction(action: ContentAction) {
@@ -101,100 +150,117 @@ export default function ContentCreationStudioPage() {
   }
 
   function reset() {
-    setStage("gallery");
-    setSelected(null);
+    setPhase("intro");
+    setPrompt("");
+    setConversation([]);
     setResult(null);
-    setObjective("");
     router.replace("/dashboard/content/create");
-  }
-
-  function openHistoryEntry(entry: GenerationHistoryEntry) {
-    setResult(entry);
-    setStage("result");
-    setShowHistory(false);
   }
 
   const displayedText = view === "short" ? result?.shortText : view === "long" ? result?.longText : editedText;
 
   return (
     <div>
-      <ContentStudioHeader title="Content Creation Studio" description="Generate captions, copy, and long-form content — with real rewrite, shorten, and SEO actions." />
-
-      <div className="mb-4 flex justify-center">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Content Creation Studio</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Describe what you need to write. Calixo detects the format, platform, and tone automatically.</p>
+        </div>
         <button
           onClick={() => setShowHistory(v => !v)}
-          className="flex items-center gap-2 rounded-lg border border-border bg-surface/60 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+          className="flex h-10 items-center gap-2 rounded-xl border border-border bg-surface/70 px-3.5 text-sm font-medium text-muted-foreground hover:text-foreground"
         >
-          <History size={13} /> {showHistory ? "Back to Studio" : "My Creations"}
+          <History size={15} /> {showHistory ? "Back to Studio" : "My Creations"}
         </button>
       </div>
 
       {showHistory ? (
-        <MyCreationsPanel kind="content" onSelect={openHistoryEntry} />
+        <MyCreationsPanel kind="content" onSelect={entry => { setResult(entry); setPhase("result"); setShowHistory(false); }} />
       ) : (
         <>
-          {stage === "gallery" && (
-            <div className="mx-auto max-w-4xl space-y-8">
-              {[...grouped.entries()].map(([group, entries]) => (
-                <div key={group}>
-                  <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{group}</h2>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                    {entries.map(entry => (
-                      <button
-                        key={entry.id}
-                        onClick={() => {
-                          setSelected(entry);
-                          setStage("brief");
-                        }}
-                        className="flex flex-col items-start gap-2 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-surface/40"
-                      >
-                        <Sparkles size={18} className="text-primary" />
-                        <span className="text-sm font-semibold text-foreground">{entry.label}</span>
-                        <span className="text-xs text-muted-foreground">{entry.description}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {stage === "brief" && selected && (
-            <div className="space-y-4">
-              <button onClick={reset} className="mx-auto flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-                <ArrowLeft size={14} /> Choose a different output
-              </button>
-              <p className="text-center text-sm font-medium text-foreground">Creating: {selected.label}</p>
-              <BriefChipsForm
-                objective={objective}
-                onObjectiveChange={setObjective}
-                audienceName={audienceName}
-                onAudienceChange={setAudienceName}
-                tone={tone}
-                onToneChange={setTone}
-                cta={cta}
-                onCtaChange={setCta}
-                brandStyleDefaults={brandStyleDefaults}
-                generating={generating}
-                onGenerate={handleGenerate}
-                generateLabel={`Generate ${selected.label}`}
-              />
-              {mode === "advanced" && (
-                <AdvancedModePanel
-                  kind="content"
-                  campaignId={campaignId}
-                  onCampaignChange={setCampaignId}
-                  strictBrandRules={strictBrandRules}
-                  onStrictBrandRulesChange={setStrictBrandRules}
-                  abMode={abMode}
-                  onAbModeChange={setAbMode}
-                  onSelectTemplate={setObjective}
+          {phase === "intro" && (
+            <div className="mx-auto flex max-w-2xl flex-col gap-6">
+              <div className="rounded-2xl border border-border bg-card p-6">
+                <textarea
+                  value={prompt}
+                  onChange={e => setPrompt(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      start(prompt);
+                    }
+                  }}
+                  placeholder="What would you like to create today?"
+                  rows={3}
+                  className="w-full resize-none rounded-xl border-0 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
                 />
-              )}
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <p className="text-xs text-muted-foreground">Est. 18 credits</p>
+                  <button
+                    onClick={() => start(prompt)}
+                    disabled={!prompt.trim() || busy}
+                    className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+                  >
+                    {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                    Write It
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap justify-center gap-2">
+                {EXAMPLES.map(example => (
+                  <button
+                    key={example}
+                    onClick={() => start(example)}
+                    className="rounded-full border border-border bg-surface/60 px-3.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+                  >
+                    {example}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          {stage === "result" && result && (
+          {phase === "clarifying" && pendingQuestion && (
+            <div className="mx-auto flex max-w-lg flex-col gap-4 py-8">
+              <p className="text-center text-base font-medium text-foreground">{pendingQuestion.clarifyingQuestion}</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {(pendingQuestion.clarifyingOptions ?? []).map(option => (
+                  <button
+                    key={option}
+                    onClick={() => {
+                      setAnswerText(option);
+                      setTimeout(() => submitClarification(), 0);
+                    }}
+                    disabled={busy}
+                    className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-primary/40 disabled:opacity-50"
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+              <div className="mx-auto flex w-full max-w-sm items-center gap-2">
+                <input
+                  value={answerText}
+                  onChange={e => setAnswerText(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && submitClarification()}
+                  placeholder="Or type your own answer"
+                  className="flex-1 rounded-xl border border-border bg-surface/60 px-3.5 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/40"
+                />
+                <button onClick={submitClarification} disabled={!answerText.trim() || busy} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-40">
+                  {busy ? <Loader2 size={14} className="animate-spin" /> : "Send"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {phase === "generating" && (
+            <div className="flex flex-col items-center justify-center gap-4 py-24">
+              <Loader2 size={32} className="animate-spin text-primary" />
+              <p className="text-sm font-medium text-foreground">{stageLabel}</p>
+            </div>
+          )}
+
+          {phase === "result" && result && (
             <div className="mx-auto max-w-3xl space-y-6">
               <button onClick={reset} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
                 <ArrowLeft size={14} /> Create another
@@ -225,14 +291,7 @@ export default function ContentCreationStudioPage() {
                 <div className="whitespace-pre-wrap rounded-2xl border border-border bg-card p-4 text-sm text-foreground">{displayedText}</div>
               )}
 
-              {abMode && result.textVariants && result.textVariants[0] && (
-                <div>
-                  <p className="mb-1.5 text-sm font-semibold text-foreground">Version B</p>
-                  <div className="whitespace-pre-wrap rounded-2xl border border-border bg-surface/40 p-4 text-sm text-muted-foreground">{result.textVariants[0]}</div>
-                </div>
-              )}
-
-              {!abMode && result.textVariants && result.textVariants.length > 0 && (
+              {result.textVariants && result.textVariants.length > 0 && (
                 <div>
                   <p className="mb-1.5 text-sm font-semibold text-foreground">Variant</p>
                   <div className="whitespace-pre-wrap rounded-2xl border border-border bg-surface/40 p-4 text-sm text-muted-foreground">{result.textVariants[0]}</div>
@@ -289,7 +348,7 @@ export default function ContentCreationStudioPage() {
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => {
-                    if (!saveToAssets(result.id)) showToast("Unable to save to Assets — check your plan or permissions.");
+                    if (!saveToAssets(result.id)) showToast("Unable to save to Assets — check your plan or permissions.", "error");
                   }}
                   className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90"
                 >
@@ -302,10 +361,10 @@ export default function ContentCreationStudioPage() {
                 >
                   <Download size={15} /> Download
                 </a>
-                {mode === "advanced" && canApprove && (
+                {canApprove && (
                   <button
                     onClick={() => {
-                      if (!submitForApproval(result.id)) showToast("Unable to submit for approval.");
+                      if (!submitForApproval(result.id)) showToast("Unable to submit for approval.", "error");
                     }}
                     className="flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary/30"
                   >
@@ -320,31 +379,29 @@ export default function ContentCreationStudioPage() {
                 </Link>
               </div>
 
-              {mode === "advanced" && (
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/[0.03] p-3">
-                  <Globe2 size={15} className="text-muted-foreground" />
-                  <select
-                    value={localizeLanguage}
-                    onChange={e => setLocalizeLanguage(e.target.value)}
-                    className="rounded-lg border border-border bg-surface/60 px-2.5 py-1.5 text-xs text-foreground outline-none"
-                  >
-                    {LANGUAGES.map(lang => (
-                      <option key={lang} value={lang}>
-                        {lang}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => {
-                      const updated = localize(result.id, localizeLanguage);
-                      if (updated) setResult({ ...updated });
-                    }}
-                    className="rounded-lg border border-border bg-surface/60 px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/30"
-                  >
-                    Translate
-                  </button>
-                </div>
-              )}
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/[0.03] p-3">
+                <Globe2 size={15} className="text-muted-foreground" />
+                <select
+                  value={localizeLanguage}
+                  onChange={e => setLocalizeLanguage(e.target.value)}
+                  className="rounded-lg border border-border bg-surface/60 px-2.5 py-1.5 text-xs text-foreground outline-none"
+                >
+                  {LANGUAGES.map(lang => (
+                    <option key={lang} value={lang}>
+                      {lang}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => {
+                    const updated = localize(result.id, localizeLanguage);
+                    if (updated) setResult({ ...updated });
+                  }}
+                  className="rounded-lg border border-border bg-surface/60 px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/30"
+                >
+                  Translate
+                </button>
+              </div>
             </div>
           )}
         </>

@@ -6,7 +6,7 @@
  * a secret's plaintext or its sealed ciphertext reference back to a caller.
  */
 
-export type SecretSection = "ai_providers" | "authentication" | "payments" | "integrations" | "security" | "database" | "storage" | "monitoring";
+export type SecretSection = "ai_providers" | "authentication" | "payments" | "oauth_applications" | "security" | "database" | "storage" | "monitoring";
 
 /**
  * How "Rotate Secret" behaves for a given catalog entry:

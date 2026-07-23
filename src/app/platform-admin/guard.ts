@@ -29,3 +29,26 @@ export async function assertPlatformAdmin(): Promise<{ userId: string; role: Int
   if (!hasPlatformAdminAccess || !calixoUserId) throw new NotPlatformAdminError();
   return { userId: calixoUserId, role };
 }
+
+export class NotPlatformOwnerError extends Error {
+  constructor() {
+    super("Only the Platform Owner can make this change.");
+    this.name = "NotPlatformOwnerError";
+  }
+}
+
+/**
+ * The narrower gate the OAuth Applications console needs: "Only Platform
+ * Owner may Create/Update/Delete/Validate/Test. Everyone else Read Only."
+ * Every other Platform Admin console today treats PLATFORM_OWNER and
+ * PLATFORM_ADMIN identically (`assertPlatformAdmin()` above) — this is the
+ * first place that distinction actually matters. Still requires real
+ * Platform Admin route access first (so a non-staff caller gets the same
+ * generic denial as everywhere else, not a role-specific one that leaks
+ * information about the RBAC model to someone with no console access at all).
+ */
+export async function assertPlatformOwner(): Promise<{ userId: string; role: InternalRole }> {
+  const { userId, role } = await assertPlatformAdmin();
+  if (role !== "PLATFORM_OWNER") throw new NotPlatformOwnerError();
+  return { userId, role };
+}

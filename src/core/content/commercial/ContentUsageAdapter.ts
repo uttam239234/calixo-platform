@@ -11,7 +11,7 @@ import { usagePlatformAPI } from "@/core/platform/commercial/UsagePlatformAPI";
 import type { UsagePeriod, UsageTypeDefinition } from "@/core/platform/commercial/types";
 
 export const CONTENT_USAGE_TYPES: UsageTypeDefinition[] = [
-  { id: "content.aiGeneration", name: "AI Generation", description: "The AI Assistant produced a generation", unit: "action", category: "core", owner: "content-studio" },
+  { id: "content.aiGeneration", name: "AI Generation", description: "Content Studio produced a generation", unit: "action", category: "core", owner: "content-studio" },
   { id: "content.creativeGeneration", name: "Creative Generation", description: "Creative Design Studio generated a visual output", unit: "action", category: "core", owner: "content-studio" },
   { id: "content.contentGeneration", name: "Content Generation", description: "Content Creation Studio generated a text output", unit: "action", category: "core", owner: "content-studio" },
   { id: "content.export", name: "Content Export", description: "A generated output was saved or exported", unit: "export", category: "core", owner: "content-studio" },

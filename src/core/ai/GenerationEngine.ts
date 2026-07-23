@@ -122,6 +122,28 @@ function getEmoji(): string { const emojis = ["🚀", "✨", "💡", "🔥", "�
 function getCompanyName(): string { const names = ["Acme Corp", "TechVentures Inc", "Global Marketing Solutions", "NexGen Media"]; return names[Math.floor(Math.random() * names.length)]; }
 
 // ============================================================================
+// Real generator injection
+// ============================================================================
+
+/**
+ * `GenerationEngine` is reachable from client bundles (via
+ * `registerContentSkills.ts`, loaded by `CopilotProvider.tsx` on mount to
+ * register Copilot's content tools) — so it must never statically import
+ * `@/aios` (server-only, holds real vendor API keys), the same rule
+ * applied to `KnowledgeEngine`/`CopilotPlatformAPI` elsewhere this round.
+ * Instead, the real generator is injected at runtime via `setRealGenerator()`,
+ * called once from `src/features/content/actions.ts` (a `"use server"`
+ * file, Next's own safe boundary) — this engine's own module graph stays
+ * exactly as free of Node/server-only dependencies as it was before.
+ */
+type RealGenerator = (finalPrompt: string, request: GenerationRequest) => Promise<string>;
+let realGenerator: RealGenerator | undefined;
+
+export function setRealGenerator(fn: RealGenerator): void {
+  realGenerator = fn;
+}
+
+// ============================================================================
 // Generation History
 // ============================================================================
 
@@ -170,10 +192,18 @@ export const GenerationEngine = {
     const outputTokens = estimateOutputTokens(enrichedRequest);
     const cost = estimateCost(request.model, inputTokens, outputTokens);
 
-    // 4. Generate content (mock — replace with aiService.chat() for production)
-    const generationDelay = 800 + Math.random() * 2000;
-    await new Promise((resolve) => setTimeout(resolve, generationDelay));
-    const content = generateMockContent(enrichedRequest);
+    // 4. Generate content — real via the injected generator when the Server
+    // Action layer has set one (see `setRealGenerator` above); the
+    // deterministic mock otherwise (e.g. if called from a context where no
+    // real provider is configured, or before injection has occurred).
+    let content: string;
+    if (realGenerator) {
+      content = await realGenerator(finalPrompt, enrichedRequest);
+    } else {
+      const generationDelay = 800 + Math.random() * 2000;
+      await new Promise((resolve) => setTimeout(resolve, generationDelay));
+      content = generateMockContent(enrichedRequest);
+    }
 
     const generationTimeMs = Math.round(performance.now() - startTime);
     const wordCount = content.split(/\s+/).filter(Boolean).length;

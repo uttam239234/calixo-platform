@@ -25,7 +25,7 @@ import type { WorkerHandler } from "@/background/types";
 import { workflowEngine as backgroundWorkflowEngine } from "@/background/workflow/WorkflowEngine";
 import { deliveryEngine } from "@/communication";
 import { reportScheduler, reportEngine, exportEngine } from "@/core/reports";
-import { knowledgeEngine } from "@/aios";
+import { knowledgeEngine } from "@/aios/knowledge/KnowledgeEngine";
 import { executionRegistry } from "../ExecutionRegistry";
 import { schedulerPlatformAPI } from "../SchedulerPlatformAPI";
 import { entitlementPlatformAPI } from "@/core/platform/commercial";

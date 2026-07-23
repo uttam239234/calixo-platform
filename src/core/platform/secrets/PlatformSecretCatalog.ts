@@ -139,38 +139,6 @@ export const SECRET_CATALOG: SecretCatalogEntry[] = [
     validateFormat: pattern(/^pk_(test|live)_[A-Za-z0-9]+$/, "starts with pk_test_ or pk_live_"),
   },
 
-  // Integrations (platform-level OAuth app credentials — distinct from a customer's own per-org connector secrets in src/integrations)
-  {
-    id: "slack_app_client_secret",
-    section: "integrations",
-    label: "Slack App Client Secret",
-    description: "Calixo's own Slack App OAuth client secret — used to complete OAuth for every customer connecting Slack, not one customer's own connection.",
-    placeholder: "Client secret from the Slack app dashboard",
-    rotationStrategy: "manual",
-    testSupport: "format_only",
-    validateFormat: minLength(16),
-  },
-  {
-    id: "google_oauth_client_secret",
-    section: "integrations",
-    label: "Google OAuth Client Secret",
-    description: "Calixo's own Google Cloud OAuth client secret for Google Ads/Analytics connector authorization.",
-    placeholder: "GOCSPX-...",
-    rotationStrategy: "manual",
-    testSupport: "format_only",
-    validateFormat: pattern(/^GOCSPX-[A-Za-z0-9_-]+$/, "starts with GOCSPX-"),
-  },
-  {
-    id: "hubspot_private_app_token",
-    section: "integrations",
-    label: "HubSpot Private App Token",
-    description: "Platform-level token for the HubSpot connector's default app.",
-    placeholder: "pat-...",
-    rotationStrategy: "manual",
-    testSupport: "format_only",
-    validateFormat: pattern(/^pat-[A-Za-z0-9-]+$/, "starts with pat-"),
-  },
-
   // Security
   {
     id: "session_signing_secret",

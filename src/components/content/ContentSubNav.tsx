@@ -2,19 +2,19 @@
 
 import Link from "next/link";
 import { ModuleTabs, type ModuleTab } from "@/components/enterprise/module";
-import { Bot, Palette, PenSquare, Search, Sparkles, Video } from "lucide-react";
+import { Palette, PenSquare, Search, Sparkles, Video } from "lucide-react";
 
 const navItems: ModuleTab[] = [
-  { id: "assistant", label: "AI Assistant", href: "/dashboard/content", icon: Bot },
   { id: "creative", label: "Creative Design Studio", href: "/dashboard/content/creative", icon: Palette },
   { id: "create", label: "Content Creation Studio", href: "/dashboard/content/create", icon: PenSquare },
   { id: "video", label: "Video Studio", href: "/dashboard/content/video", icon: Video },
 ];
 
 /**
- * Exactly 4 top-level products, per the rebuild brief. Brand Kit is real, working functionality
- * (`BrandKitEngine`) but isn't one of the 4 products — it stays reachable as a small secondary
- * link rather than a `ModuleTabs` entry, so the primary nav count stays at 4.
+ * Exactly 3 top-level products, per the Content Studio redesign — the standalone "AI Assistant"
+ * tab is removed entirely: AI is no longer a destination, it's the intelligence inside every
+ * studio. Brand Kit is real, working functionality (`BrandKitEngine`) but isn't one of the 3
+ * products — it stays reachable as a small secondary link rather than a `ModuleTabs` entry.
  */
 export function ContentSubNav() {
   return (

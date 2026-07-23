@@ -30,8 +30,16 @@ export class ContentPlatformAPI {
     return OutputCatalogRegistry.listContent();
   }
 
-  generateCreative(brief: ContentBrief, outputId: CreativeOutputKind, organizationId: string): Promise<GenerationHistoryEntry> {
-    return contentOrchestrationEngine.generateCreative(brief, outputId, organizationId);
+  generateCreative(brief: ContentBrief, outputId: CreativeOutputKind, organizationId: string, variationCount?: number): Promise<GenerationHistoryEntry> {
+    return contentOrchestrationEngine.generateCreative(brief, outputId, organizationId, variationCount);
+  }
+
+  regenerateVariation(entryId: string, variationIndex: number, instruction: string): Promise<GenerationHistoryEntry> {
+    return contentOrchestrationEngine.regenerateVariation(entryId, variationIndex, instruction);
+  }
+
+  recordVariationQuality(entryId: string, variationIndex: number, score: number, issues: string[]): void {
+    contentOrchestrationEngine.recordVariationQuality(entryId, variationIndex, score, issues);
   }
 
   generateContent(brief: ContentBrief, outputId: ContentOutputKind, organizationId: string): Promise<GenerationHistoryEntry> {

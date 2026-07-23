@@ -12,7 +12,16 @@ import type {
   KnowledgeDocument, KnowledgeChunk, KnowledgeSource, KnowledgeStatus,
   PaginatedKnowledge,
 } from '@/aios/types';
-import { aiGateway } from '@/aios/gateway/AIGateway';
+// Deliberately does NOT import `@/aios/gateway/AIGateway` here (this round
+// made it depend, transitively, on real `server-only` provider keys) —
+// `KnowledgeEngine` is reachable from client-safe call chains (via
+// `registerCoreExecutionWiring.ts` -> `core/platform/index.ts`), so pulling
+// in that dependency would break every client bundle reaching this file,
+// the same bug class Round 23 found in the dashboard widget registry.
+// Real embeddings for the Knowledge Base are out of this round's scope
+// (not named in the brief); `generateEmbedding()` always uses the
+// deterministic fallback below until a server-only-safe embedding path
+// is built specifically for this engine.
 
 export class KnowledgeEngine {
   private documents: Map<string, KnowledgeDocument> = new Map();
@@ -197,13 +206,7 @@ export class KnowledgeEngine {
   }
 
   async generateEmbedding(text: string): Promise<number[]> {
-    try {
-      return await aiGateway.embed(text);
-    } catch {
-      // Fallback: generate a simple hash-based embedding
-      appLogger.warn('KnowledgeEngine', 'Embedding generation failed, using fallback');
-      return this.fallbackEmbed(text);
-    }
+    return this.fallbackEmbed(text);
   }
 
   private async chunkDocument(doc: KnowledgeDocument): Promise<KnowledgeChunk[]> {

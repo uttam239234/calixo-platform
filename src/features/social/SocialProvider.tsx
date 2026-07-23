@@ -74,14 +74,14 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   /** The Connector Platform's real hookup point — upgrades an account's status/health to real connector data where one exists (Instagram only — see `SocialConnectorAdapter.ts`'s header comment), then re-syncs the raw account record so every consumer (not just computed summaries) sees it. */
   useEffect(() => {
     (async () => {
-      await syncSocialAccountsFromConnectors(tenantContext.organizationId);
+      await syncSocialAccountsFromConnectors();
       for (const account of socialPlatformAPI.listAccounts()) {
         const live = getLiveSocialAccountStatus(account.id);
         if (live) socialPlatformAPI.updateAccount(account.id, { status: live.status, lastSync: live.lastSync, isLiveConnector: true });
       }
       setAccounts(socialPlatformAPI.listAccounts());
     })();
-  }, [tenantContext.organizationId]);
+  }, []);
 
   useEffect(() => {
     if (!toast) return;

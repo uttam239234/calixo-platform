@@ -27,16 +27,16 @@ export default function SyncStatusPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {integrations.apps.map(app => {
             const status = app.health ? presentHealth(app.health.status) : { emoji: "🟡" as const, label: "Attention Needed" as const };
-            const explanation = app.health ? explainHealth(app.health.status, app.connection.name) : `We're checking ${app.connection.name}'s status.`;
+            const explanation = app.health ? explainHealth(app.health.status, app.instance.displayName) : `We're checking ${app.instance.displayName}'s status.`;
             const needsReconnect = status.label === "Reconnect Required";
-            const isBusy = busyId === app.connection.id;
+            const isBusy = busyId === app.instance.id;
 
             return (
-              <div key={app.connection.id} className="rounded-2xl border border-border bg-card p-5">
+              <div key={app.instance.id} className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 text-2xl">{app.icon}</div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-foreground">{app.connection.name}</p>
+                    <p className="truncate font-semibold text-foreground">{app.instance.displayName}</p>
                     <p className="text-sm">
                       {status.emoji} {status.label}
                     </p>
@@ -48,11 +48,7 @@ export default function SyncStatusPage() {
                 <dl className="mt-4 space-y-1.5 text-sm">
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Last Sync</dt>
-                    <dd className="font-medium text-foreground">{app.connection.lastSyncAt ? formatRelativeTime(app.connection.lastSyncAt) : "Not yet synced"}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Accounts Connected</dt>
-                    <dd className="font-medium text-foreground">1</dd>
+                    <dd className="font-medium text-foreground">{app.lastSync?.finishedAt ? formatRelativeTime(app.lastSync.finishedAt) : "Not yet synced"}</dd>
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Sync Frequency</dt>
@@ -60,7 +56,7 @@ export default function SyncStatusPage() {
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Data Received</dt>
-                    <dd className="font-medium text-foreground">{app.connection.metrics.dataSynced.toLocaleString()} records</dd>
+                    <dd className="font-medium text-foreground">{(app.lastSync?.recordsProcessed ?? 0).toLocaleString()} records</dd>
                   </div>
                 </dl>
 
@@ -70,9 +66,8 @@ export default function SyncStatusPage() {
                     className="mt-4 w-full"
                     disabled={isBusy}
                     onClick={async () => {
-                      setBusyId(app.connection.id);
-                      await integrations.reconnect(app.connection.id, app.connection.name);
-                      setBusyId(null);
+                      setBusyId(app.instance.id);
+                      await integrations.reconnect(app.instance.id, app.instance.displayName);
                     }}
                   >
                     <RotateCw size={14} /> {isBusy ? "Reconnecting…" : "Reconnect"}

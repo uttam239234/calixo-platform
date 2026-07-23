@@ -27,7 +27,6 @@ export * from "./ErrorIntelligenceEngine";
 export * from "./AlertEngine";
 export * from "./OperationsEngine";
 export * from "./AiObservability";
-export * from "./ConnectorObservability";
 export * from "./ApiObservability";
 export * from "./ExecutionObservability";
 
