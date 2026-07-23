@@ -48,16 +48,33 @@ export const PLATFORM_BYPASS_ROLES: InternalRole[] = ["PLATFORM_OWNER", "PLATFOR
  * own account is a member of it). Matched against the real, Clerk-verified
  * primary email only; never a display name, never a client-supplied header.
  *
- * FUTURE MIGRATION: once a real "Calixo Internal" Clerk organization exists
- * and the founder is a real member of it, this allowlist becomes unnecessary
- * — `derivePlatformRole()` below is the ONLY place that needs to change
- * (e.g. drop the allowlist branch, or additionally grant PLATFORM_OWNER to a
- * specific org-role in that organization). Every caller of
+ * Sourced from the `PLATFORM_OWNER_EMAILS` env var (comma-separated) — never
+ * hardcoded — so the list can be changed per environment (dev/staging/prod)
+ * without a code change or redeploy of logic, and later swapped for a real
+ * database table by editing only this one parsing function; every caller of
  * `derivePlatformRole()`/`useInternalRole()`/`resolvePlatformRoleServer()`
- * stays unchanged — the bootstrap mechanism is replaceable without touching
- * route protection, the sidebar, authorization, or audit logging.
+ * stays unchanged either way.
+ *
+ * NOTE: this module has no "server-only"/"use client" boundary of its own
+ * (kept environment-agnostic on purpose — see file header), so it is also
+ * reachable from client-bundled code via `internalRole.tsx`. Next.js only
+ * inlines `NEXT_PUBLIC_*` env vars into the browser bundle, so this list
+ * always resolves empty on the client — by design, since the actual
+ * allowlist must never ship to the browser. The one real, authoritative
+ * evaluation always happens server-side (`resolvePlatformRoleServer()`,
+ * `import "server-only"`), which is what every route/action gate actually
+ * calls. `internalRole.tsx`'s client provider bridges the resulting gap for
+ * the sidebar via a small Server Action — see its own comments.
  */
-export const PLATFORM_OWNER_EMAILS: string[] = ["info@calixo.tech"];
+function parsePlatformOwnerEmails(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map(email => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export const PLATFORM_OWNER_EMAILS: string[] = parsePlatformOwnerEmails(process.env.PLATFORM_OWNER_EMAILS);
 
 /** The future "Calixo Internal" Clerk organization's slug — PLATFORM_ADMIN/PLATFORM_DEVELOPER are derived from real membership in this org today; PLATFORM_OWNER additionally has the bootstrap allowlist above. Create this organization in the Clerk dashboard (or let it JIT-provision via the identity bridge) with this exact slug. */
 export const CALIXO_STAFF_ORG_SLUG = "calixo-internal";
