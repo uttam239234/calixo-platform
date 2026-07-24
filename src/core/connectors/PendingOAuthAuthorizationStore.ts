@@ -1,6 +1,5 @@
 import "server-only";
 import { prisma } from "@/shared/server/prismaClient";
-import type { PendingOAuthAuthorization } from "@prisma/client";
 import type { ConnectorProviderId } from "./types";
 import type { ProviderEndpointExtras } from "./OAuthManager";
 
@@ -37,10 +36,44 @@ export interface PendingOAuthAuthorizationRecord {
  */
 type JsonObjectValue = { [key: string]: string | number | boolean | null | undefined };
 
+/**
+ * Any value that can round-trip through a JSON column — used only to type
+ * `PendingOAuthAuthorizationRow.extra` below, structurally mirroring
+ * Prisma's own internal `JsonValue`/`JsonObject`/`JsonArray` shape (object
+ * values optional via `[key: string]: JsonValue | undefined`) closely enough
+ * that TypeScript's structural check accepts Prisma's actual generated Json
+ * field type here — without importing that type from `@prisma/client`.
+ */
+type JsonPrimitive = string | number | boolean | null;
+interface JsonObjectShape {
+  [key: string]: JsonValue | undefined;
+}
+type JsonArrayShape = Array<JsonValue>;
+type JsonValue = JsonPrimitive | JsonObjectShape | JsonArrayShape;
+
+/**
+ * Local row shape — only the fields `rowToRecord()` actually reads.
+ * Deliberately NOT imported from `@prisma/client` (a generated model type
+ * export has repeatedly failed to resolve on Railway even after removing
+ * the `Prisma` namespace import, in a way that doesn't reproduce locally);
+ * the real return value of `findUnique`/`delete` below has more fields
+ * (`state`, `createdAt`) than this, which is fine — passing a wider object
+ * as a function argument only requires these named fields to be present
+ * and compatible, not an exact match.
+ */
+interface PendingOAuthAuthorizationRow {
+  provider: string;
+  organizationId: string;
+  connectorInstanceId: string | null;
+  redirectUri: string;
+  codeVerifier: string | null;
+  extra: JsonValue | null;
+}
+
 /** Same 10-minute window the previous in-memory implementation used. */
 const STATE_TTL_MS = 10 * 60 * 1000;
 
-function rowToRecord(row: PendingOAuthAuthorization): PendingOAuthAuthorizationRecord {
+function rowToRecord(row: PendingOAuthAuthorizationRow): PendingOAuthAuthorizationRecord {
   return {
     provider: row.provider as ConnectorProviderId,
     organizationId: row.organizationId,
