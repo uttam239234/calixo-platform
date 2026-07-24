@@ -16,6 +16,7 @@ import { resolveIdentity } from "@/identity/bridge/resolveIdentity.server";
 import { tenantContextService } from "@/core/platform/tenant";
 import { oauthManager } from "@/core/connectors/OAuthManager";
 import { connectorFrameworkAPI } from "@/core/connectors/ConnectorFrameworkAPI";
+import { getRequestOrigin } from "@/shared/server/requestOrigin";
 
 const INTEGRATIONS_PATH = "/dashboard/settings/integrations";
 
@@ -24,9 +25,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const providerError = url.searchParams.get("error") ?? url.searchParams.get("error_description");
+  // Same proxy-aware origin resolution the outbound leg already uses
+  // (actions.ts -> ConnectorFrameworkAPI.buildAuthorizationUrl -> OAuthManager) —
+  // `request.url`'s own origin reflects the raw, possibly proxy-internal Host
+  // header, not the browser-facing address.
+  const origin = await getRequestOrigin();
 
   function redirectWithParam(key: string, value: string): NextResponse {
-    const target = new URL(INTEGRATIONS_PATH, url.origin);
+    const target = new URL(INTEGRATIONS_PATH, origin);
     target.searchParams.set(key, value);
     return NextResponse.redirect(target);
   }
@@ -41,7 +47,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const identity = await resolveIdentity();
   if (!identity) {
-    return NextResponse.redirect(new URL("/sign-in", url.origin));
+    return NextResponse.redirect(new URL("/sign-in", origin));
   }
   if (identity.organizationId !== pending.organizationId) {
     return redirectWithParam("connectError", "This authorization was started for a different organization.");
