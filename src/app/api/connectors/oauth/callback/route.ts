@@ -40,7 +40,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (providerError) return redirectWithParam("connectError", providerError);
   if (!code || !state) return redirectWithParam("connectError", "The provider did not return an authorization code.");
 
-  const pending = oauthManager.peekPendingAuthorization(state);
+  const pending = await oauthManager.peekPendingAuthorization(state);
   if (!pending || !pending.connectorInstanceId) {
     return redirectWithParam("connectError", "This authorization request expired or was already used. Try connecting again.");
   }

@@ -1510,6 +1510,42 @@ model OAuthToken {
 }
 
 // ============================================================================
+// PLATFORM - CONNECTOR OAUTH: TRANSIENT AUTHORIZATION STATE
+// ============================================================================
+// Replaces the in-memory `Map<string, PendingAuthorization>` previously in
+// `src/core/connectors/OAuthManager.ts` — that state is only visible within
+// one running Node process, so it was lost whenever the authorize request
+// and the provider's callback request landed on two different server
+// instances/replicas (or straddled a restart/deploy). Persisting it here
+// makes it visible to every instance and durable across restarts, while
+// keeping the same short (10-minute) TTL — it's still a transient CSRF/
+// replay guard, not durable business data.
+//
+// Deliberately has NO relation to Organization/Integration below:
+// `organizationId`/`connectorInstanceId` are ids minted by the Connector
+// Framework's own in-memory/file-backed registries (see
+// src/core/connectors/, src/core/platform/organizations/) via a nanoid-style
+// generateId() helper (e.g. "user-a1b2c3d4e5") — never a real UUID, and
+// never a row that exists in this schema's own (currently app-unused)
+// Organization/Integration tables. A foreign-key constraint here would
+// reject every insert.
+// ============================================================================
+
+model PendingOAuthAuthorization {
+  state               String   @id @db.VarChar(64)
+  provider            String   @db.VarChar(50)
+  organizationId      String   @db.VarChar(64)
+  connectorInstanceId String?  @db.VarChar(64)
+  redirectUri         String   @db.VarChar(512)
+  codeVerifier        String?  @db.VarChar(256)
+  extra               Json?
+  createdAt           DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("pending_oauth_authorizations")
+}
+
+// ============================================================================
 // PLATFORM - BILLING & SUBSCRIPTIONS
 // ============================================================================
 

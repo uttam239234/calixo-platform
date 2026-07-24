@@ -18,36 +18,17 @@
 import "server-only";
 import { generateId } from "@/shared/utils/string";
 import { OAuthApplicationService } from "@/core/platform/secrets/oauth";
+import * as pendingAuthStore from "./PendingOAuthAuthorizationStore";
 import type { ConnectorProviderId } from "./types";
 
 // ============================================================================
-// PKCE + state (transient, in-memory — a real CSRF/replay guard, not durable
-// business data; same category of small transient map `IntegrationOAuthService`
-// already uses for its own states, and correctly NOT persisted for the same
-// reason: a 10-minute-TTL authorization-in-progress record is meaningless
-// after a real process restart anyway).
+// PKCE + state — a real CSRF/replay guard, not durable business data, but
+// persisted (PostgreSQL-backed, `PendingOAuthAuthorizationStore.ts`) rather
+// than held in an in-memory Map: the authorize request and the provider's
+// callback request can land on two different server processes/replicas
+// behind a load balancer, or straddle a deploy/restart, and a Map private to
+// one process is invisible to the other. Same 10-minute TTL as before.
 // ============================================================================
-
-interface PendingAuthorization {
-  provider: ConnectorProviderId;
-  organizationId: string;
-  /** Which `ConnectorInstance` this authorization is for — round-tripped through `state` so a real browser OAuth callback (which only ever receives `code`+`state`) knows which instance to complete. */
-  connectorInstanceId?: string;
-  redirectUri: string;
-  codeVerifier?: string;
-  extra?: ProviderEndpointExtras;
-  createdAt: number;
-}
-
-const STATE_TTL_MS = 10 * 60 * 1000;
-const pendingAuthorizations = new Map<string, PendingAuthorization>();
-
-function cleanupExpiredStates(): void {
-  const now = Date.now();
-  for (const [state, entry] of pendingAuthorizations) {
-    if (now - entry.createdAt > STATE_TTL_MS) pendingAuthorizations.delete(state);
-  }
-}
 
 async function base64UrlSha256(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
@@ -185,7 +166,6 @@ export const oauthManager = {
    * vendors that don't require it yet).
    */
   async buildAuthorizationUrl(params: { provider: ConnectorProviderId; organizationId: string; connectorInstanceId?: string; origin: string; extra?: ProviderEndpointExtras }): Promise<AuthorizationUrlResult> {
-    cleanupExpiredStates();
     const app = await OAuthApplicationService.getProvider(params.provider, params.origin);
     if (!app) throw new Error(`No configured, validated Platform OAuth Application for "${params.provider}". Configure it in Platform Admin -> Platform Secrets -> OAuth Applications first.`);
 
@@ -194,8 +174,7 @@ export const oauthManager = {
     const state = generateId(32);
     const codeVerifier = endpoints.usesPkce ? generateId(64) : undefined;
 
-    pendingAuthorizations.set(state, { provider: params.provider, organizationId: params.organizationId, connectorInstanceId: params.connectorInstanceId, redirectUri, codeVerifier, extra: params.extra, createdAt: Date.now() });
-    setTimeout(() => pendingAuthorizations.delete(state), STATE_TTL_MS);
+    await pendingAuthStore.savePendingAuthorization(state, { provider: params.provider, organizationId: params.organizationId, connectorInstanceId: params.connectorInstanceId, redirectUri, codeVerifier, extra: params.extra });
 
     const query = new URLSearchParams({
       client_id: app.clientId,
@@ -215,11 +194,10 @@ export const oauthManager = {
 
   /** Validates `state` (real CSRF check) and exchanges the real authorization code for real tokens at the vendor's real token endpoint, using the real platform Client ID/Secret from `OAuthApplicationService` — never re-derived or cached locally. */
   async exchangeCode(params: { provider: ConnectorProviderId; code: string; state: string }): Promise<TokenExchangeResult & { organizationId: string; connectorInstanceId?: string }> {
-    cleanupExpiredStates();
-    const pending = pendingAuthorizations.get(params.state);
+    const pending = await pendingAuthStore.peekPendingAuthorization(params.state);
     if (!pending) throw new Error("Invalid or expired OAuth state — the authorization flow must be restarted.");
     if (pending.provider !== params.provider) throw new Error("Provider mismatch between the authorization request and the callback.");
-    pendingAuthorizations.delete(params.state);
+    await pendingAuthStore.consumePendingAuthorization(params.state);
 
     const app = await OAuthApplicationService.getProvider(params.provider);
     if (!app) throw new Error(`No configured Platform OAuth Application for "${params.provider}".`);
@@ -297,10 +275,15 @@ export const oauthManager = {
     }
   },
 
-  /** Diagnostics-only visibility into in-flight authorizations — never exposes the code verifier or any secret. */
-  countPendingAuthorizations(): number {
-    cleanupExpiredStates();
-    return pendingAuthorizations.size;
+  /**
+   * Diagnostics-only visibility into in-flight authorizations — never
+   * exposes the code verifier or any secret. Now backed by a real query
+   * (was a synchronous `Map.size` read), so this became `async` — its one
+   * caller (`connectorDiagnostics.server.ts`) already runs inside an async
+   * function and only needed `await` added at the call site.
+   */
+  async countPendingAuthorizations(): Promise<number> {
+    return pendingAuthStore.countPendingAuthorizations();
   },
 
   /**
@@ -308,11 +291,13 @@ export const oauthManager = {
    * only ever receives `code`+`state` from the provider redirect and needs
    * `connectorInstanceId`/`organizationId` BEFORE it can build a
    * `TenantContext` and call `completeConnect()` (which performs the real,
-   * state-consuming exchange). Never returns the code verifier.
+   * state-consuming exchange). Never returns the code verifier. Now backed
+   * by a real query (was a synchronous `Map.get()`), so this became `async`
+   * — its one caller (the callback route) already runs inside an async
+   * function and only needed `await` added at the call site.
    */
-  peekPendingAuthorization(state: string): { provider: ConnectorProviderId; organizationId: string; connectorInstanceId?: string } | undefined {
-    cleanupExpiredStates();
-    const pending = pendingAuthorizations.get(state);
+  async peekPendingAuthorization(state: string): Promise<{ provider: ConnectorProviderId; organizationId: string; connectorInstanceId?: string } | undefined> {
+    const pending = await pendingAuthStore.peekPendingAuthorization(state);
     if (!pending) return undefined;
     return { provider: pending.provider, organizationId: pending.organizationId, connectorInstanceId: pending.connectorInstanceId };
   },

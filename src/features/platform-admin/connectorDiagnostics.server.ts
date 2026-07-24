@@ -101,7 +101,7 @@ export async function getConnectorDiagnosticsSnapshot(): Promise<ConnectorDiagno
     webhooks,
     scheduler: connectorSchedules.map(s => ({ name: s.name, frequency: s.frequency, nextRunAt: s.nextRunAt, isActive: s.isActive })),
     workers: workerRegistry.getWorkerHealth(),
-    pendingOAuthAuthorizations: oauthManager.countPendingAuthorizations(),
+    pendingOAuthAuthorizations: await oauthManager.countPendingAuthorizations(),
     recentLatency,
   };
 }
