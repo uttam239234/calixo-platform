@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/shared/server/prismaClient";
-import type { Prisma } from "@prisma/client";
+import type { PendingOAuthAuthorization } from "@prisma/client";
 import type { ConnectorProviderId } from "./types";
 import type { ProviderEndpointExtras } from "./OAuthManager";
 
@@ -27,17 +27,20 @@ export interface PendingOAuthAuthorizationRecord {
   extra?: ProviderEndpointExtras;
 }
 
+/**
+ * Local stand-in for Prisma's `InputJsonObject` — `ProviderEndpointExtras`
+ * (plain named optional-string properties, no index signature) isn't
+ * structurally assignable to Prisma's own JSON input type without one, so a
+ * cast is unavoidable here; this keeps it a real, narrow JSON-object shape
+ * (matching what `ProviderEndpointExtras` actually is) rather than reaching
+ * for `any` or a wider recursive JSON type this field never needs.
+ */
+type JsonObjectValue = { [key: string]: string | number | boolean | null | undefined };
+
 /** Same 10-minute window the previous in-memory implementation used. */
 const STATE_TTL_MS = 10 * 60 * 1000;
 
-function rowToRecord(row: {
-  provider: string;
-  organizationId: string;
-  connectorInstanceId: string | null;
-  redirectUri: string;
-  codeVerifier: string | null;
-  extra: Prisma.JsonValue;
-}): PendingOAuthAuthorizationRecord {
+function rowToRecord(row: PendingOAuthAuthorization): PendingOAuthAuthorizationRecord {
   return {
     provider: row.provider as ConnectorProviderId,
     organizationId: row.organizationId,
@@ -58,7 +61,7 @@ export async function savePendingAuthorization(state: string, record: PendingOAu
       connectorInstanceId: record.connectorInstanceId,
       redirectUri: record.redirectUri,
       codeVerifier: record.codeVerifier,
-      extra: record.extra ? (record.extra as unknown as Prisma.InputJsonValue) : undefined,
+      extra: record.extra as JsonObjectValue | undefined,
     },
   });
 }
