@@ -18,7 +18,38 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 let writeLock: Promise<void> = Promise.resolve();
 
+// Basic per-IP rate limiting: 5 requests per minute, sliding window.
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 5;
+const ipHits = new Map<string, number[]>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const hits = (ipHits.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  if (hits.length >= RATE_LIMIT_MAX) {
+    ipHits.set(ip, hits);
+    return false;
+  }
+  hits.push(now);
+  ipHits.set(ip, hits);
+  return true;
+}
+
+function getClientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return request.headers.get("x-real-ip") ?? "unknown";
+}
+
 export async function POST(request: Request) {
+  const ip = getClientIp(request);
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json(
+      { ok: false, error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const email = typeof body?.email === "string" ? body.email.trim() : "";
 
@@ -34,7 +65,7 @@ export async function POST(request: Request) {
     } catch {
       subscribers = [];
     }
-    if (!subscribers.some(s => s.email.toLowerCase() === email.toLowerCase())) {
+    if (!subscribers.some((s) => s.email.toLowerCase() === email.toLowerCase())) {
       subscribers.push({ email, subscribedAt: new Date().toISOString() });
     }
     const tmp = `${FILE}.${process.pid}.tmp`;

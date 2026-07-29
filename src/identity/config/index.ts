@@ -6,10 +6,23 @@
 
 import { ENV } from '@/config';
 
+function requireSecret(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    if (ENV.IS_PROD) {
+      throw new Error(
+        `Missing required secret "${name}". Set it in the environment before starting the server.`
+      );
+    }
+    return `dev-${name.toLowerCase()}-not-for-production-use`;
+  }
+  return value;
+}
+
 export const AUTH_CONFIG = {
   // Access Token
   ACCESS_TOKEN: {
-    SECRET: process.env.ACCESS_TOKEN_SECRET || 'calixo-dev-access-secret-change-in-production',
+    SECRET: requireSecret('ACCESS_TOKEN_SECRET'),
     EXPIRY: 15 * 60, // 15 minutes in seconds
     EXPIRY_REMEMBER_ME: 7 * 24 * 60 * 60, // 7 days in seconds
     ALGORITHM: 'HS256' as const,
@@ -19,7 +32,7 @@ export const AUTH_CONFIG = {
 
   // Refresh Token
   REFRESH_TOKEN: {
-    SECRET: process.env.REFRESH_TOKEN_SECRET || 'calixo-dev-refresh-secret-change-in-production',
+    SECRET: requireSecret('REFRESH_TOKEN_SECRET'),
     EXPIRY: 7 * 24 * 60 * 60, // 7 days in seconds
     EXPIRY_REMEMBER_ME: 30 * 24 * 60 * 60, // 30 days in seconds
     ROTATE: true,
