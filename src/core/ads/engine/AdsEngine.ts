@@ -124,6 +124,20 @@ export class AdsEngine {
 
   create(campaign: Campaign): Campaign {
     this.campaigns = [...this.campaigns, campaign];
+    // Persist to database (fire-and-forget)
+    import("@/shared/server/supabaseClient")
+      .then(({ getServerSupabase }) => getServerSupabase().from("campaigns").upsert({
+        id: campaign.id,
+        organization_id: ADS_ORGANIZATION_ID,
+        name: campaign.name,
+        platform: campaign.platformId.toUpperCase(),
+        status: campaign.status.toUpperCase(),
+        daily_budget: campaign.budget,
+        currency: "USD",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }))
+      .catch(() => {});
     return campaign;
   }
 

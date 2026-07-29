@@ -97,11 +97,38 @@ export class SocialEngine {
 
   createPost(post: SocialPost): SocialPost {
     this.posts = [post, ...this.posts];
+    import("@/shared/server/supabaseClient")
+      .then(({ getServerSupabase }) => getServerSupabase().from("social_posts").upsert({
+        id: post.id,
+        workspace_id: post.organizationId ?? SOCIAL_ORGANIZATION_ID,
+        account_id: post.accountId,
+        content: post.content,
+        platforms: [post.platform],
+        status: post.status.toUpperCase(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }))
+      .catch(() => {});
     return post;
   }
 
   createPosts(posts: SocialPost[]): SocialPost[] {
     this.posts = [...posts, ...this.posts];
+    import("@/shared/server/supabaseClient")
+      .then(({ getServerSupabase }) => {
+        const supabase = getServerSupabase();
+        return Promise.all(posts.map(post => supabase.from("social_posts").upsert({
+          id: post.id,
+          workspace_id: post.organizationId ?? SOCIAL_ORGANIZATION_ID,
+          account_id: post.accountId,
+          content: post.content,
+          platforms: [post.platform],
+          status: post.status.toUpperCase(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })));
+      })
+      .catch(() => {});
     return posts;
   }
 

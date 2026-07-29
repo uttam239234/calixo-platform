@@ -2,6 +2,7 @@ import { platformEventBus } from "../events/PlatformEventBus";
 import { subscriptionEngine } from "../subscription/SubscriptionEngine";
 import type { SubscriptionTier } from "../subscription/types";
 import { organizationRegistry } from "./OrganizationRegistry";
+import { dbCreateOrganization, dbUpdateOrganization, dbAddOrgMember, dbRemoveOrgMember } from "../data/DatabasePersistence";
 import type {
   CreateOrganizationInput,
   Organization,
@@ -83,6 +84,7 @@ export class OrganizationEngine {
     this.addMember(id, input.ownerId, "owner");
     this.recordLifecycle(id, "created", input.ownerId);
     this.recordAudit(id, input.ownerId, "organization.created", id);
+    void dbCreateOrganization(organization);
     void platformEventBus.publish({ type: "OrganizationCreated", organizationId: id, userId: input.ownerId, payload: { name: organization.name, tier } });
     return organization;
   }
@@ -97,6 +99,7 @@ export class OrganizationEngine {
     if (input.preferences) organization.preferences = { ...organization.preferences, ...input.preferences };
     organization.updatedAt = now();
     this.recordAudit(id, actorId, "organization.updated", id);
+    void dbUpdateOrganization(organization);
     void platformEventBus.publish({ type: "OrganizationUpdated", organizationId: id, userId: actorId, payload: { name: organization.name } });
     return organization;
   }
@@ -154,6 +157,7 @@ export class OrganizationEngine {
     this.members.set(organizationId, list);
     const organization = organizationRegistry.lookup(organizationId);
     if (organization) organization.memberCount = list.filter(m => m.isActive).length;
+    void dbAddOrgMember(organizationId, userId, role);
     return member;
   }
 
@@ -164,6 +168,7 @@ export class OrganizationEngine {
     member.isActive = false;
     const organization = organizationRegistry.lookup(organizationId);
     if (organization) organization.memberCount = (list ?? []).filter(m => m.isActive).length;
+    void dbRemoveOrgMember(organizationId, userId);
     this.recordAudit(organizationId, actorId, "organization.member-removed", userId);
     return true;
   }

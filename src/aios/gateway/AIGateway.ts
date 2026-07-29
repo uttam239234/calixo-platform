@@ -76,6 +76,24 @@ export class AIGateway {
     const response = await provider.complete({ ...request, model });
     const latency = Date.now() - startTime;
 
+    // Track AI usage in the database (fire-and-forget)
+    if (request.organizationId) {
+      const tokens = response.usage?.totalTokens ?? 0;
+      const trackedModelDef = modelRegistry.getModelByType(model);
+      const cost = response.usage?.totalTokens
+        ? (response.usage.totalTokens / 1_000_000) * ((trackedModelDef?.costPer1KPrompt ?? 0) * 1000)
+        : 0;
+      import("@/core/platform/data/DatabasePersistence")
+        .then(({ dbRecordAiUsage }) => dbRecordAiUsage({
+          organizationId: request.organizationId!,
+          model: String(model),
+          tokens,
+          cost,
+          latencyMs: latency,
+        }))
+        .catch(() => {});
+    }
+
     return {
       ...response,
       latency,

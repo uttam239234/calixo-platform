@@ -19,6 +19,18 @@ export const WorkflowEngine = {
       updatedAt: now,
     };
     workflows.push(entry);
+    // Persist to database (fire-and-forget)
+    import("@/core/platform/data/DatabasePersistence")
+      .then(({ dbCreateWorkflow }) => dbCreateWorkflow({
+        id: entry.id,
+        organizationId: input.brand ?? "default",
+        name: entry.title,
+        description: entry.description,
+        status: "ACTIVE",
+        triggerType: "EVENT",
+        config: { assetId: input.assetId, assetName: input.assetName, priority: input.priority, reviewer: input.reviewer, approver: input.approver, dueDate: input.dueDate, brand: input.brand, campaign: input.campaign },
+      }))
+      .catch(() => {});
     return { ...entry };
   },
   getAll(): WorkflowEntry[] { return [...workflows]; },

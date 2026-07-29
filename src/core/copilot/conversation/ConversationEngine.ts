@@ -28,6 +28,20 @@ export class ConversationEngine {
     };
     this.conversations.set(conversation.id, conversation);
     appLogger.info("ConversationEngine", `Conversation created: ${conversation.id}`);
+    // Persist to database (fire-and-forget)
+    import("@/shared/server/supabaseClient")
+      .then(({ getServerSupabase }) => getServerSupabase().from("ai_conversations").upsert({
+        id: conversation.id,
+        workspace_id: params.workspaceId,
+        user_id: params.userId,
+        title: conversation.metadata.title,
+        model: "GPT_4O_MINI",
+        message_count: 0,
+        token_count: 0,
+        created_at: now,
+        updated_at: now,
+      }))
+      .catch(() => {});
     return this.clone(conversation);
   }
 
@@ -65,6 +79,21 @@ export class ConversationEngine {
     };
     conversation.messages.push(entry);
     conversation.updatedAt = entry.createdAt;
+    // Persist message to database (fire-and-forget)
+    import("@/shared/server/supabaseClient")
+      .then(({ getServerSupabase }) => getServerSupabase().from("ai_messages").insert({
+        conversation_id: conversationId,
+        user_id: conversation.userId,
+        role: message.role,
+        content: message.content,
+        model: "GPT_4O_MINI",
+        metadata: message.metadata ?? null,
+        created_at: entry.createdAt,
+      }).then(() => getServerSupabase().from("ai_conversations").update({
+        message_count: conversation.messages.length,
+        updated_at: entry.createdAt,
+      }).eq("id", conversationId)))
+      .catch(() => {});
     return { ...entry };
   }
 

@@ -31,6 +31,12 @@ export class UserRegistry {
     }
     this.users.set(user.id, user);
     appLogger.info("Users.UserRegistry", `User registered: ${user.username} (${user.workspaceId})`);
+    // Fire-and-forget database write-through — the in-memory registry remains
+    // the synchronous source of truth for all existing callers; the database
+    // is the durable backup that survives restarts.
+    import("@/core/platform/data/DatabasePersistence")
+      .then(({ dbCreateUser }) => dbCreateUser(user))
+      .catch((err) => appLogger.error("Users.UserRegistry", `DB write-through failed for ${user.id}: ${err}`));
   }
 
   registerMany(users: User[]): void {

@@ -15,6 +15,10 @@ export class ActivityEngine {
   record(userId: string, organizationId: string, type: ActivityType, description: string, metadata?: Record<string, unknown>, createdAt?: string): ActivityEvent {
     const event: ActivityEvent = { id: generateId(12), userId, organizationId, type, description, metadata, createdAt: createdAt ?? new Date().toISOString() };
     this.events.push(event);
+    // Fire-and-forget database write-through
+    import("@/core/platform/data/DatabasePersistence")
+      .then(({ dbRecordActivity }) => dbRecordActivity({ userId, organizationId, action: type, resource: "activity", description, metadata }))
+      .catch(() => {});
     return event;
   }
 

@@ -71,6 +71,20 @@ export class NotificationService {
   async send(data: CreateNotificationRequest): Promise<Notification> {
     const notification = await this.notifRepo.create(data);
 
+    // Persist to database (fire-and-forget — the in-memory repo remains
+    // the synchronous source of truth for existing callers)
+    import("@/core/platform/data/DatabasePersistence")
+      .then(({ dbCreateNotification }) => dbCreateNotification({
+        userId: notification.userId,
+        organizationId: notification.organizationId,
+        title: notification.title,
+        description: notification.body,
+        type: notification.category.toUpperCase(),
+        severity: notification.priority === "urgent" ? "CRITICAL" : notification.priority === "high" ? "WARNING" : "INFO",
+        isRead: false,
+      }))
+      .catch(() => {});
+
     // Publish event
     await eventBus.publish({
       type: 'notification.created',
